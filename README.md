@@ -1,36 +1,213 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🐙 **무너랑** (Moonorang)
 
-## Getting Started
+> 요금제 가입을 위한 AI 채팅 서비스
 
-First, run the development server:
+**로컬 LLM 기반 상담을 통해 사용자에게 맞는 이동통신 요금제를 추천하고, 가입 신청까지 연결하는 웹 서비스입니다.**
+
+<br>
+
+## 🌟 프로젝트 개요
+
+### 📱 플랫폼
+
+모바일 우선 반응형 웹 어플리케이션
+
+### 목적
+
+요금제는 데이터 제공량, 통화량, 약정 조건 등 고려해야 할 요소가 많아 일반 사용자가 자신에게 적합한 상품을 판단하기 어렵습니다.
+
+무너랑은 통신사의 요금제 가입 상담 서비스를 가정하여, 사용자가 채팅을 통해 가입 조건을 입력하고 LLM의 상담 응답을 확인한 뒤 추천 요금제를 선택해 가입까지 진행할 수 있는 서비스를 구현합니다.
+
+<br>
+
+## 🚀 주요 기능
+
+### 1. 상담
+
+| 기능 | 설명 |
+|---|---|
+| 로컬 LLM 실시간 채팅 | Ollama 기반 로컬 LLM을 서버 경유 프록시로 연동하고, 응답을 토큰 단위로 스트리밍하여 실시간 표시 |
+| 대화형 조건 수집 | 선택형 질문 카드와 자유 입력으로 데이터 사용량, 통화량, 예산, 부가서비스 선호를 수집하고 구조화 저장 |
+| 응답 상태 관리 | 대기, 생성 중, 완료, 실패 상태를 관리하고 실패 사유를 구분하여 안내 및 재시도 처리 |
+| 요금제 가입 상담 | 로컬 LLM 실시간 채팅 기반으로 사용자에게 맞는 요금제를 추천하고, 최종 가입까지 연결 |
+| 요금제 절약 상담 | 현재 이용 요금제와 사용량을 분석해 절감 여지를 판단하고, 예상 절감액을 월, 연 단위로 산출 |
+
+### 2. 요금제
+
+| 기능 | 설명 |
+|---|---|
+| 요금제 조회 | 월 요금, 데이터 제공량, 통화량, 부가 혜택을 포함한 요금제 11종의 목록 및 상세 정보 제공 |
+| 조건 기반 추천 | 수집된 조건에 대한 점수 산정으로 요금제를 선별하여 최대 3개를 카드로 표시, 순위와 선정 이유 제공 |
+| 가입 신청 | 선택한 요금제에 대해 신청 정보를 입력받고 신청 완료까지 연결되는 단계형 흐름 |
+
+### 3. 개인화 추천
+
+| 기능 | 설명 |
+|---|---|
+| 활동 기록 기반 추천 | 요금제, 부가서비스, 구독의 가입 및 변경 이력을 이벤트로 기록하여 추천 산출과 상담 문맥에 반영 |
+| 요금 이력 기반 조언 | 최근 3개월의 월별 요금과 사용량 추이를 분석하여 변동 요인을 파악하고 상담으로 연결 |
+| 구독 상품 추천 | 사용자 활동과 성향 검사 결과를 기준으로 어울리는 구독형 상품을 추천 |
+| 부가서비스 추천 | 동일 연령대에서 이용 비율이 높은 부가서비스를 분석하여 추천 |
+
+### 4. 이해 지원
+
+| 기능 | 설명 |
+|---|---|
+| 쉬운 모드 | 글자 크기 확대, 고대비 색상 전환, 어려운 통신 용어에 대한 설명 제공 |
+| 음성 입력 및 안내 | 음성으로 질문을 입력하고(STT), 상담 응답을 음성으로 읽어주는 기능(TTS) 제공 |
+
+### 5. 회원 및 혜택
+
+| 기능 | 설명 |
+|---|---|
+| 회원 인증 및 마이페이지 | 카카오 간편 로그인으로 회원을 등록하고, 현재 요금제와 이용 중인 서비스 목록을 조회 |
+| 요금제 성향 검사 | 객관식 문항 응답을 점수화하여 성향 유형을 판정하고, 추천 요금제와 이용 조건을 제시 |
+| 미션과 출석 체크 | 일일 출석 체크와 상시 미션을 제공하고 보상으로 포인트를 지급 |
+| 포인트 | 미션 및 요금 납부 시 포인트를 적립하고, 멤버십 혜택 사용에 활용 |
+| 멤버십 가맹점 지도 | 현재 위치 기준으로 인근 멤버십 제휴 가맹점을 지도에 표시하고 혜택 정보 제공 |
+
+<br>
+
+## 🛠️ 기술 스택
+
+| 구분 | 기술 |
+|---|---|
+| Frontend | Next.js 16 (App Router), Tailwind CSS v4, Zustand |
+| Backend / Database | Supabase (PostgreSQL) |
+| Authentication | Supabase Auth + OAuth 2.0 (Kakao) |
+| AI / LLM | Ollama (llama3.2), STT / TTS |
+| External API | KakaoMap API |
+| 협업 도구 | Notion, Jira, Figma, GitHub, Slack, ERDCloud |
+| 코드 품질 | ESLint, Prettier |
+
+<br>
+
+## 🧩 시스템 아키텍처
+
+클라이언트는 LLM 런타임에 직접 접근하지 않고 애플리케이션 서버를 경유합니다.
+
+- 브라우저에서 LLM 런타임으로의 직접 요청 시 발생하는 교차 출처 제약(CORS) 해소
+- LLM 런타임 엔드포인트의 외부 노출 방지
+- 시스템 프롬프트 및 모델 설정의 클라이언트 노출 차단
+- 요청 빈도 제한 및 타임아웃 정책의 서버 측 일괄 적용
+
+<br>
+
+## 👥 팀원 소개
+<table>
+  <thead>
+    <tr>
+      <th width="33%" align="center">이규태</th>
+      <th width="33%" align="center">이주현</th>
+      <th width="33%" align="center">장준환</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center"><img src="https://github.com/Ourumo.png" width="100%"/></td>
+      <td align="center"><img src="https://github.com/hana03030.png" width="100%"/></td>
+      <td align="center"><img src="https://github.com/junhwan0697.png" width="100%"/></td>
+    </tr>
+    <tr>
+      <td align="center"><a href="https://github.com/Ourumo">@Ourumo</a></td>
+      <td align="center"><a href="https://github.com/hana03030">@hana03030</a></td>
+      <td align="center"><a href="https://github.com/llmeajinll">@junhwan0697</a></td>
+    </tr>
+
+  </tbody>
+</table>
+
+<br>
+
+## 💻 포팅 매뉴얼
+
+### 요구 사항
+
+- Node.js 20 이상
+- [Ollama](https://ollama.com)
+- Supabase 프로젝트
+
+### 설치
+
+```bash
+# 저장소 클론
+git clone https://github.com/Moonorang/moonorang.git
+cd moonorang
+
+# 의존성 설치
+npm install
+```
+
+### 로컬 LLM 준비
+
+```bash
+# 모델 다운로드
+ollama pull llama3.2
+
+# Ollama 실행
+ollama serve
+```
+
+### 환경 변수
+
+`.env.local` 파일을 생성하고 아래 값을 설정합니다.
+
+```env
+# Ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Kakao
+NEXT_PUBLIC_KAKAO_MAP_KEY=
+```
+
+### 실행
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`http://localhost:3000` 에서 확인할 수 있습니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+<br>
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📁 프로젝트 구조
 
-## Learn More
+```
+moonorang/
+├── src/
+│   ├── app/
+│   │   ├── api/           # API Route (LLM 프록시, 요금제, 가입 신청)
+│   │   ├── chat/          # 채팅 상담
+│   │   ├── plans/         # 요금제 목록 및 상세
+│   │   ├── join/          # 가입 신청
+│   │   ├── recommend/     # 개인화 추천
+│   │   └── my/            # 마이페이지
+│   ├── components/        # 공용 컴포넌트
+│   ├── features/          # 도메인별 로직
+│   ├── lib/               # Supabase 클라이언트, Ollama 연동
+│   ├── stores/            # Zustand 스토어
+│   ├── data/              # 요금제, 용어 사전, 더미 데이터
+│   └── types/             # 타입 정의
+└── public/
+```
 
-To learn more about Next.js, take a look at the following resources:
+<br>
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🗓️ 개발 일정
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| **일자** | **진행 단계** | **작업 내용** |
+| --- | --- | --- |
+| **8.14 ~ 8.16** | 킥오프 및 기획 | 주제 분석 및 서비스 컨셉 정리, 협업 도구(Notion / Jira / GitHub / Slack) 세팅, 레퍼런스 서비스 조사, 로컬 LLM 모델 후보 비교 및 기술 스택 검토 |
+| **8.17 ~ 8.21** | 요구사항 정의 및 화면 설계 | 기능 요구사항 작성, 비기능 요구사항 작성, 화면 정의서 작성, 피그마 전체 화면 디자인, 시스템 프롬프트 초안 작성, ERDCloud DB 스키마 설계, 요금제 데이터 수집 및 확정, 기획안 제출 |
+| **8.22 ~ 8.23** | 인프라 및 초기 세팅 | Ollama(Llama 3.2) 설치 및 응답 테스트, 프론트–Ollama 프록시 API 연결, 폴더 구조 세팅, Supabase / 카카오 Auth 초기화, Tailwind v4 테마 및 '쉬운 모드' CSS 설정, 공통 레이아웃 및 기초 UI, DB 스키마 반영 및 Zustand 스토어 구조 세팅 |
+| **8.24 ~ 8.26** | 핵심 기능 구현 | 채팅창 레이아웃 조립, 토큰 스트리밍 타이핑 훅 개발, 대화 이력 누적 및 상태 관리, 튜토리얼, 전역 모달, 요금제 카드, 질문 카드 UI 제작, 마이페이지 레이아웃 및 요금, 데이터 차트, 소셜 로그인 연동 및 세션 가드, 온보딩 폼 API, 요금제 목록 조회 및 필터링 API 연동 |
+| **8.27 ~ 8.29** | 부가 기능 구현 | 선택형 질문 카드 입력값 파싱 및 채팅 반영, 타임아웃 예외 처리, 대화 초기화 및 PDF 출력, 성향 테스트 폼 및 미션 리스트 마크업, 카카오맵 지도 렌더링, 가입 플로우 데이터 바인딩 및 트랜잭션, 추천 알고리즘 API, 미션 검증 및 포인트 처리 |
+| **8.30 ~ 8.31** | 통합 연동 | 프롬프트에 사용자 데이터 주입, UI 컴포넌트에 실제 API 데이터 바인딩, 라우팅 및 데이터 흐름 최종 연결, AI 응답 오류 픽스 및 추천 로직 보완, 모바일(375px) 레이아웃 전체 점검, 로그인 - 가입 - 포인트 데이터 플로우 점검 |
+| **9.1 ~ 9.2** | QA 및 최적화 | 첫 토큰 출력 속도 개선 및 예외 시나리오 점검, '쉬운 모드' 오류 및 에러 처리 점검, API 응답 속도 최적화 및 포인트 무결성 확인, AI 대화 흐름 최종 검증 및 엣지 케이스 방어, 렌더링 최적화 및 UI 폴리싱, 더미 계정 세팅 및 운영 환경 검증 |
+| **9.3 ~ 9.4** | 발표 준비 및 발표 | 시연 시나리오 정리 및 리허설, 발표 자료 작성, 요구사항 추적표 검증, README 및 문서 정리, 최종 발표 및 시연 |
