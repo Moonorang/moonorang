@@ -1,0 +1,18 @@
+# 빌드 산출물
+.next
+out
+build
+next-env.d.ts
+
+# 의존성
+node_modules
+
+# 잠금 파일 (도구가 생성/관리하므로 포맷하지 않는다)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# 기타
+*.log
+.env*
+*.md
