@@ -14,12 +14,12 @@ import {
 
 export default function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-gray-50 p-6">
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-gray-50 p-6">
       {/* ==============================================================
           Lucide 아이콘 사용 가이드 (팀원 공유용)
           ============================================================== */}
-      <div className="w-full max-w-md bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-        <h2 className="text-lg font-bold mb-4 text-center border-b pb-3 text-gray-800">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 border-b pb-3 text-center text-lg font-bold text-gray-800">
           🎨 아이콘 사용법 가이드
         </h2>
 
@@ -46,7 +46,7 @@ export default function NotFound() {
           <div className="flex items-center gap-4">
             <Plus
               size={32}
-              className="text-pink-500 bg-pink-100 rounded-full p-1"
+              className="rounded-full bg-pink-100 p-1 text-pink-500"
             />
             <div className="text-sm text-gray-600">
               <p className="font-bold text-gray-800">
@@ -61,7 +61,7 @@ export default function NotFound() {
             <Mic
               size={32}
               strokeWidth={1.5}
-              className="text-gray-400 hover:text-blue-500 cursor-pointer transition-colors"
+              className="cursor-pointer text-gray-400 transition-colors hover:text-blue-500"
             />
             <div className="text-sm text-gray-600">
               <p className="font-bold text-gray-800">
@@ -72,7 +72,7 @@ export default function NotFound() {
           </div>
 
           {/* 예시 5. 실전 응용 (버튼 안에 넣기) */}
-          <button className="w-full mt-4 flex items-center justify-center gap-2 bg-gray-900 text-white py-3 rounded-xl hover:bg-gray-800 active:scale-95 transition-all">
+          <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-white transition-all hover:bg-gray-800 active:scale-95">
             <Search size={18} />
             <span className="font-bold">실전: 검색 버튼 만들기</span>
           </button>
