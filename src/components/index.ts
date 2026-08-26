@@ -1,4 +1,5 @@
 // common
+export { default as AppHeader } from './common/AppHeader';
 export { default as Header } from './common/Header';
 export { default as SideMenu } from './common/SideMenu';
 
