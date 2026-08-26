@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import { Volume2 } from 'lucide-react';
 
+import Button from '@/components/common/Button';
 import { cn } from '@/utils/cn';
 
 interface ReadAloudButtonProps {
@@ -55,17 +56,18 @@ export default function ReadAloudButton({
   if (!isSupported) return null;
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      radius="full"
       onClick={handleReadAloudClick}
       aria-label={isSpeaking ? '읽기 중지' : '메시지 읽기'}
       className={cn(
-        'flex cursor-pointer items-center justify-center gap-1 rounded-full bg-neutral-pure-white px-2 py-1.5 text-10 text-text-main transition-colors',
+        'flex items-center justify-center gap-1 bg-neutral-pure-white px-2 py-1.5 text-10 text-text-main',
         className,
       )}
     >
       <Volume2 size={12} aria-hidden className="text-secondary-blue" />
       <span>{isSpeaking ? '정지' : '읽기'}</span>
-    </button>
+    </Button>
   );
 }

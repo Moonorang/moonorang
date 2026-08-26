@@ -2,13 +2,7 @@
 
 import { useState } from 'react';
 
-import {
-  AppHeader,
-  ChatInput,
-  AiMessage,
-  SuggestionChips,
-  PlusMenu,
-} from '@/components';
+import { ChatInput, AiMessage, SuggestionChips, PlusMenu } from '@/components';
 
 export default function Home() {
   // TODO: 실제 전송/스트리밍 로직이 붙으면 useChat 같은 훅으로 옮김.
@@ -26,8 +20,6 @@ export default function Home() {
 
   return (
     <div className="flex h-dvh flex-col bg-neutral-off-white">
-      <AppHeader />
-
       {/* height-header, height-chat-input 만큼 여백을 준다 (메시지가 가려지지 않도록) */}
       <div className="flex flex-1 flex-col overflow-y-auto pt-(--height-header) pb-(--height-chat-input)">
         {/* 채팅 내역 영역 */}
