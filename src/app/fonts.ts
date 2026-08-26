@@ -4,9 +4,10 @@ import localFont from 'next/font/local';
 // 본문 기본 폰트
 export const notoSansKr = Noto_Sans_KR({
   variable: '--font-noto-sans-kr',
-  subsets: ['latin'],
+  subsets: ['latin'], // (Note: Next.js Noto Sans KR supports latin, korean is auto-loaded by browser)
   weight: ['400', '500', '600', '700'],
   display: 'swap',
+  preload: false,
 });
 
 // 로고, 포인트 폰트
