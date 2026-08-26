@@ -4,8 +4,6 @@ import Image from 'next/image';
 
 import { motion } from 'framer-motion';
 
-import { cn } from '@/utils/cn';
-
 interface ChatAvatarProps {
   className?: string;
 }
@@ -16,10 +14,7 @@ export default function ChatAvatar({ className }: ChatAvatarProps) {
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.2 }}
-      className={cn(
-        'flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-50',
-        className,
-      )}
+      className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary-light-yellow p-1"
     >
       <Image
         src="/images/chat/ai-avatar.png"
