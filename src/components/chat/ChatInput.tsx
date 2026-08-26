@@ -4,6 +4,7 @@ import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react';
 
 import { Mic, Plus, Send } from 'lucide-react';
 
+import Button from '@/components/common/Button';
 import { cn } from '@/utils/cn';
 
 interface ChatInputProps {
@@ -59,19 +60,19 @@ export default function ChatInput({
         className,
       )}
     >
-      <button
-        type="button"
+      <Button
+        variant="ghost"
         onClick={onPlusClick}
         aria-label="추가 기능 열기"
         className={cn(
-          "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors",
-          isPlusOpen 
-            ? "bg-secondary-light-yellow text-primary-yellow" 
-            : "text-text-secondary hover:bg-secondary-light-yellow hover:text-primary-yellow"
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-0',
+          isPlusOpen
+            ? 'bg-secondary-light-yellow text-primary-yellow'
+            : 'text-text-secondary hover:bg-secondary-light-yellow hover:text-primary-yellow',
         )}
       >
         <Plus size={24} strokeWidth={2.5} aria-hidden />
-      </button>
+      </Button>
 
       <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-neutral-off-white px-4 py-2.5 focus-within:ring-1 focus-within:ring-border-gray">
         <input
@@ -86,29 +87,29 @@ export default function ChatInput({
           className="min-w-0 flex-1 truncate bg-transparent text-12 text-text-main placeholder:text-text-secondary focus:outline-none disabled:cursor-not-allowed"
         />
 
-        <button
-          type="button"
+        <Button
+          variant="ghost"
           onClick={onMicClick}
           disabled={disabled}
           aria-label="음성으로 입력"
-          className="flex shrink-0 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-primary-red disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-auto w-auto shrink-0 items-center justify-center p-0 text-text-secondary hover:text-primary-red"
         >
           <Mic size={20} aria-hidden />
-        </button>
+        </Button>
       </div>
 
-      <button
+      <Button
         type="submit"
+        variant="secondary"
         disabled={!canSend}
         aria-label="메시지 보내기"
         className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm text-neutral-pure-white transition-colors',
-          canSend ? 'cursor-pointer bg-primary-yellow' : 'bg-text-gray',
-          'disabled:cursor-not-allowed',
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm p-0 text-neutral-pure-white',
+          !canSend && 'bg-text-gray',
         )}
       >
         <Send size={18} aria-hidden />
-      </button>
+      </Button>
     </form>
   );
 }
