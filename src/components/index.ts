@@ -11,4 +11,4 @@ export { default as ReadAloudButton } from './chat/ReadAloudButton';
 export { default as UserMessage } from './chat/UserMessage';
 
 // cards
-// (아직 없음)
+export { default as PlanCard } from './cards/PlanCard';
