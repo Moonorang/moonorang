@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { displayFont, notoSansKr } from './fonts';
 import './globals.css';
+import { AppHeader } from '@/components';
 
 export const metadata: Metadata = {
   title: '무너랑',
@@ -14,7 +15,10 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       lang="ko"
       className={`${notoSansKr.variable} ${displayFont.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <AppHeader />
+        {children}
+      </body>
     </html>
   );
 }

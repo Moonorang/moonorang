@@ -1,4 +1,7 @@
 // common
+export { default as AppHeader } from './common/AppHeader';
+export { default as Header } from './common/Header';
+export { default as SideMenu } from './common/SideMenu';
 export { default as Button } from './common/Button';
 export { default as CarouselIndicator } from './common/CarouselIndicator';
 export { default as Tag } from './common/Tag';
