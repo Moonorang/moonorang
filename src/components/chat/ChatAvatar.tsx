@@ -17,7 +17,7 @@ export default function ChatAvatar({ className }: ChatAvatarProps) {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        'flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-amber-50',
+        'flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary-light-yellow p-1',
         className,
       )}
     >
