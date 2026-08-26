@@ -10,6 +10,7 @@ interface ChatInputProps {
   value: string;
   onChange: (value: string) => void;
   onSend: () => void;
+  isPlusOpen?: boolean;
   // + 버튼 클릭
   onPlusClick?: () => void;
   // 마이크 버튼 클릭
@@ -24,6 +25,7 @@ export default function ChatInput({
   value,
   onChange,
   onSend,
+  isPlusOpen = false,
   onPlusClick,
   onMicClick,
   disabled = false,
@@ -61,9 +63,14 @@ export default function ChatInput({
         type="button"
         onClick={onPlusClick}
         aria-label="추가 기능 열기"
-        className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-secondary transition-colors hover:bg-border-light-gray"
+        className={cn(
+          "flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors",
+          isPlusOpen 
+            ? "bg-secondary-light-yellow text-primary-yellow" 
+            : "text-text-secondary hover:bg-secondary-light-yellow hover:text-primary-yellow"
+        )}
       >
-        <Plus size={20} aria-hidden />
+        <Plus size={24} strokeWidth={2.5} aria-hidden />
       </button>
 
       <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-neutral-off-white px-4 py-2.5 focus-within:ring-1 focus-within:ring-border-gray">

@@ -24,10 +24,10 @@ export default function ChatBubble({
   return (
     <div
       className={cn(
-        'flex max-w-[80%] flex-col gap-2 rounded-md px-4 py-3 text-12 leading-fixed text-text-main',
+        'flex max-w-[80%] flex-col gap-2 rounded-lg p-[10px] text-12 leading-fixed text-text-main',
         isAi
-          ? 'rounded-bl-none bg-secondary-light-yellow'
-          : 'rounded-br-none bg-border-light-gray',
+          ? 'rounded-tl-none bg-secondary-light-yellow'
+          : 'rounded-tr-none bg-border-light-gray',
         className,
       )}
     >
