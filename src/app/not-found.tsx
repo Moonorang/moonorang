@@ -1,7 +1,15 @@
 'use client';
 
 import { LogIn, Send, Plus, Mic, Search } from 'lucide-react';
-import { AiMessage, ChatAvatar, UserMessage } from '@/components';
+import {
+  AiMessage,
+  Button,
+  CarouselIndicator,
+  ChatAvatar,
+  PlanCard,
+  Tag,
+  UserMessage,
+} from '@/components';
 
 export default function NotFound() {
   return (
@@ -54,7 +62,28 @@ export default function NotFound() {
         <Search size={18} />
         <span className="font-bold">실전: 검색 버튼 만들기</span>
       </button>
-      <div>만든 컴포넌트 목록</div>
+      만든 컴포넌트 목록
+      <br />
+      요금제 카드
+      <div className="m-5 w-70">
+        <PlanCard
+          plan={{
+            id: 'nugget-59',
+            name: '너겟 59',
+            monthlyFee: 59000,
+            data: '데이터 무제한',
+            voice: '무제한 + 부가통화 300분',
+            speed: '속도 1Mbps',
+            sms: '문자 무제한',
+            sharing: '쉐어링 없음',
+          }}
+          rank={1}
+          annualSavings={432000}
+          onViewDetail={() => {}}
+          onJoin={() => {}}
+        />
+      </div>
+      <br />
       AI 어시스턴트 프로필
       <ChatAvatar></ChatAvatar>
       요금제 채팅 (components/chat에 AiMessage와 UserMessage를 적절하게 사용하면
@@ -69,6 +98,36 @@ export default function NotFound() {
           createdAt={'2026-08-26T14:00:00+09:00'}
         />
       </div>
+      버튼 목록
+      <br />
+      <Button variant="main" radius="md">
+        버튼
+      </Button>
+      <Button variant="secondary" radius="md">
+        버튼
+      </Button>
+      <Button variant="outline" radius="md">
+        버튼
+      </Button>
+      <Button variant="ghost" radius="md">
+        버튼
+      </Button>
+      <Button variant="answer" radius="full">
+        버튼
+      </Button>
+      <Button variant="filter" radius="full">
+        버튼
+      </Button>
+      <Button variant="gradient" radius="md" className="min-w-100">
+        버튼
+      </Button>
+      <br />
+      인디케이터
+      <CarouselIndicator total={3} activeIndex={2} />
+      태그
+      <br />
+      <Tag>추천1위 기본적으로 쓰이는 태그</Tag>
+      <br />
     </div>
   );
 }
