@@ -6,6 +6,7 @@ import {
   Button,
   CarouselIndicator,
   ChatAvatar,
+  Tag,
   UserMessage,
 } from '@/components';
 
@@ -102,6 +103,9 @@ export default function NotFound() {
       <br />
       인디케이터
       <CarouselIndicator total={3} activeIndex={2} />
+      태그
+      <br />
+      <Tag>추천1위 기본적으로 쓰이는 태그</Tag>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 // common
 export { default as Button } from './common/Button';
 export { default as CarouselIndicator } from './common/CarouselIndicator';
+export { default as Tag } from './common/Tag';
 
 // chat
 export { default as AiMessage } from './chat/AiMessage';
