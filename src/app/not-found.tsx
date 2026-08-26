@@ -1,17 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-// 팀원 가이드 1: lucide-react에서 사용할 아이콘을 이름으로 가져옵니다.
-import {
-  LogIn,
-  Send,
-  Plus,
-  Mic,
-  AlertCircle,
-  Home,
-  Search,
-} from 'lucide-react';
-import { ChatAvatar } from '@/components';
+import { LogIn, Send, Plus, Mic, Search } from 'lucide-react';
+import { AiMessage, ChatAvatar, UserMessage } from '@/components';
 
 export default function NotFound() {
   return (
@@ -24,7 +14,6 @@ export default function NotFound() {
           <p>아무 속성을 안 주면 기본 24px 크기로 들어갑니다.</p>
         </div>
       </div>
-
       {/* 예시 2. 크기 조절 (size 속성) */}
       <div className="flex items-center gap-4">
         <Send size={40} />
@@ -33,7 +22,6 @@ export default function NotFound() {
           <p>width, height 대신 size 속성을 숫자로 줍니다.</p>
         </div>
       </div>
-
       {/* 예시 3. 색상 변경 (Tailwind className 활용) */}
       <div className="flex items-center gap-4">
         <Plus
@@ -47,7 +35,6 @@ export default function NotFound() {
           <p>Tailwind의 text 색상 클래스로 쉽게 색을 바꿉니다.</p>
         </div>
       </div>
-
       {/* 예시 4. 선 굵기 조절 및 Hover 효과 */}
       <div className="flex items-center gap-4">
         <Mic
@@ -62,15 +49,26 @@ export default function NotFound() {
           <p>strokeWidth로 굵기를 얇게(1.5) 하고, hover 색상을 줬습니다.</p>
         </div>
       </div>
-
       {/* 예시 5. 실전 응용 (버튼 안에 넣기) */}
       <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 text-white transition-all hover:bg-gray-800 active:scale-95">
         <Search size={18} />
         <span className="font-bold">실전: 검색 버튼 만들기</span>
       </button>
-
       <div>만든 컴포넌트 목록</div>
+      AI 어시스턴트 프로필
       <ChatAvatar></ChatAvatar>
+      요금제 채팅 (components/chat에 AiMessage와 UserMessage를 적절하게 사용하면
+      됨)
+      <div className="w-100">
+        <AiMessage
+          content="요금제를 추천해드릴게요."
+          createdAt={'2026-08-26T14:00:00+09:00'}
+        />
+        <UserMessage
+          content="내 요금제 추천해줘."
+          createdAt={'2026-08-26T14:00:00+09:00'}
+        />
+      </div>
     </div>
   );
 }
