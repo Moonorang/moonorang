@@ -1,5 +1,6 @@
 // common
-// (아직 없음)
+export { default as Button } from './common/Button';
+export { default as CarouselIndicator } from './common/CarouselIndicator';
 
 // chat
 export { default as AiMessage } from './chat/AiMessage';
