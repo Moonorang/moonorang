@@ -1,0 +1,18 @@
+# 모든 텍스트 파일을 저장소에 LF 로 저장하고, 체크아웃 시에도 LF 를 유지한다.
+# .prettierrc.mjs 의 endOfLine: 'lf' 와 한 쌍으로 동작한다.
+# 이 설정이 없으면 윈도우(core.autocrlf=true) 환경에서 체크아웃 시 CRLF 로 바뀌어
+# 코드를 건드리지 않아도 파일 전체가 diff 로 잡힌다.
+* text=auto eol=lf
+
+# 바이너리는 변환 대상에서 제외한다.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
