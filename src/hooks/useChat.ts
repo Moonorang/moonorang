@@ -48,6 +48,16 @@ export function useChat() {
         );
       };
 
+      const setAiMessageRecommendations = (
+        recommendations: ChatMessage['recommendations'],
+      ) => {
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === aiMessageId ? { ...message, recommendations } : message,
+          ),
+        );
+      };
+
       try {
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -78,6 +88,8 @@ export function useChat() {
             const parsed = parseSSEEvent(rawEvent);
             if (parsed?.event === 'token') {
               appendToAiMessage(parsed.data.delta);
+            } else if (parsed?.event === 'recommendation') {
+              setAiMessageRecommendations(parsed.data.plans);
             } else if (parsed?.event === 'error') {
               setError(parsed.data.message);
             }

@@ -51,4 +51,6 @@ export interface ChatMessage {
   role: 'user' | 'ai';
   content: string;
   createdAt: string;
+  // recommendation 이벤트가 오면 채워짐 (AI 메시지에만 해당)
+  recommendations?: PlanRecommendation[];
 }

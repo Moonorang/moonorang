@@ -8,6 +8,7 @@ import {
   UserMessage,
   SuggestionChips,
   PlusMenu,
+  PlanCard,
 } from '@/components';
 
 import { useChat } from '@/hooks/useChat';
@@ -60,7 +61,20 @@ export default function Home() {
                 content={message.content}
                 createdAt={message.createdAt}
                 isStreaming={isStreaming && message.id === lastMessageId}
-              />
+              >
+                {message.recommendations && message.recommendations.length > 0 && (
+                  <div className="flex w-full flex-col gap-3">
+                    {message.recommendations.map((item) => (
+                      <PlanCard
+                        key={item.plan.id}
+                        plan={item.plan}
+                        rank={item.rank}
+                        annualSavings={item.annualSavings}
+                      />
+                    ))}
+                  </div>
+                )}
+              </AiMessage>
             ),
           )}
 
