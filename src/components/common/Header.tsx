@@ -17,6 +17,8 @@ interface HeaderProps {
   variant?: HeaderVariant;
   /** 미지정 시 브라우저 히스토리 뒤로가기 */
   onBackClick?: () => void;
+  /** 가입 흐름처럼 이탈을 막아야 하는 화면에서는 false */
+  hasMenu?: boolean;
   isLoggedIn?: boolean;
   /** 사이드 메뉴에서 '로그인' 선택 시 (로그인 모달 진입) */
   onLoginClick?: () => void;
@@ -28,6 +30,7 @@ interface HeaderProps {
 export default function Header({
   variant = 'logo',
   onBackClick,
+  hasMenu = true,
   isLoggedIn = false,
   onLoginClick,
   onLogoutClick,
@@ -60,7 +63,7 @@ export default function Header({
     <>
       <header
         className={cn(
-          'fixed top-0 left-1/2 z-(--z-header) flex h-(--height-header) w-full max-w-(--width-container) -translate-x-1/2 items-center justify-between gap-4 bg-neutral-off-white px-4 py-3',
+          'fixed top-0 left-1/2 z-(--z-header) flex h-(--height-header) w-full max-w-(--width-container) -translate-x-1/2 items-center justify-between gap-4 bg-neutral-pure-white px-4 py-3',
           className,
         )}
       >
@@ -86,23 +89,27 @@ export default function Header({
           </Link>
         )}
 
-        <button
-          type="button"
-          onClick={handleMenuClick}
-          aria-label="메뉴 열기"
-          className="flex h-6 w-6 items-center justify-center text-text-main transition-colors hover:cursor-pointer hover:text-primary-red"
-        >
-          <Menu size={24} strokeWidth={1.5} aria-hidden="true" />
-        </button>
+        {hasMenu && (
+          <button
+            type="button"
+            onClick={handleMenuClick}
+            aria-label="메뉴 열기"
+            className="flex h-6 w-6 items-center justify-center text-text-main transition-colors hover:cursor-pointer hover:text-primary-red"
+          >
+            <Menu size={24} strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        )}
       </header>
 
-      <SideMenu
-        isOpen={isMenuOpen}
-        onClose={handleMenuClose}
-        isLoggedIn={isLoggedIn}
-        onLoginClick={onLoginClick}
-        onLogoutClick={onLogoutClick}
-      />
+      {hasMenu && (
+        <SideMenu
+          isOpen={isMenuOpen}
+          onClose={handleMenuClose}
+          isLoggedIn={isLoggedIn}
+          onLoginClick={onLoginClick}
+          onLogoutClick={onLogoutClick}
+        />
+      )}
     </>
   );
 }

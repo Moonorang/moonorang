@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import { LogIn, Send, Plus, Mic, Search } from 'lucide-react';
 import {
   AiMessage,
@@ -12,6 +14,34 @@ import {
 } from '@/components';
 
 export default function NotFound() {
+  // OpenAI 연결 확인용 상태 (임시)
+  const [testInput, setTestInput] = useState('안녕! 너 누구야?');
+  const [testReply, setTestReply] = useState('');
+  const [isTestLoading, setIsTestLoading] = useState(false);
+  const [testError, setTestError] = useState('');
+
+  const handleTestSend = async () => {
+    setIsTestLoading(true);
+    setTestError('');
+    setTestReply('');
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: testInput }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error ?? '알 수 없는 오류');
+      setTestReply(data.reply);
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : '요청 실패');
+    } finally {
+      setIsTestLoading(false);
+    }
+  };
+
   return (
     <div>
       {/* 예시 1. 기본 형태 */}
@@ -68,14 +98,19 @@ export default function NotFound() {
       <div className="m-5 w-70">
         <PlanCard
           plan={{
-            id: 'nugget-59',
-            name: '너겟 59',
-            monthlyFee: 59000,
-            data: '데이터 무제한',
-            voice: '무제한 + 부가통화 300분',
-            speed: '속도 1Mbps',
-            sms: '문자 무제한',
-            sharing: '쉐어링 없음',
+            id: 11,
+            name: '너겟75',
+            description: '최대 혜택 상당액 73,600원/월',
+            monthlyFee: 75000,
+            dataAllowance: '무제한',
+            voiceSms: '기본제공 / 기본제공 / 300분 무료',
+            benefits: {
+              media_contents: '콘텐츠·음악 감상 등 최대 15,000원/월',
+              vip_membership:
+                'VIP콕 7,000원/월 (네이버플러스 선택 시 무료 영화 예매)',
+              max_benefit_value: '73,600원/월',
+              tethering_sharing: '100GB',
+            },
           }}
           rank={1}
           annualSavings={432000}
@@ -128,6 +163,34 @@ export default function NotFound() {
       <br />
       <Tag>추천1위 기본적으로 쓰이는 태그</Tag>
       <br />
+
+      <br />
+      OpenAI 연결 확인 (임시)
+      <div className="m-5 flex max-w-100 flex-col gap-2">
+        <input
+          value={testInput}
+          onChange={(e) => setTestInput(e.target.value)}
+          className="rounded-md border border-border-gray px-3 py-2 text-14"
+        />
+        <Button
+          variant="main"
+          onClick={handleTestSend}
+          disabled={isTestLoading}
+        >
+          {isTestLoading ? '요청 중...' : '전송'}
+        </Button>
+
+        {testReply && (
+          <p className="rounded-md bg-secondary-light-yellow p-3 text-14">
+            {testReply}
+          </p>
+        )}
+        {testError && (
+          <p className="rounded-md bg-secondary-light-red p-3 text-14 text-primary-red">
+            {testError}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

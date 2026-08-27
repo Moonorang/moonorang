@@ -33,6 +33,9 @@ export function useAuth() {
       provider: 'kakao',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          scope: 'profile_nickname',
+        },
       },
     });
 

@@ -19,6 +19,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`);
   }
 
-  // 추가 정보 입력 회원가입은 추후 구현
+  // 회원 정보가 없으면 추가 정보 입력을 거쳐야 users 레코드가 생성됨(AUTH-006, AUTH-009)
+  const { data: existingUser } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', data.user.id)
+    .maybeSingle();
+
+  if (!existingUser) {
+    const signupUrl = new URL('/auth/signup', origin);
+    signupUrl.searchParams.set('next', next);
+
+    return NextResponse.redirect(signupUrl);
+  }
+
   return NextResponse.redirect(`${origin}${next}`);
 }
