@@ -43,3 +43,12 @@ export type ChatStreamEvent =
 export interface ChatRequestBody {
   message: string;
 }
+
+// useChat 훅이 관리하는 메시지 하나.
+// AiMessage/UserMessage 에 그대로 매핑됨
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'ai';
+  content: string;
+  createdAt: string;
+}

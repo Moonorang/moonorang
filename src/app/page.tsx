@@ -2,21 +2,32 @@
 
 import { useState } from 'react';
 
-import { ChatInput, AiMessage, SuggestionChips, PlusMenu } from '@/components';
+import {
+  ChatInput,
+  AiMessage,
+  UserMessage,
+  SuggestionChips,
+  PlusMenu,
+} from '@/components';
+
+import { useChat } from '@/hooks/useChat';
 
 export default function Home() {
-  // TODO: 실제 전송/스트리밍 로직이 붙으면 useChat 같은 훅으로 옮김.
   const [value, setValue] = useState('');
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
+  const { messages, isStreaming, error, sendMessage } = useChat();
 
   const handleSend = () => {
-    // TODO: 메시지 전송
+    const text = value;
     setValue('');
+    sendMessage(text);
   };
 
   const handleSuggest = (text: string) => {
     setValue(text);
   };
+
+  const lastMessageId = messages[messages.length - 1]?.id;
 
   return (
     <div className="flex h-dvh flex-col bg-neutral-off-white">
@@ -35,6 +46,29 @@ export default function Home() {
 궁금한 점이 있으시면 언제든지 물어보세요!`}
             createdAt={new Date('2024-01-01T14:00:00')}
           />
+
+          {messages.map((message) =>
+            message.role === 'user' ? (
+              <UserMessage
+                key={message.id}
+                content={message.content}
+                createdAt={message.createdAt}
+              />
+            ) : (
+              <AiMessage
+                key={message.id}
+                content={message.content}
+                createdAt={message.createdAt}
+                isStreaming={isStreaming && message.id === lastMessageId}
+              />
+            ),
+          )}
+
+          {error && (
+            <p className="text-12 text-primary-red">
+              응답을 받지 못했어요: {error}
+            </p>
+          )}
         </div>
 
         {/* 메시지 리스트 하단에 칩 버튼 배치 (입력창 위로 떠 있는 듯한 위치) */}
@@ -53,6 +87,7 @@ export default function Home() {
         onSend={handleSend}
         onPlusClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
         isPlusOpen={isPlusMenuOpen}
+        disabled={isStreaming}
       />
     </div>
   );
