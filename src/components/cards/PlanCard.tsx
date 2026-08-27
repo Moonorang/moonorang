@@ -82,13 +82,13 @@ export default function PlanCard({
           }
           label={call}
         />
-        {/* 속도 - 값이 없을 때 숨김 */}
+        {/* 소진 시 속도 - 값이 없을 때 숨김 */}
         {throttleSpeed && (
           <PlanFeatureRow
             icon={
               <Gauge size={14} className="text-secondary-blue" aria-hidden />
             }
-            label={`속도 ${throttleSpeed}`}
+            label={`소진 시 ${throttleSpeed}`}
           />
         )}
         <PlanFeatureRow
