@@ -65,13 +65,13 @@ export default function ChatInput({
         onClick={onPlusClick}
         aria-label="추가 기능 열기"
         className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-0',
+          'flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm p-0',
           isPlusOpen
             ? 'bg-secondary-light-yellow text-primary-yellow'
-            : 'text-text-secondary hover:bg-secondary-light-yellow hover:text-primary-yellow',
+            : 'text-text-secondary',
         )}
       >
-        <Plus size={24} strokeWidth={2.5} aria-hidden />
+        <Plus size={20} aria-hidden />
       </Button>
 
       <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-neutral-off-white px-4 py-2.5 focus-within:ring-1 focus-within:ring-border-gray">
@@ -87,15 +87,15 @@ export default function ChatInput({
           className="min-w-0 flex-1 truncate bg-transparent text-12 text-text-main placeholder:text-text-secondary focus:outline-none disabled:cursor-not-allowed"
         />
 
-        <Button
-          variant="ghost"
+        <button
+          type="button"
           onClick={onMicClick}
           disabled={disabled}
           aria-label="음성으로 입력"
-          className="flex h-auto w-auto shrink-0 items-center justify-center p-0 text-text-secondary hover:text-primary-red"
+          className="flex shrink-0 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-primary-red disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Mic size={20} aria-hidden />
-        </Button>
+        </button>
       </div>
 
       <Button
@@ -104,7 +104,7 @@ export default function ChatInput({
         disabled={!canSend}
         aria-label="메시지 보내기"
         className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm p-0 text-neutral-pure-white',
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm p-0 text-neutral-pure-white transition-colors',
           !canSend && 'bg-text-gray',
         )}
       >
