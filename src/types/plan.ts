@@ -1,3 +1,10 @@
+// 요금제 선택 옵션 (Supabase plans 테이블에서 필요한 최소 필드)
+export interface PlanOption {
+  id: number;
+  name: string;
+}
+
+// 요금제 타입
 // plans.benefits 안에 실제로 있는 키들
 export interface PlanBenefits {
   media_contents?: string;
