@@ -56,7 +56,7 @@ export default function ChatInput({
       className={cn(
         'fixed inset-x-0 bottom-0 z-(--z-chat-input)',
         'mx-auto flex w-full items-center gap-2',
-        'bg-neutral-pure-white px-4 py-2',
+        'border-t border-border-gray bg-neutral-pure-white px-4 py-2',
         className,
       )}
     >
