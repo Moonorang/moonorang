@@ -9,6 +9,7 @@ import {
   SuggestionChips,
   PlusMenu,
   PlanCard,
+  ChatErrorNotice,
 } from '@/components';
 
 import { useChat } from '@/hooks/useChat';
@@ -16,7 +17,7 @@ import { useChat } from '@/hooks/useChat';
 export default function Home() {
   const [value, setValue] = useState('');
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
-  const { messages, isStreaming, error, sendMessage } = useChat();
+  const { messages, isStreaming, error, sendMessage, retry } = useChat();
 
   const handleSend = () => {
     const text = value;
@@ -78,11 +79,7 @@ export default function Home() {
             ),
           )}
 
-          {error && (
-            <p className="text-12 text-primary-red">
-              응답을 받지 못했어요: {error}
-            </p>
-          )}
+          {error && <ChatErrorNotice reason={error.reason} onRetry={retry} />}
         </div>
 
         {/* 메시지 리스트 하단에 칩 버튼 배치 (입력창 위로 떠 있는 듯한 위치) */}
