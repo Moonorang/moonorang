@@ -6,15 +6,29 @@ import { cn } from '@/utils/cn';
 interface PlusMenuProps {
   isOpen: boolean;
   onClose?: () => void;
+  onReset?: () => void;
+  onPlanTest?: () => void;
   className?: string;
 }
 
 export default function PlusMenu({
   isOpen,
   onClose,
+  onReset,
+  onPlanTest,
   className,
 }: PlusMenuProps) {
   if (!isOpen) return null;
+
+  const handleResetClick = () => {
+    onReset?.();
+    onClose?.();
+  };
+
+  const handlePlanTestClick = () => {
+    onPlanTest?.();
+    onClose?.();
+  };
 
   return (
     <>
@@ -33,7 +47,7 @@ export default function PlusMenu({
         <Button
           variant="ghost"
           className="flex w-full items-center gap-2 rounded-sm p-0"
-          onClick={onClose}
+          onClick={handleResetClick}
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-secondary-light-yellow text-primary-yellow">
             <Image
@@ -53,7 +67,7 @@ export default function PlusMenu({
         <Button
           variant="ghost"
           className="flex w-full items-center gap-2 rounded-sm p-0"
-          onClick={onClose}
+          onClick={handlePlanTestClick}
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-secondary-light-blue text-secondary-blue">
             <Image

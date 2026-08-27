@@ -160,5 +160,13 @@ export function useChat() {
     void runChatRequest(userText, aiMessageId);
   }, [isStreaming, runChatRequest]);
 
-  return { messages, isStreaming, error, sendMessage, retry };
+  /** CHAT-014: 전체 대화 내역을 비운다. */
+  const reset = useCallback(() => {
+    setMessages([]);
+    setError(null);
+    lastUserTextRef.current = null;
+    lastAiMessageIdRef.current = null;
+  }, []);
+
+  return { messages, isStreaming, error, sendMessage, retry, reset };
 }
