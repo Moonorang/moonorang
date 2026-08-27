@@ -10,7 +10,7 @@
 
   /* secondary 컬러 */
   --color-secondary-magenta: #ff2e99;
-  --color-secondary-light-yellow: #ffeaad;
+  --color-secondary-light-yellow: #fff3d0;
   --color-secondary-blue: #77b2ff;
   --color-secondary-light-blue: #ddecff;
   --color-secondary-light-green: #e3f6ba;
@@ -90,6 +90,6 @@
 body {
   background: var(--color-neutral-off-white);
   color: var(--color-text-main);
-  font-family: var(--font-noto-sans-kr), sans-serif;
+  font-family: var(--font-sans), sans-serif;
   letter-spacing: -0.04em;
 }
