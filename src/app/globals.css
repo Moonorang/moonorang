@@ -90,6 +90,6 @@
 body {
   background: var(--color-neutral-off-white);
   color: var(--color-text-main);
-  font-family: var(--font-noto-sans-kr), sans-serif;
+  font-family: var(--font-sans), sans-serif;
   letter-spacing: -0.04em;
 }
