@@ -58,7 +58,7 @@ export default function PlanCard({
   return (
     <div
       className={cn(
-        'flex w-full flex-col gap-2 rounded-md bg-neutral-pure-white p-4',
+        'flex w-[80%] flex-col gap-2 rounded-md bg-neutral-pure-white p-4',
         className,
       )}
     >
