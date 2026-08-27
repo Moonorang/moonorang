@@ -12,6 +12,7 @@ import Tag from '@/components/common/Tag';
 
 import { cn } from '@/utils/cn';
 import { formatWon } from '@/utils/formatCurrency';
+import { parseDataAllowance, parseVoiceSms } from '@/utils/planFormat';
 import type { Plan } from '@/types/plan';
 
 interface PlanCardProps {
@@ -48,6 +49,12 @@ export default function PlanCard({
   onJoin,
   className,
 }: PlanCardProps) {
+  const { amount: dataAmount, throttleSpeed } = parseDataAllowance(
+    plan.dataAllowance,
+  );
+  const { call, sms } = parseVoiceSms(plan.voiceSms);
+  const tetheringSharing = plan.benefits?.tethering_sharing;
+
   return (
     <div
       className={cn(
@@ -67,18 +74,23 @@ export default function PlanCard({
       <ul className="flex flex-col gap-1">
         <PlanFeatureRow
           icon={<Wifi size={14} className="text-primary-red" aria-hidden />}
-          label={plan.data}
+          label={dataAmount}
         />
         <PlanFeatureRow
           icon={
             <PhoneCall size={14} className="text-primary-green" aria-hidden />
           }
-          label={plan.voice}
+          label={call}
         />
-        <PlanFeatureRow
-          icon={<Gauge size={14} className="text-secondary-blue" aria-hidden />}
-          label={plan.speed}
-        />
+        {/* 속도 - 값이 없을 때 숨김 */}
+        {throttleSpeed && (
+          <PlanFeatureRow
+            icon={
+              <Gauge size={14} className="text-secondary-blue" aria-hidden />
+            }
+            label={`속도 ${throttleSpeed}`}
+          />
+        )}
         <PlanFeatureRow
           icon={
             <MessageCircle
@@ -87,17 +99,20 @@ export default function PlanCard({
               aria-hidden
             />
           }
-          label={plan.sms}
+          label={sms}
         />
-        <PlanFeatureRow
-          icon={
-            <Share2 size={14} className="text-primary-yellow" aria-hidden />
-          }
-          label={plan.sharing}
-        />
+        {/* 쉐어링 - 값을 없을 때 숨김 */}
+        {tetheringSharing && (
+          <PlanFeatureRow
+            icon={
+              <Share2 size={14} className="text-primary-yellow" aria-hidden />
+            }
+            label={`쉐어링 ${tetheringSharing}`}
+          />
+        )}
       </ul>
 
-      {annualSavings !== undefined && (
+      {annualSavings !== undefined && annualSavings > 0 && (
         <div className="flex items-center justify-start gap-1 rounded-sm bg-[#FFF6DD] px-2 py-1.5 text-[#DEA80F]">
           <Lightbulb size={14} className="shrink-0" aria-hidden />
           <p className="text-10 font-medium">

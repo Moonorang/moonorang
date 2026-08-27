@@ -98,14 +98,19 @@ export default function NotFound() {
       <div className="m-5 w-70">
         <PlanCard
           plan={{
-            id: 'nugget-59',
-            name: '너겟 59',
-            monthlyFee: 59000,
-            data: '데이터 무제한',
-            voice: '무제한 + 부가통화 300분',
-            speed: '속도 1Mbps',
-            sms: '문자 무제한',
-            sharing: '쉐어링 없음',
+            id: 11,
+            name: '너겟75',
+            description: '최대 혜택 상당액 73,600원/월',
+            monthlyFee: 75000,
+            dataAllowance: '무제한',
+            voiceSms: '기본제공 / 기본제공 / 300분 무료',
+            benefits: {
+              media_contents: '콘텐츠·음악 감상 등 최대 15,000원/월',
+              vip_membership:
+                'VIP콕 7,000원/월 (네이버플러스 선택 시 무료 영화 예매)',
+              max_benefit_value: '73,600원/월',
+              tethering_sharing: '100GB',
+            },
           }}
           rank={1}
           annualSavings={432000}
