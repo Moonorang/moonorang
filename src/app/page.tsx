@@ -138,8 +138,27 @@ export default function Home() {
             ),
           )}
 
-          {/* CARD-008: 성향 검사 문항을 대화 안에 카드로 띄운다 */}
-          {isTestOpen && (
+          {error && <ChatErrorNotice reason={error.reason} onRetry={retry} />}
+        </div>
+
+        {/* 메시지 리스트 하단에 칩 버튼 배치 (입력창 위로 떠 있는 듯한 위치) */}
+        {/* 최초 진입 시에만 노출하고, 사용자가 메시지를 보내거나 */}
+        {/* 성향검사 카드가 떠 있는 동안에는 감춘다 */}
+        {messages.length === 0 && !isTestOpen && (
+          <div className="mt-auto">
+            <SuggestionChips onSuggest={handleSuggest} />
+          </div>
+        )}
+
+        {/* CARD-008: 성향 검사 문항을 대화 안에 카드로 띄운다 */}
+        {/*
+          대화가 짧아도 카드가 위로 밀려 올라가지 않도록 입력창 바로 위에 둔다.
+          mt-auto 로 남는 공간을 흡수하고, sticky 로 스크롤해도 자리를 지킨다.
+          scrollport 는 패딩 박스라 bottom-0 이면 고정된 입력창에 가린다 -
+          입력창 높이만큼 띄운다.
+        */}
+        {isTestOpen && (
+          <div className="sticky bottom-(--height-chat-input) z-10 mt-auto px-4 pb-4">
             <QuestionCard
               title="성향검사를 진행중이예요~"
               imageSrc="/images/chat/test-character.png"
@@ -153,15 +172,8 @@ export default function Home() {
               onSkip={goToNextOrResult}
               onClose={closeTest}
             />
-          )}
-
-          {error && <ChatErrorNotice reason={error.reason} onRetry={retry} />}
-        </div>
-
-        {/* 메시지 리스트 하단에 칩 버튼 배치 (입력창 위로 떠 있는 듯한 위치) */}
-        <div className="mt-auto">
-          <SuggestionChips onSuggest={handleSuggest} />
-        </div>
+          </div>
+        )}
       </div>
 
       <PlusMenu

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 
-import { ChevronLeft, ChevronRight, Pencil, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 import Button from '@/components/common/Button';
 import { cn } from '@/utils/cn';
@@ -21,8 +21,6 @@ interface QuestionCardProps {
   onNext: () => void;
   onSkip: () => void;
   onClose: () => void;
-  // CARD-011 직접 입력 - 붙일 화면에서만 넘긴다
-  onEtcClick?: () => void;
   className?: string;
 }
 
@@ -42,7 +40,6 @@ export default function QuestionCard({
   onNext,
   onSkip,
   onClose,
-  onEtcClick,
   className,
 }: QuestionCardProps) {
   // TEST-004: 현재 문항 기준 진행률
@@ -144,19 +141,8 @@ export default function QuestionCard({
             );
           })}
 
-          {/* 직접 입력 + 건너뛰기 (CARD-011) */}
-          <div className="flex h-6 items-center justify-between px-1">
-            <button
-              type="button"
-              onClick={onEtcClick}
-              disabled={!onEtcClick}
-              className="flex cursor-pointer items-center gap-2 disabled:cursor-default"
-            >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-text-gray text-text-main">
-                <Pencil size={16} aria-hidden />
-              </span>
-              <span className="text-10 text-text-secondary">기타</span>
-            </button>
+          {/* 건너뛰기 (CARD-011) */}
+          <div className="flex h-6 items-center justify-end px-1">
             <Button
               variant="outline"
               radius="sm"
