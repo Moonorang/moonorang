@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { getAllPlans } from '@/lib/plans';
+import { getAllPlans } from '@/entities/plan/server/planRepository';
 
 // 전체 요금제 목록
 // Supabase 조회 + 필드 매핑이 LLM 없이 단독으로 맞게 동작하는지 확인하는 용도

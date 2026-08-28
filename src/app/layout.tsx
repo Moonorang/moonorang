@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
-import { displayFont, notoSansKr } from './fonts';
-import './globals.css';
-import { AppHeader } from '@/components';
+import { displayFont, notoSansKr } from '@/shared/fonts';
+import '@/shared/styles/globals.css';
+import { AppHeader } from '@/app/_header';
 
 export const metadata: Metadata = {
   title: '무너랑',
