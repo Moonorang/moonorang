@@ -16,6 +16,8 @@ export { default as ChatBubble } from './chat/ChatBubble';
 export { default as ChatErrorNotice } from './chat/ChatErrorNotice';
 export { default as ChatInput } from './chat/ChatInput';
 export { default as PlusMenu } from './chat/PlusMenu';
+export { default as QuestionCard } from './chat/QuestionCard';
+export { default as TestLoadingModal } from './chat/TestLoadingModal';
 export { default as ReadAloudButton } from './chat/ReadAloudButton';
 export { default as SuggestionChips } from './chat/SuggestionChips';
 export { default as UserMessage } from './chat/UserMessage';
