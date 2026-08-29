@@ -11,6 +11,7 @@ import PlanCard from '@/entities/plan/ui/PlanCard';
 
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatAvatar from '@/features/chat/components/ChatAvatar';
+import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import UserMessage from '@/features/chat/components/UserMessage';
 
 export default function NotFoundPage() {
@@ -164,6 +165,11 @@ export default function NotFoundPage() {
       <Tag>추천1위 기본적으로 쓰이는 태그</Tag>
       <br />
 
+      <br />
+      최하단 이동 버튼 (채팅 화면에서 위로 스크롤했을 때만 노출됨)
+      <div className="m-5">
+        <ScrollToBottomButton onClick={() => {}} />
+      </div>
       <br />
       OpenAI 연결 확인 (임시)
       <div className="m-5 flex max-w-100 flex-col gap-2">
