@@ -3,17 +3,17 @@
 import { useState } from 'react';
 
 import { LogIn, Send, Plus, Mic, Search } from 'lucide-react';
-import {
-  AiMessage,
-  Button,
-  CarouselIndicator,
-  ChatAvatar,
-  PlanCard,
-  Tag,
-  UserMessage,
-} from '@/components';
+import Button from '@/shared/ui/Button';
+import CarouselIndicator from '@/shared/ui/CarouselIndicator';
+import Tag from '@/shared/ui/Tag';
 
-export default function NotFound() {
+import PlanCard from '@/entities/plan/ui/PlanCard';
+
+import AiMessage from '@/features/chat/components/AiMessage';
+import ChatAvatar from '@/features/chat/components/ChatAvatar';
+import UserMessage from '@/features/chat/components/UserMessage';
+
+export default function NotFoundPage() {
   // OpenAI 연결 확인용 상태 (임시)
   const [testInput, setTestInput] = useState('안녕! 너 누구야?');
   const [testReply, setTestReply] = useState('');

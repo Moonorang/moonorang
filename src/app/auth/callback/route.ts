@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-import { createClient } from '@/lib/supabase/server';
+import { resolveNextPath } from '@/features/auth/lib/resolveNextPath';
+import { hasUserProfile } from '@/features/auth/server/currentUser';
+import { createClient } from '@/shared/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/';
+  const nextPath = resolveNextPath(searchParams.get('next'));
 
   if (!code) {
     return NextResponse.redirect(`${origin}/auth/login?error=missing_code`);
@@ -20,18 +22,12 @@ export async function GET(request: NextRequest) {
   }
 
   // 회원 정보가 없으면 추가 정보 입력을 거쳐야 users 레코드가 생성됨(AUTH-006, AUTH-009)
-  const { data: existingUser } = await supabase
-    .from('users')
-    .select('id')
-    .eq('id', data.user.id)
-    .maybeSingle();
-
-  if (!existingUser) {
+  if (!(await hasUserProfile(data.user.id))) {
     const signupUrl = new URL('/auth/signup', origin);
-    signupUrl.searchParams.set('next', next);
+    signupUrl.searchParams.set('next', nextPath);
 
     return NextResponse.redirect(signupUrl);
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  return NextResponse.redirect(`${origin}${nextPath}`);
 }
