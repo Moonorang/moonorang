@@ -1,42 +1,38 @@
 @import 'tailwindcss';
 
 @theme {
-  /* primary 컬러 */
-  --color-primary-yellow: #f6c740;
-  --color-primary-red: #f86e7b;
-  --color-primary-green: #a6cf4f;
-  --color-primary-pink: #f298c2;
-  --color-primary-green: #a6cf4f;
+  /* Action */
+  --color-action-primary: #f86e7b;
+  --color-action-primary-light: #ffedef;
+  --color-action-secondary: #f6c740;
+  --color-action-secondary-light: #fff3d0;
 
-  /* secondary 컬러 */
-  --color-secondary-magenta: #ff2e99;
-  --color-secondary-light-yellow: #fff3d0;
-  --color-secondary-blue: #77b2ff;
-  --color-secondary-light-blue: #ddecff;
-  --color-secondary-light-green: #e3f6ba;
-  --color-secondary-light-red: #ffedef;
+  /* Accent (목록/아이콘 구분용) */
+  --color-accent-1: #a6cf4f;
+  --color-accent-1-light: #e3f6ba;
+  --color-accent-2: #77b2ff;
+  --color-accent-2-light: #ddecff;
+  --color-accent-3: #f298c2;
 
-  /* neutral 컬러 */
-  --color-neutral-white: #fafafc;
-  --color-neutral-pure-white: #ffffff;
-  --color-neutral-off-white: #f8f8f8;
+  /* Background */
+  --color-background-default: #ffffff;
+  --color-background-subtle: #f8f8f8;
 
-  /* text 컬러 */
-  --color-text-main: #4a4a4a;
+  /* Text */
+  --color-text-primary: #4a4a4a;
   --color-text-secondary: #aaaaaa;
-  --color-text-gray: #dddddd;
 
-  /* border 컬러 */
-  --color-border-gray: #dddddd;
-  --color-border-light-gray: #f0f0f0;
+  /* Border */
+  --color-border-default: #dddddd;
+  --color-border-light: #f0f0f0;
 
-  /* semantic 컬러 */
-  --color-semantic-success: #16a34a;
-  --color-semantic-primary: #2563eb;
-  --color-semantic-warning: #f59e0b;
-  --color-semantic-error: #dc2626;
+  /* Status */
+  --color-status-success: #16a34a;
+  --color-status-info: #2563eb;
+  --color-status-warning: #f59e0b;
+  --color-status-error: #dc2626;
 
-  /* 그라데이션 컬러 */
+  /* Gradient */
   --color-gradient-from: #ffa7b0;
   --color-gradient-to: #ffd96e;
 
@@ -88,8 +84,8 @@
 }
 
 body {
-  background: var(--color-neutral-off-white);
-  color: var(--color-text-main);
+  background: var(--color-background-subtle);
+  color: var(--color-text-primary);
   font-family: var(--font-sans), sans-serif;
   letter-spacing: -0.04em;
 }

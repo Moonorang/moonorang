@@ -33,14 +33,14 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
 
   return (
     <main className="mx-auto flex w-full max-w-(--width-container) flex-col px-4 pt-(--height-header) pb-10">
-      <h1 className="flex flex-col gap-5 pt-6 text-center text-16 font-medium text-text-main">
+      <h1 className="flex flex-col gap-5 pt-6 text-center text-16 font-medium text-text-primary">
         <span className="block font-display text-32">
-          <span className="text-primary-yellow">Moono</span>
-          <span className="text-primary-red">rang</span>
+          <span className="text-action-secondary">Moono</span>
+          <span className="text-action-primary">rang</span>
         </span>
         <span>무너랑에 오신 걸 환영해요! ✨</span>
       </h1>
-      <p className="mt-2 text-center text-14 leading-relaxed text-text-main">
+      <p className="mt-2 text-center text-14 leading-relaxed text-text-primary">
         무너가 나에게 꼭 맞는 데이터와 혜택을 쏙쏙 골라드릴게요.
         <br />
         아래 정보를 알려주시면 상담이 더 정확해져요!

@@ -10,7 +10,7 @@ const twMerge = extendTailwindMerge({
 });
 
 // Tailwind 클래스를 조건부로 합치고 충돌하는 클래스는 뒤에 오는 값으로 정리
-// 예: cn('p-2', isActive && 'bg-secondary-light-yellow', className)
+// 예: cn('p-2', isActive && 'bg-action-secondary-light', className)
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

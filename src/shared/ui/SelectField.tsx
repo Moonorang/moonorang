@@ -62,7 +62,7 @@ export default function SelectField({
         size={FIELD_ICON_SIZE[size]}
         strokeWidth={1.5}
         aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-text-main"
+        className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-text-primary"
       />
     </div>
   );

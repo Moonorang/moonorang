@@ -5,7 +5,7 @@ import Drawer from '@/shared/ui/Drawer';
 import { MENU_LINKS } from '../config/menuLinks';
 
 const ITEM_CLASS =
-  'flex w-full items-center border-b border-border-gray py-4 text-16 leading-fixed font-medium text-text-main';
+  'flex w-full items-center border-b border-border-default py-4 text-16 leading-fixed font-medium text-text-primary';
 
 interface SideMenuProps {
   isOpen: boolean;

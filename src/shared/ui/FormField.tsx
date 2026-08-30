@@ -19,13 +19,13 @@ export default function FormField({
 }: FormFieldProps) {
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={htmlFor} className="text-12 font-medium text-text-main">
+      <label htmlFor={htmlFor} className="text-12 font-medium text-text-primary">
         {label}
       </label>
 
       {children}
 
-      {error && <p className="text-12 text-semantic-error">{error}</p>}
+      {error && <p className="text-12 text-status-error">{error}</p>}
     </div>
   );
 }

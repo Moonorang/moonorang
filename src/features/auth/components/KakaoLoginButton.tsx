@@ -75,7 +75,7 @@ export default function KakaoLoginButton({
       {errorMessage && (
         <p
           role="alert"
-          className="rounded-md bg-secondary-light-red px-4 py-3 text-center text-12 text-semantic-error"
+          className="rounded-md bg-action-primary-light px-4 py-3 text-center text-12 text-status-error"
         >
           {errorMessage}
         </p>

@@ -12,14 +12,14 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const VARIANT_STYLES: Record<ButtonVariant, string> = {
-  main: 'bg-primary-red text-neutral-pure-white',
-  secondary: 'bg-primary-yellow text-neutral-pure-white',
-  answer: 'bg-secondary-light-yellow text-text-main',
-  filter: 'bg-neutral-pure-white text-text-secondary border border-border-gray',
-  outline: 'border border-border-gray bg-neutral-pure-white text-text-main',
-  ghost: 'bg-transparent text-text-main',
+  main: 'bg-action-primary text-background-default',
+  secondary: 'bg-action-secondary text-background-default',
+  answer: 'bg-action-secondary-light text-text-primary',
+  filter: 'bg-background-default text-text-secondary border border-border-default',
+  outline: 'border border-border-default bg-background-default text-text-primary',
+  ghost: 'bg-transparent text-text-primary',
   gradient:
-    'bg-linear-to-br from-gradient-from to-gradient-to text-neutral-pure-white',
+    'bg-linear-to-br from-gradient-from to-gradient-to text-background-default',
 };
 
 const RADIUS_STYLES: Record<ButtonRadius, string> = {
