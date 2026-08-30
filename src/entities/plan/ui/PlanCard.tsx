@@ -23,7 +23,8 @@ interface PlanCardProps {
   annualSavings?: number;
   onViewDetail?: () => void;
   onJoin?: () => void;
-  className?: string;
+  /** 배치 전용 탈출구 (w-full 등). 색상 등 디자인은 이 컴포넌트가 고정한다 */
+  appendClassName?: string;
 }
 
 function PlanFeatureRow({
@@ -47,7 +48,7 @@ export default function PlanCard({
   annualSavings,
   onViewDetail,
   onJoin,
-  className,
+  appendClassName,
 }: PlanCardProps) {
   const { amount: dataAmount, throttleSpeed } = parseDataAllowance(
     plan.dataAllowance,
@@ -59,10 +60,12 @@ export default function PlanCard({
     <div
       className={cn(
         'flex w-[80%] flex-col gap-2 rounded-md bg-background-default p-4',
-        className,
+        appendClassName,
       )}
     >
-      {rank !== undefined && <Tag className="self-start">추천 {rank}위</Tag>}
+      {rank !== undefined && (
+        <Tag appendClassName="self-start">추천 {rank}위</Tag>
+      )}
 
       <div className="flex items-end justify-between gap-2">
         <h3 className="text-16 font-semibold text-text-primary">{plan.name}</h3>
@@ -118,7 +121,7 @@ export default function PlanCard({
           variant="main"
           radius="full"
           onClick={onViewDetail}
-          className="flex-1 font-medium"
+          appendClassName="flex-1"
         >
           상세보기
         </Button>
@@ -126,7 +129,7 @@ export default function PlanCard({
           variant="gradient"
           radius="full"
           onClick={onJoin}
-          className="flex-3 font-medium"
+          appendClassName="flex-3"
         >
           이 요금제로 가입하기
         </Button>

@@ -13,7 +13,8 @@ export default function SuggestionChips({ onSuggest }: SuggestionChipsProps) {
         variant="answer"
         radius="full"
         onClick={() => onSuggest('요금제 추천해주세요')}
-        className="flex shrink-0 items-center gap-1 px-3 py-2 shadow-default"
+        gap="sm"
+        appendClassName="shrink-0"
       >
         <Wifi size={12} aria-hidden />
         요금제 추천해주세요
@@ -22,7 +23,8 @@ export default function SuggestionChips({ onSuggest }: SuggestionChipsProps) {
         variant="answer"
         radius="full"
         onClick={() => onSuggest('내 요금제 절약해주세요')}
-        className="flex shrink-0 items-center gap-1 px-3 py-2 shadow-default"
+        gap="sm"
+        appendClassName="shrink-0"
       >
         <CircleDollarSign size={12} aria-hidden />내 요금제 절약해주세요
       </Button>

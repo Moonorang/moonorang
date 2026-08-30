@@ -23,7 +23,7 @@ interface UsageAnalysisCardProps {
   usagePercentage: number;
   dataAlertLimit: string;
   onEditAlert?: () => void;
-  className?: string;
+  appendClassName?: string;
 }
 
 export default function UsageAnalysisCard({
@@ -37,7 +37,7 @@ export default function UsageAnalysisCard({
   usagePercentage,
   dataAlertLimit,
   onEditAlert,
-  className,
+  appendClassName,
 }: UsageAnalysisCardProps) {
   // SVG 도넛 차트를 위한 둘레 계산 (반지름 r=24)
   const radius = 24;
@@ -46,7 +46,7 @@ export default function UsageAnalysisCard({
     circumference - (usagePercentage / 100) * circumference;
 
   return (
-    <div className={cn('flex flex-col gap-3', className)}>
+    <div className={cn('flex flex-col gap-3', appendClassName)}>
       <div className="flex items-center gap-1.5 px-1">
         <Smartphone size={16} className="text-text-primary" aria-hidden />
         <h3 className="text-14 font-bold text-text-primary">사용량 분석</h3>
@@ -168,12 +168,7 @@ export default function UsageAnalysisCard({
             {dataAlertLimit} 남았을 때
           </span>
         </div>
-        <Button
-          variant="outline"
-          radius="full"
-          onClick={onEditAlert}
-          className="flex items-center gap-1 px-3 py-1.5 text-10 text-text-secondary"
-        >
+        <Button variant="outline" radius="full" gap="sm" onClick={onEditAlert}>
           <Pencil size={12} /> 수정하기
         </Button>
       </div>

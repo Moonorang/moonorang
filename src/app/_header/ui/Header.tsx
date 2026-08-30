@@ -15,7 +15,7 @@ interface HeaderProps {
   hasMenu?: boolean;
   /** 햄버거 버튼 선택 시. 메뉴 열림 상태는 상위(AppHeader)가 갖는다 */
   onMenuClick?: () => void;
-  className?: string;
+  appendClassName?: string;
 }
 
 export default function Header({
@@ -23,13 +23,13 @@ export default function Header({
   onBackClick,
   hasMenu = true,
   onMenuClick,
-  className,
+  appendClassName,
 }: HeaderProps) {
   return (
     <header
       className={cn(
         'fixed top-0 left-1/2 z-(--z-header) flex h-(--height-header) w-full -translate-x-1/2 items-center justify-between gap-4 bg-background-default px-4 py-3',
-        className,
+        appendClassName,
       )}
     >
       {variant === 'back' ? (

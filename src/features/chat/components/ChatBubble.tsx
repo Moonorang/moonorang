@@ -9,14 +9,14 @@ interface ChatBubbleProps {
   children: ReactNode;
   variant?: ChatBubbleVariant;
   createdAt?: DateInput;
-  className?: string;
+  appendClassName?: string;
 }
 
 export default function ChatBubble({
   children,
   variant = 'ai',
   createdAt,
-  className,
+  appendClassName,
 }: ChatBubbleProps) {
   const isAi = variant === 'ai';
   const time = createdAt === undefined ? null : formatMessageTime(createdAt);
@@ -28,7 +28,7 @@ export default function ChatBubble({
         isAi
           ? 'rounded-tl-none bg-action-secondary-light'
           : 'rounded-tr-none bg-border-light',
-        className,
+        appendClassName,
       )}
     >
       <div className="wrap-break-word whitespace-pre-wrap">{children}</div>
