@@ -16,7 +16,7 @@ export default function ScrollToBottomButton({
       type="button"
       onClick={onClick}
       aria-label="맨 아래로 이동"
-      className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-border-gray bg-neutral-pure-white text-text-secondary shadow-default transition-colors hover:text-text-main"
+      className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-border-default bg-background-default text-text-secondary shadow-default transition-colors hover:text-text-primary"
     >
       <ChevronDown size={20} aria-hidden />
     </button>
