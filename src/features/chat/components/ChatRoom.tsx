@@ -67,7 +67,7 @@ export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
 
   // 4. 렌더링
   return (
-    <div className="flex h-dvh flex-col bg-neutral-off-white">
+    <div className="flex h-dvh flex-col bg-background-subtle">
       {/* height-header, height-chat-input 만큼 여백을 준다 (메시지가 가려지지 않도록) */}
       <div
         ref={scrollAreaRef}

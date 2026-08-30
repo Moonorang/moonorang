@@ -37,10 +37,10 @@ export default function TestResult({ displayName }: TestResultProps) {
           priority
         />
         <div className="flex w-full flex-col gap-2">
-          <h1 className="text-20 font-bold text-neutral-pure-white">
+          <h1 className="text-20 font-bold text-background-default">
             {result.type.name}
           </h1>
-          <p className="text-14 font-medium text-neutral-pure-white">
+          <p className="text-14 font-medium text-background-default">
             {result.type.description}
           </p>
         </div>
@@ -58,7 +58,7 @@ export default function TestResult({ displayName }: TestResultProps) {
         {recommendedPlan ? (
           <PlanCard plan={recommendedPlan} rank={1} className="w-full" />
         ) : (
-          <p className="rounded-md bg-neutral-pure-white p-4 text-12 text-text-secondary">
+          <p className="rounded-md bg-background-default p-4 text-12 text-text-secondary">
             추천 요금제를 불러오는 중이에요.
           </p>
         )}

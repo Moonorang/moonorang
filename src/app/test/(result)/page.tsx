@@ -8,7 +8,7 @@ export default async function TestResultPage() {
   const user = await getCurrentUser();
 
   return (
-    <div className="min-h-dvh bg-neutral-off-white">
+    <div className="min-h-dvh bg-background-subtle">
       <div className="flex flex-col gap-5 px-4 pt-(--height-header) pb-5">
         <TestResult displayName={getDisplayName(user)} />
       </div>
