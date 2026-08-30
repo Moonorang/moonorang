@@ -7,10 +7,10 @@ import { motion } from 'framer-motion';
 import { cn } from '@/shared/utils/cn';
 
 interface ChatAvatarProps {
-  className?: string;
+  appendClassName?: string;
 }
 
-export default function ChatAvatar({ className }: ChatAvatarProps) {
+export default function ChatAvatar({ appendClassName }: ChatAvatarProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -18,7 +18,7 @@ export default function ChatAvatar({ className }: ChatAvatarProps) {
       transition={{ duration: 0.2 }}
       className={cn(
         'flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-action-secondary-light p-1',
-        className,
+        appendClassName,
       )}
     >
       <Image

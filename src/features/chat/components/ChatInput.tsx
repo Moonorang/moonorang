@@ -19,7 +19,7 @@ interface ChatInputProps {
   // 응답 생성 중일 때 입력과 전송을 막음
   disabled?: boolean;
   placeholder?: string;
-  className?: string;
+  appendClassName?: string;
 }
 
 export default function ChatInput({
@@ -31,7 +31,7 @@ export default function ChatInput({
   onMicClick,
   disabled = false,
   placeholder = '무너에게 무엇이든 물어보세요!',
-  className,
+  appendClassName,
 }: ChatInputProps) {
   const canSend = value.trim().length > 0 && !disabled;
 
@@ -57,19 +57,17 @@ export default function ChatInput({
         'fixed inset-x-0 bottom-0 z-(--z-chat-input)',
         'mx-auto flex w-full items-center gap-2',
         'border-t border-border-default bg-background-default px-4 py-2',
-        className,
+        appendClassName,
       )}
     >
       <Button
         variant="ghost"
+        radius="sm"
+        size="none"
+        isActive={isPlusOpen}
         onClick={onPlusClick}
         aria-label="추가 기능 열기"
-        className={cn(
-          'flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm p-0',
-          isPlusOpen
-            ? 'bg-action-secondary-light text-action-secondary'
-            : 'text-text-secondary',
-        )}
+        appendClassName="h-10 w-10 shrink-0"
       >
         <Plus size={20} aria-hidden />
       </Button>
@@ -101,12 +99,11 @@ export default function ChatInput({
       <Button
         type="submit"
         variant="secondary"
+        radius="sm"
+        size="none"
         disabled={!canSend}
         aria-label="메시지 보내기"
-        className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm p-0 text-background-default transition-colors',
-          !canSend && 'bg-border-default',
-        )}
+        appendClassName="h-10 w-10 shrink-0"
       >
         <Send size={18} aria-hidden />
       </Button>

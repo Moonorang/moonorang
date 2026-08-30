@@ -133,29 +133,90 @@ export default function NotFoundPage() {
           createdAt={'2026-08-26T14:00:00+09:00'}
         />
       </div>
-      버튼 목록
-      <br />
-      <Button variant="main" radius="md">
-        버튼
-      </Button>
-      <Button variant="secondary" radius="md">
-        버튼
-      </Button>
-      <Button variant="outline" radius="md">
-        버튼
-      </Button>
-      <Button variant="ghost" radius="md">
-        버튼
-      </Button>
-      <Button variant="answer" radius="full">
-        버튼
-      </Button>
-      <Button variant="filter" radius="full">
-        버튼
-      </Button>
-      <Button variant="gradient" radius="md" className="min-w-100">
-        버튼
-      </Button>
+      버튼 종류
+      {/* variant */}
+      <p className="mt-4 text-12 font-bold text-text-primary">variant</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <Button variant="main">main</Button>
+        <Button variant="secondary">secondary</Button>
+        <Button variant="answer">answer</Button>
+        <Button variant="filter">filter</Button>
+        <Button variant="outline">outline</Button>
+        <Button variant="ghost">ghost</Button>
+        <Button variant="gradient">gradient</Button>
+      </div>
+      {/* radius */}
+      <p className="mt-4 text-12 font-bold text-text-primary">radius</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <Button variant="main" radius="sm">
+          sm
+        </Button>
+        <Button variant="main" radius="md">
+          md
+        </Button>
+        <Button variant="main" radius="full">
+          full
+        </Button>
+      </div>
+      {/* size - none 은 패딩이 없어서 아이콘 전용 버튼에 쓴다 */}
+      <p className="mt-4 text-12 font-bold text-text-primary">size</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="none" appendClassName="h-10 w-10">
+          <Plus size={18} aria-hidden />
+        </Button>
+        <Button variant="outline" size="sm">
+          sm
+        </Button>
+        <Button variant="outline" size="md">
+          md
+        </Button>
+        <Button variant="outline" size="lg">
+          lg
+        </Button>
+        <Button variant="outline" size="xl">
+          xl
+        </Button>
+      </div>
+      {/* gap - 아이콘 + 라벨 사이 간격 */}
+      <p className="mt-4 text-12 font-bold text-text-primary">gap</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <Button variant="answer" gap="sm">
+          <Search size={14} aria-hidden /> gap sm
+        </Button>
+        <Button variant="answer" gap="md">
+          <Search size={14} aria-hidden /> gap md
+        </Button>
+      </div>
+      {/* isFullWidth */}
+      <p className="mt-4 text-12 font-bold text-text-primary">isFullWidth</p>
+      <div className="mt-1">
+        <Button variant="main" isFullWidth>
+          꽉 채운 버튼
+        </Button>
+      </div>
+      {/* isActive - ghost variant 의 토글 강조 (채팅 입력창 + 버튼 등) */}
+      <p className="mt-4 text-12 font-bold text-text-primary">
+        isActive (ghost)
+      </p>
+      <div className="mt-1 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          radius="sm"
+          size="none"
+          appendClassName="h-10 w-10"
+        >
+          <Plus size={18} aria-hidden />
+        </Button>
+        <Button
+          variant="ghost"
+          radius="sm"
+          size="none"
+          isActive
+          appendClassName="h-10 w-10"
+        >
+          <Plus size={18} aria-hidden />
+        </Button>
+      </div>
       <br />
       인디케이터
       <CarouselIndicator total={3} activeIndex={2} />
@@ -163,7 +224,6 @@ export default function NotFoundPage() {
       <br />
       <Tag>추천1위 기본적으로 쓰이는 태그</Tag>
       <br />
-
       <br />
       OpenAI 연결 확인 (임시)
       <div className="m-5 flex max-w-100 flex-col gap-2">

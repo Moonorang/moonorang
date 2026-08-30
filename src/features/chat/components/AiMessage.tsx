@@ -11,7 +11,7 @@ interface AiMessageProps {
   content: string;
   createdAt?: DateInput;
   isStreaming?: boolean;
-  className?: string;
+  appendClassName?: string;
   // 말풍선 아래에 붙는 추가 콘텐츠
   children?: ReactNode;
 }
@@ -20,11 +20,11 @@ export default function AiMessage({
   content,
   createdAt,
   isStreaming = false,
-  className,
+  appendClassName,
   children,
 }: AiMessageProps) {
   return (
-    <div className={cn('flex w-full items-start gap-3', className)}>
+    <div className={cn('flex w-full items-start gap-3', appendClassName)}>
       <ChatAvatar />
 
       <div className="flex w-full flex-col items-start gap-2">

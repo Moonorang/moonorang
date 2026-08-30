@@ -15,7 +15,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <KakaoLoginButton
         nextPath={resolveNextPath(next)}
         errorCode={error}
-        className="mt-8"
+        appendClassName="mt-8"
       />
     </div>
   );

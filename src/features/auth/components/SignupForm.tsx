@@ -161,8 +161,9 @@ export default function SignupForm({
       <Button
         type="submit"
         variant="main"
+        size="xl"
+        isFullWidth
         disabled={isSubmitting}
-        className="w-full py-3 text-14 font-bold"
       >
         {isSubmitting ? '저장 중...' : '시작하기'}
       </Button>

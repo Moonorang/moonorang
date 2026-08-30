@@ -12,7 +12,7 @@ interface KakaoLoginButtonProps {
   nextPath?: string;
   /** 콜백이 실패해 되돌아왔을 때 URL 에 붙어 오는 사유 코드 */
   errorCode?: string;
-  className?: string;
+  appendClassName?: string;
 }
 
 /**
@@ -24,7 +24,7 @@ interface KakaoLoginButtonProps {
 export default function KakaoLoginButton({
   nextPath,
   errorCode,
-  className,
+  appendClassName,
 }: KakaoLoginButtonProps) {
   // 1. 상태 및 훅
   const { signInWithKakao } = useAuth();
@@ -54,7 +54,7 @@ export default function KakaoLoginButton({
 
   // 3. 렌더링
   return (
-    <div className={cn('flex w-full flex-col gap-3', className)}>
+    <div className={cn('flex w-full flex-col gap-3', appendClassName)}>
       <button
         type="button"
         onClick={handleKakaoLoginClick}
