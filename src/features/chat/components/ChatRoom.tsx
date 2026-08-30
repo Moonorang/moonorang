@@ -11,10 +11,7 @@ import ChatInput from '@/features/chat/components/ChatInput';
 import PlusMenu from '@/features/chat/components/PlusMenu';
 import SuggestionChips from '@/features/chat/components/SuggestionChips';
 import UserMessage from '@/features/chat/components/UserMessage';
-import {
-  WELCOME_CREATED_AT,
-  WELCOME_MESSAGE,
-} from '@/features/chat/constants';
+import { WELCOME_CREATED_AT, WELCOME_MESSAGE } from '@/features/chat/constants';
 import { useChat } from '@/features/chat/hooks/useChat';
 
 interface ChatRoomProps {
@@ -75,10 +72,7 @@ export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
       >
         {/* 채팅 내역 영역 */}
         <div className="flex flex-col gap-6 px-4 py-6">
-          <AiMessage
-            content={WELCOME_MESSAGE}
-            createdAt={WELCOME_CREATED_AT}
-          />
+          <AiMessage content={WELCOME_MESSAGE} createdAt={WELCOME_CREATED_AT} />
 
           {messages.map((message) =>
             message.role === 'user' ? (

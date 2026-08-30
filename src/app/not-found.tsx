@@ -163,7 +163,6 @@ export default function NotFoundPage() {
       <br />
       <Tag>추천1위 기본적으로 쓰이는 태그</Tag>
       <br />
-
       <br />
       OpenAI 연결 확인 (임시)
       <div className="m-5 flex max-w-100 flex-col gap-2">
