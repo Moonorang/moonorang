@@ -75,7 +75,7 @@ export default function PlanCardCarousel({
 
   // 4. 렌더링
   return (
-    <div className="flex w-full flex-col gap-2">
+    <div className="flex w-full flex-col gap-1">
       {/* 가로 스크롤 + 스냅. 스크롤바는 가리고 스와이프만 남긴다 */}
       <div
         ref={scrollAreaRef}

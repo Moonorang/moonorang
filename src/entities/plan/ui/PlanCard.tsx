@@ -34,7 +34,7 @@ function PlanFeatureRow({
   label: string;
 }) {
   return (
-    <li className="flex items-center gap-2 text-12 text-text-primary">
+    <li className="flex items-center gap-1.5 text-10 text-text-primary">
       {icon}
       {label}
     </li>
@@ -65,8 +65,8 @@ export default function PlanCard({
       {rank !== undefined && <Tag className="self-start">추천 {rank}위</Tag>}
 
       <div className="flex items-end justify-between gap-2">
-        <h3 className="text-16 font-semibold text-text-primary">{plan.name}</h3>
-        <p className="text-16 font-semibold text-action-primary">
+        <h3 className="text-14 font-medium text-text-primary">{plan.name}</h3>
+        <p className="text-14 text-action-primary">
           월 {formatWon(plan.monthlyFee)}
         </p>
       </div>
@@ -105,7 +105,7 @@ export default function PlanCard({
       </ul>
 
       {annualSavings !== undefined && annualSavings > 0 && (
-        <div className="flex items-center justify-start gap-1 rounded-sm bg-action-secondary-light px-2 py-1.5 text-[#DEA80F]">
+        <div className="flex items-center justify-start gap-2 rounded-sm bg-[#FFF6DD] px-2 py-1.5 text-[#DEA80F]">
           <Lightbulb size={14} className="shrink-0" aria-hidden />
           <p className="text-10 font-medium">
             기존 요금제 대비 연간 {formatWon(annualSavings)}원 절약!
@@ -115,20 +115,20 @@ export default function PlanCard({
 
       <div className="flex gap-1">
         <Button
-          variant="main"
+          variant="outline"
           radius="full"
           onClick={onViewDetail}
-          className="flex-1 font-medium"
+          className="flex-8 font-medium"
         >
           상세보기
         </Button>
         <Button
-          variant="gradient"
+          variant="main"
           radius="full"
           onClick={onJoin}
-          className="flex-3 font-medium"
+          className="flex-17 font-medium"
         >
-          이 요금제로 가입하기
+          신청하기
         </Button>
       </div>
     </div>
