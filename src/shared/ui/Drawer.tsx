@@ -77,7 +77,7 @@ export default function Drawer({
               exit={{ x: '100%' }}
               transition={{ type: 'tween', ease: 'easeOut', duration: 0.25 }}
               className={cn(
-                'pointer-events-auto absolute top-0 right-0 flex h-full w-[70%] flex-col bg-neutral-pure-white',
+                'pointer-events-auto absolute top-0 right-0 flex h-full w-[70%] flex-col bg-background-default',
                 className,
               )}
             >
@@ -87,7 +87,7 @@ export default function Drawer({
                     type="button"
                     onClick={onClose}
                     aria-label={`${ariaLabel} 닫기`}
-                    className="flex h-6 w-6 items-center justify-center text-text-main transition-colors hover:cursor-pointer hover:text-primary-red"
+                    className="flex h-6 w-6 items-center justify-center text-text-primary transition-colors hover:cursor-pointer hover:text-action-primary"
                   >
                     <X size={24} strokeWidth={1.5} aria-hidden="true" />
                   </button>

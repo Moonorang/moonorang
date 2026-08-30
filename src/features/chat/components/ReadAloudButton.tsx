@@ -62,11 +62,11 @@ export default function ReadAloudButton({
       onClick={handleReadAloudClick}
       aria-label={isSpeaking ? '읽기 중지' : '메시지 읽기'}
       className={cn(
-        'flex items-center justify-center gap-1 bg-neutral-pure-white px-2 py-1.5 text-10 text-text-main',
+        'flex items-center justify-center gap-1 bg-background-default px-2 py-1.5 text-10 text-text-primary',
         className,
       )}
     >
-      <Volume2 size={12} aria-hidden className="text-secondary-blue" />
+      <Volume2 size={12} aria-hidden className="text-accent-2" />
       <span>{isSpeaking ? '정지' : '읽기'}</span>
     </Button>
   );

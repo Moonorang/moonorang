@@ -57,18 +57,18 @@ export default function QuestionCard({
   const progressPercent = ((currentIndex + 1) / total) * 100;
 
   return (
-    <div className="flex w-full flex-col gap-5 rounded-md bg-neutral-pure-white p-4 shadow-default">
+    <div className="flex w-full flex-col gap-5 rounded-md bg-background-default p-4 shadow-default">
       {/* 헤더 + 진행률 */}
       <div className="flex flex-col">
         <div className="flex items-center gap-1">
           <Image src={imageSrc} alt="" width={30} height={35} />
-          <span className="text-10 font-medium text-primary-yellow">
+          <span className="text-10 font-medium text-action-secondary">
             {title}
           </span>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-text-gray">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-border-default">
           <div
-            className="h-full rounded-full bg-primary-yellow transition-all duration-300"
+            className="h-full rounded-full bg-action-secondary transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -77,7 +77,7 @@ export default function QuestionCard({
       <div className="flex flex-col gap-3">
         {/* 질문 + 문항 이동 + 닫기 (CARD-010, CARD-011) */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-12 text-text-main">{question}</span>
+          <span className="text-12 text-text-primary">{question}</span>
           <div className="flex shrink-0 items-center gap-2">
             <div className="flex items-center gap-0.5">
               <button
@@ -127,22 +127,22 @@ export default function QuestionCard({
                   className={cn(
                     'flex w-full cursor-pointer items-center gap-2 px-1 text-left',
                     isSelected &&
-                      'rounded-sm bg-secondary-light-yellow p-1 px-1',
+                      'rounded-sm bg-action-secondary-light p-1 px-1',
                   )}
                 >
                   <span
                     className={cn(
                       'flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-10',
                       isSelected
-                        ? 'bg-primary-yellow text-neutral-pure-white'
-                        : 'bg-text-gray text-text-main',
+                        ? 'bg-action-secondary text-background-default'
+                        : 'bg-border-default text-text-primary',
                     )}
                   >
                     {index + 1}
                   </span>
-                  <span className="text-10 text-text-main">{option.label}</span>
+                  <span className="text-10 text-text-primary">{option.label}</span>
                 </button>
-                <div className="h-px w-full bg-text-gray" />
+                <div className="h-px w-full bg-border-default" />
               </div>
             );
           })}

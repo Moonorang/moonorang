@@ -13,5 +13,5 @@
   "singleAttributePerLine": false,
   "endOfLine": "lf",
   "plugins": ["prettier-plugin-tailwindcss"],
-  "tailwindStylesheet": "./src/app/globals.css"
+  "tailwindStylesheet": "./src/shared/styles/globals.css"
 }

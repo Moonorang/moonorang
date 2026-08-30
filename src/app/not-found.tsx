@@ -176,7 +176,7 @@ export default function NotFoundPage() {
         <input
           value={testInput}
           onChange={(e) => setTestInput(e.target.value)}
-          className="rounded-md border border-border-gray px-3 py-2 text-14"
+          className="rounded-md border border-border-default px-3 py-2 text-14"
         />
         <Button
           variant="main"
@@ -187,12 +187,12 @@ export default function NotFoundPage() {
         </Button>
 
         {testReply && (
-          <p className="rounded-md bg-secondary-light-yellow p-3 text-14">
+          <p className="rounded-md bg-action-secondary-light p-3 text-14">
             {testReply}
           </p>
         )}
         {testError && (
-          <p className="rounded-md bg-secondary-light-red p-3 text-14 text-primary-red">
+          <p className="rounded-md bg-action-primary-light p-3 text-14 text-action-primary">
             {testError}
           </p>
         )}

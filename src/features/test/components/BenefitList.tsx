@@ -3,22 +3,22 @@ import { MonitorPlay, ShieldCheck, Wifi } from 'lucide-react';
 import type { BenefitIcon, TestBenefit } from '@/features/test/types';
 
 // 혜택 아이콘 종류별 아이콘과 배경색
-// #FFEAAD 는 globals.css 에 없어 가장 가까운 secondary-light-yellow 로 대체함
+// #FFEAAD 는 globals.css 에 없어 가장 가까운 action-secondary-light 로 대체함
 const BENEFIT_STYLES: Record<
   BenefitIcon,
   { icon: typeof Wifi; className: string }
 > = {
   monitor: {
     icon: MonitorPlay,
-    className: 'bg-secondary-light-yellow text-primary-yellow',
+    className: 'bg-action-secondary-light text-action-secondary',
   },
   wifi: {
     icon: Wifi,
-    className: 'bg-secondary-light-green text-primary-green',
+    className: 'bg-accent-1-light text-accent-1',
   },
   shield: {
     icon: ShieldCheck,
-    className: 'bg-secondary-light-blue text-secondary-blue',
+    className: 'bg-accent-2-light text-accent-2',
   },
 };
 
@@ -36,7 +36,7 @@ export default function BenefitList({ benefits }: BenefitListProps) {
         return (
           <div
             key={benefit.title}
-            className="flex items-center gap-2 rounded-md bg-neutral-pure-white p-4"
+            className="flex items-center gap-2 rounded-md bg-background-default p-4"
           >
             <span
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-sm ${className}`}
@@ -44,7 +44,7 @@ export default function BenefitList({ benefits }: BenefitListProps) {
               <Icon size={16} aria-hidden />
             </span>
             <div className="flex flex-col">
-              <p className="text-12 font-medium text-text-main">
+              <p className="text-12 font-medium text-text-primary">
                 {benefit.title}
               </p>
               <p className="text-10 font-medium text-text-secondary">

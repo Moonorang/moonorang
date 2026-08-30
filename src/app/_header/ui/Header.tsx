@@ -28,7 +28,7 @@ export default function Header({
   return (
     <header
       className={cn(
-        'fixed top-0 left-1/2 z-(--z-header) flex h-(--height-header) w-full max-w-(--width-container) -translate-x-1/2 items-center justify-between gap-4 bg-neutral-pure-white px-4 py-3',
+        'fixed top-0 left-1/2 z-(--z-header) flex h-(--height-header) w-full -translate-x-1/2 items-center justify-between gap-4 bg-background-default px-4 py-3',
         className,
       )}
     >
@@ -37,7 +37,7 @@ export default function Header({
           type="button"
           onClick={onBackClick}
           aria-label="이전 화면으로 이동"
-          className="flex h-6 w-6 items-center justify-center text-text-secondary transition-colors hover:cursor-pointer hover:text-text-main"
+          className="flex h-6 w-6 items-center justify-center text-text-secondary transition-colors hover:cursor-pointer hover:text-text-primary"
         >
           <ChevronLeft size={24} strokeWidth={1.5} aria-hidden="true" />
         </button>
@@ -47,10 +47,10 @@ export default function Header({
           aria-label="무너랑 홈으로 이동"
           className="font-display text-18 leading-none tracking-tight"
         >
-          <span className="text-primary-yellow">
+          <span className="text-action-secondary">
             <span className="text-20">M</span>oono
           </span>
-          <span className="text-primary-red">rang</span>
+          <span className="text-action-primary">rang</span>
         </Link>
       )}
 
@@ -59,7 +59,7 @@ export default function Header({
           type="button"
           onClick={onMenuClick}
           aria-label="메뉴 열기"
-          className="flex h-6 w-6 items-center justify-center text-text-main transition-colors hover:cursor-pointer hover:text-primary-red"
+          className="flex h-6 w-6 items-center justify-center text-text-primary transition-colors hover:cursor-pointer hover:text-action-primary"
         >
           <Menu size={24} strokeWidth={1.5} aria-hidden="true" />
         </button>

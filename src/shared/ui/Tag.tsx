@@ -11,7 +11,7 @@ export default function Tag({ children, className }: TagProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full bg-secondary-light-red px-2 py-1 text-10 font-medium text-primary-red',
+        'inline-flex items-center rounded-full bg-action-primary-light px-2 py-1 text-10 font-medium text-action-primary',
         className,
       )}
     >

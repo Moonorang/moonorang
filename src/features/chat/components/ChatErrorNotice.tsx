@@ -46,19 +46,19 @@ export default function ChatErrorNotice({
     <div
       role="alert"
       className={cn(
-        'flex w-full items-start gap-3 rounded-md border border-secondary-light-red bg-secondary-light-red/40 p-3',
+        'flex w-full items-start gap-3 rounded-md border border-action-primary-light bg-action-primary-light/40 p-3',
         className,
       )}
     >
       <Icon
         size={18}
-        className="mt-0.5 shrink-0 text-primary-red"
+        className="mt-0.5 shrink-0 text-action-primary"
         aria-hidden
       />
 
       <div className="flex flex-1 flex-col gap-2">
         <div>
-          <p className="text-14 font-bold text-text-main">{title}</p>
+          <p className="text-14 font-bold text-text-primary">{title}</p>
           <p className="text-12 text-text-secondary">{description}</p>
         </div>
 

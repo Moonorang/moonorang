@@ -153,7 +153,7 @@ export default function SignupForm({
       </FormField>
 
       {submitError && (
-        <p role="alert" className="text-12 text-semantic-error">
+        <p role="alert" className="text-12 text-status-error">
           {submitError}
         </p>
       )}
