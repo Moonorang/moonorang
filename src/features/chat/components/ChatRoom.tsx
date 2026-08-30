@@ -1,24 +1,39 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
 import PlanCardCarousel from '@/features/chat/components/PlanCardCarousel';
+import PlanDetailCard from '@/features/chat/components/PlanDetailCard';
 import PlusMenu from '@/features/chat/components/PlusMenu';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import SuggestionChips from '@/features/chat/components/SuggestionChips';
 import UserMessage from '@/features/chat/components/UserMessage';
-import {
-  WELCOME_CREATED_AT,
-  WELCOME_MESSAGE,
-} from '@/features/chat/constants';
+import { WELCOME_CREATED_AT, WELCOME_MESSAGE } from '@/features/chat/constants';
 import { useChat } from '@/features/chat/hooks/useChat';
+
+import type { Plan } from '@/entities/plan/types';
 
 /** 최하단에서 이 거리(px) 이내면 바닥에 있는 것으로 본다 */
 const BOTTOM_THRESHOLD_PX = 24;
+
+/**
+ * 상세 카드와 함께 남기는 안내 문구.
+ * 문구가 매번 달라지면 안 되고 대화 문맥도 아니라서 모델을 거치지 않고 여기서 만든다.
+ */
+const PLAN_DETAIL_GUIDE = `선택하신 요금제의 상세 내용을 확인해주세요!
+선택하신 요금제가 맞으신가요?`;
+
+/** 신청하기로 띄운 요금제 상세 카드 한 장 */
+interface PlanDetailBlock {
+  plan: Plan;
+  /** 이 메시지 바로 뒤에 끼워 넣는다 - 대화 순서를 지키기 위한 것 */
+  afterMessageId: string;
+  createdAt: string;
+}
 
 interface ChatRoomProps {
   /**
@@ -37,6 +52,8 @@ export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
   // 바닥에 있는지 여부 - 자동 스크롤 여부와 버튼 노출을 함께 결정한다
   const [isAtBottom, setIsAtBottom] = useState(true);
+  // 신청하기로 띄운 상세 카드들. 대화 이력(messages)과 섞지 않고 따로 들고 있는다
+  const [detailBlocks, setDetailBlocks] = useState<PlanDetailBlock[]>([]);
   const { messages, isStreaming, error, sendMessage, retry, reset } = useChat();
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -57,7 +74,7 @@ export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
     if (!isAtBottom) return;
 
     scrollToBottom();
-  }, [messages, error, isAtBottom, scrollToBottom]);
+  }, [messages, detailBlocks, error, isAtBottom, scrollToBottom]);
 
   // 3. 이벤트 핸들러
   const handleScroll = () => {
@@ -82,6 +99,24 @@ export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
     sendMessage(text);
   };
 
+  // CARD-033: 신청 전에 고른 요금제가 맞는지 상세 내용으로 확인시킨다
+  const handleJoin = (plan: Plan, afterMessageId: string) => {
+    // 같은 요금제를 또 누르면 무시한다 - 같은 카드가 여러 장 쌓이지 않게
+    if (detailBlocks.some((block) => block.plan.id === plan.id)) return;
+
+    setIsAtBottom(true);
+    setDetailBlocks((prev) => [
+      ...prev,
+      { plan, afterMessageId, createdAt: new Date().toISOString() },
+    ]);
+  };
+
+  // CHAT-014: 대화를 비울 때 상세 카드도 같이 걷어낸다
+  const handleReset = () => {
+    reset();
+    setDetailBlocks([]);
+  };
+
   const lastMessageId = messages[messages.length - 1]?.id;
 
   // 4. 렌더링
@@ -95,34 +130,50 @@ export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
       >
         {/* 채팅 내역 영역 */}
         <div className="flex flex-col gap-6 px-4 py-6">
-          <AiMessage
-            content={WELCOME_MESSAGE}
-            createdAt={WELCOME_CREATED_AT}
-          />
+          <AiMessage content={WELCOME_MESSAGE} createdAt={WELCOME_CREATED_AT} />
 
-          {messages.map((message) =>
-            message.role === 'user' ? (
-              <UserMessage
-                key={message.id}
-                content={message.content}
-                createdAt={message.createdAt}
-              />
-            ) : (
-              <AiMessage
-                key={message.id}
-                content={message.content}
-                createdAt={message.createdAt}
-                isStreaming={isStreaming && message.id === lastMessageId}
-              >
-                {message.recommendations &&
-                  message.recommendations.length > 0 && (
-                    <PlanCardCarousel
-                      recommendations={message.recommendations}
+          {messages.map((message) => (
+            <Fragment key={message.id}>
+              {message.role === 'user' ? (
+                <UserMessage
+                  content={message.content}
+                  createdAt={message.createdAt}
+                />
+              ) : (
+                <AiMessage
+                  content={message.content}
+                  createdAt={message.createdAt}
+                  isStreaming={isStreaming && message.id === lastMessageId}
+                >
+                  {message.recommendations &&
+                    message.recommendations.length > 0 && (
+                      <PlanCardCarousel
+                        recommendations={message.recommendations}
+                        onJoin={(plan) => handleJoin(plan, message.id)}
+                      />
+                    )}
+                </AiMessage>
+              )}
+
+              {/* 이 메시지 뒤에 띄운 상세 카드 - 대화 순서를 그대로 지킨다 */}
+              {detailBlocks
+                .filter((block) => block.afterMessageId === message.id)
+                .map((block) => (
+                  <Fragment key={block.plan.id}>
+                    <UserMessage
+                      content={`${block.plan.name} 요금제 가입할래`}
+                      createdAt={block.createdAt}
                     />
-                  )}
-              </AiMessage>
-            ),
-          )}
+                    <AiMessage
+                      content={PLAN_DETAIL_GUIDE}
+                      createdAt={block.createdAt}
+                    >
+                      <PlanDetailCard plan={block.plan} />
+                    </AiMessage>
+                  </Fragment>
+                ))}
+            </Fragment>
+          ))}
 
           {error && <ChatErrorNotice reason={error.reason} onRetry={retry} />}
         </div>
@@ -162,7 +213,7 @@ export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
       <PlusMenu
         isOpen={isPlusMenuOpen}
         onClose={() => setIsPlusMenuOpen(false)}
-        onReset={reset}
+        onReset={handleReset}
         onPlanTest={onPlanTest}
       />
 

@@ -8,6 +8,7 @@ import CarouselIndicator from '@/shared/ui/CarouselIndicator';
 import Tag from '@/shared/ui/Tag';
 
 import PlanCard from '@/entities/plan/ui/PlanCard';
+import PlanDetailCard from '@/features/chat/components/PlanDetailCard';
 
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatAvatar from '@/features/chat/components/ChatAvatar';
@@ -116,6 +117,28 @@ export default function NotFoundPage() {
           rank={1}
           annualSavings={432000}
           onViewDetail={() => {}}
+          onJoin={() => {}}
+        />
+      </div>
+      <br />
+      요금제 상세 카드 (채팅에서 신청하기를 누르면 뜨는 카드)
+      <div className="m-5 w-90">
+        <PlanDetailCard
+          plan={{
+            id: 11,
+            name: '너겟75',
+            description: '최대 혜택 상당액 73,600원/월',
+            monthlyFee: 75000,
+            dataAllowance: '무제한',
+            voiceSms: '기본제공 / 기본제공 / 300분 무료',
+            benefits: {
+              media_contents: '콘텐츠·음악 감상 등 최대 15,000원/월',
+              vip_membership:
+                'VIP콕 7,000원/월 (네이버플러스 선택 시 무료 영화 예매)',
+              max_benefit_value: '73,600원/월',
+              tethering_sharing: '100GB',
+            },
+          }}
           onJoin={() => {}}
         />
       </div>

@@ -6,6 +6,7 @@ import CarouselIndicator from '@/shared/ui/CarouselIndicator';
 
 import PlanCard from '@/entities/plan/ui/PlanCard';
 
+import type { Plan } from '@/entities/plan/types';
 import type { PlanRecommendation } from '@/features/chat/types';
 
 // PlanCard 가 가진 자기 폭. 인디케이터를 카드 가운데에 맞추는 데 쓴다
@@ -16,6 +17,8 @@ const SCROLL_SETTLE_MS = 100;
 
 interface PlanCardCarouselProps {
   recommendations: PlanRecommendation[];
+  // 신청하기 - 누른 카드의 요금제를 그대로 넘긴다
+  onJoin?: (plan: Plan) => void;
 }
 
 /**
@@ -25,6 +28,7 @@ interface PlanCardCarouselProps {
  */
 export default function PlanCardCarousel({
   recommendations,
+  onJoin,
 }: PlanCardCarouselProps) {
   // 1. 상태 및 훅
   const [activeIndex, setActiveIndex] = useState(0);
@@ -80,7 +84,7 @@ export default function PlanCardCarousel({
       <div
         ref={scrollAreaRef}
         onScroll={handleScroll}
-        className="flex w-full snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex w-full snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto [&::-webkit-scrollbar]:hidden"
       >
         {recommendations.map((item) => (
           <div
@@ -91,6 +95,7 @@ export default function PlanCardCarousel({
               plan={item.plan}
               rank={item.rank}
               annualSavings={item.annualSavings}
+              onJoin={onJoin ? () => onJoin(item.plan) : undefined}
             />
           </div>
         ))}
