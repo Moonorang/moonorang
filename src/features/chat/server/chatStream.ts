@@ -31,6 +31,7 @@ import type { ChatKeywords } from '@/features/chat/types';
 export function createChatStream(
   message: string,
   incomingKeywords: ChatKeywords,
+  summary?: string,
 ): ReadableStream {
   // 클라이언트가 연결을 끊었을 때(페이지 이동 등) cancel() 에서 진행 중인 스트림을 정리
   let activeStream: Stream<ChatCompletionChunk> | null = null;
@@ -46,7 +47,10 @@ export function createChatStream(
       try {
         const plans = await getAllPlans();
         const messages: ChatCompletionMessageParam[] = [
-          { role: 'system', content: buildSystemPrompt(plans, incomingKeywords) },
+          {
+            role: 'system',
+            content: buildSystemPrompt(plans, incomingKeywords, summary),
+          },
           { role: 'user', content: message },
         ];
 

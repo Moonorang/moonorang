@@ -48,8 +48,19 @@ function formatKeywords(keywords: ChatKeywords): string {
   return entries.length > 0 ? entries.join('\n') : '아직 파악된 조건 없음';
 }
 
+// §2.3 "대화 요약" 계층 - 없으면 섹션 자체를 안 넣는다(빈 섹션으로 프롬프트만 늘리지 않기 위함)
+function formatSummarySection(summary?: string): string {
+  if (!summary) return '';
+
+  return `\n## 이전 대화 요약 (지금은 화면에 안 보이지만 있었던 대화)\n${summary}\n`;
+}
+
 // recommend_plans / extract_conditions 사용 지침을 포함한 시스템 프롬프트
-export function buildSystemPrompt(plans: Plan[], keywords: ChatKeywords): string {
+export function buildSystemPrompt(
+  plans: Plan[],
+  keywords: ChatKeywords,
+  summary?: string,
+): string {
   return `당신은 통신사 '무너랑'의 요금제 상담 AI '무너'입니다.
 
 ## 역할
@@ -68,6 +79,7 @@ ${formatPlanCatalog(plans)}
 
 ## 지금까지 파악된 조건 (이전 턴에서 확인됨)
 ${formatKeywords(keywords)}
+${formatSummarySection(summary)}
 
 ## 조건을 파악했을 때
 - 예산, 데이터/테더링 사용량 등 이번 발화에서 새로 언급되거나 정정된

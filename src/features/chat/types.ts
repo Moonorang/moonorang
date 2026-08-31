@@ -43,6 +43,29 @@ export interface ChatRequestBody {
    * 매 요청에 실어 보낸다). 없으면 빈 값으로 취급한다.
    */
   keywords?: ChatKeywords;
+  /**
+   * 오래된 대화를 압축한 요약 (§2.3 "대화 요약" 계층 - 비회원용은 chats.keywords 같은
+   * DB row가 없어서 클라이언트가 localStorage로 들고 있다가 매 요청에 실어 보낸다).
+   * 시스템 프롬프트에 "이전 대화 요약"으로 끼워 넣는다.
+   */
+  summary?: string;
+}
+
+/** 요약 대상이 되는 메시지 한 개 - chat completions 메시지보다 가벼운 형태만 필요하다 */
+export interface SummarizeTurnMessage {
+  role: 'user' | 'ai';
+  content: string;
+}
+
+export interface ChatSummarizeRequestBody {
+  /** 이번에 새로 요약에 포함시킬 원문 메시지들 (이미 요약된 부분은 제외하고 보낸다) */
+  messages: SummarizeTurnMessage[];
+  /** 기존 요약 - 있으면 이어붙여서 누적 재요약한다 */
+  existingSummary?: string;
+}
+
+export interface ChatSummarizeResponseBody {
+  summary: string;
 }
 
 // useChat 훅이 관리하는 메시지 하나.

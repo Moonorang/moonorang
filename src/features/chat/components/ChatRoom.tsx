@@ -68,10 +68,12 @@ export default function ChatRoom({
     isStreaming,
     error,
     keywords,
+    summary,
     sendMessage,
     retry,
     reset,
     setKeywordValue,
+    pruneVisibleMessages,
   } = useChat();
   const conditionQuestions = useConditionQuestions();
 
@@ -109,6 +111,12 @@ export default function ChatRoom({
 
     scrollToBottom();
   }, [messages, joinBlocks, error, isAtBottom, scrollToBottom]);
+
+  // 화면 유지 상한을 넘긴 오래된(이미 요약된) 턴은, 사용자가 맨 아래를 보고 있을 때만
+  // 걷어낸다 - 과거 대화를 스크롤해서 보는 도중에 눈앞에서 사라지는 걸 막기 위함.
+  useEffect(() => {
+    if (isAtBottom) pruneVisibleMessages();
+  }, [isAtBottom, messages.length, pruneVisibleMessages]);
 
   // 3. 이벤트 핸들러
   const handleScroll = () => {
@@ -253,6 +261,19 @@ export default function ChatRoom({
         {/* 채팅 내역 영역 */}
         <div className="flex flex-col gap-6 px-4 py-6">
           <AiMessage content={WELCOME_MESSAGE} createdAt={WELCOME_CREATED_AT} />
+
+          {/*
+            CHAT-011/012: 오래된 대화가 요약돼서 화면에서는 걷어내진 상태임을 알려주는
+            안내선. summary가 있다는 건 지금 안 보이는 이전 대화가 있다는 뜻이라, 갑자기
+            대화가 끊긴 것처럼 보이지 않도록 경계를 표시한다.
+          */}
+          {summary && (
+            <div className="flex items-center gap-2 text-10 text-text-secondary">
+              <span className="h-px flex-1 bg-border-light" />
+              이전 대화 내용이 요약되었어요
+              <span className="h-px flex-1 bg-border-light" />
+            </div>
+          )}
 
           {messages.map((message) => (
             <Fragment key={message.id}>

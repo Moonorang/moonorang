@@ -16,7 +16,11 @@ export async function POST(request: Request) {
   }
 
   return new Response(
-    createChatStream(parsed.data.message, parsed.data.keywords ?? {}),
+    createChatStream(
+      parsed.data.message,
+      parsed.data.keywords ?? {},
+      parsed.data.summary,
+    ),
     { headers: SSE_HEADERS },
   );
 }

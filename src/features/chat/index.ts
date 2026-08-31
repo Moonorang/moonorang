@@ -33,5 +33,8 @@ export type {
   ChatRequestBody,
   ChatKeywords,
   PlanRecommendation,
+  SummarizeTurnMessage,
+  ChatSummarizeRequestBody,
+  ChatSummarizeResponseBody,
 } from './types';
 export type { ScoredPlan, SelectRecommendedPlansResult } from './lib/selectPlans';
