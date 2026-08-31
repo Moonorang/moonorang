@@ -10,7 +10,7 @@ interface PlusMenuProps {
   onClose?: () => void;
   onReset?: () => void;
   onPlanTest?: () => void;
-  className?: string;
+  appendClassName?: string;
 }
 
 export default function PlusMenu({
@@ -18,7 +18,7 @@ export default function PlusMenu({
   onClose,
   onReset,
   onPlanTest,
-  className,
+  appendClassName,
 }: PlusMenuProps) {
   if (!isOpen) return null;
 
@@ -42,16 +42,19 @@ export default function PlusMenu({
       />
       <div
         className={cn(
-          'absolute bottom-[70px] left-4 z-(--z-modal) flex w-50 flex-col gap-2 rounded-md bg-neutral-pure-white p-3 shadow-default',
-          className,
+          'absolute bottom-[70px] left-4 z-(--z-modal) flex w-50 flex-col gap-2 rounded-md bg-background-default p-3 shadow-default',
+          appendClassName,
         )}
       >
         <Button
           variant="ghost"
-          className="flex w-full items-center gap-2 rounded-sm p-0"
+          radius="sm"
+          size="none"
+          isFullWidth
+          gap="md"
           onClick={handleResetClick}
         >
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-secondary-light-yellow text-primary-yellow">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-action-secondary-light text-action-secondary">
             <Image
               src="/images/chat/icon-reset.png"
               alt=""
@@ -59,19 +62,22 @@ export default function PlusMenu({
               height={20}
             />
           </div>
-          <span className="text-12 font-medium text-text-main">
+          <span className="text-12 font-medium text-text-primary">
             대화 초기화
           </span>
         </Button>
 
-        <div className="mx-2 h-px bg-border-light-gray" />
+        <div className="mx-2 h-px bg-border-light" />
 
         <Button
           variant="ghost"
-          className="flex w-full items-center gap-2 rounded-sm p-0"
+          radius="sm"
+          size="none"
+          isFullWidth
+          gap="md"
           onClick={handlePlanTestClick}
         >
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-secondary-light-blue text-secondary-blue">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-accent-2-light text-accent-2">
             <Image
               src="/images/chat/icon-plan-test.png"
               alt=""
@@ -79,19 +85,22 @@ export default function PlusMenu({
               height={20}
             />
           </div>
-          <span className="text-12 font-medium text-text-main">
+          <span className="text-12 font-medium text-text-primary">
             요금제 성향 검사
           </span>
         </Button>
 
-        <div className="h-px w-full bg-border-light-gray" />
+        <div className="h-px w-full bg-border-light" />
 
         <Button
           variant="ghost"
-          className="flex w-full items-center gap-2 rounded-sm p-0"
+          radius="sm"
+          size="none"
+          isFullWidth
+          gap="md"
           onClick={onClose}
         >
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-secondary-light-red text-primary-red">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-action-primary-light text-action-primary">
             <Image
               src="/images/chat/icon-pdf-export.png"
               alt=""
@@ -99,7 +108,7 @@ export default function PlusMenu({
               height={20}
             />
           </div>
-          <span className="text-12 font-medium text-text-main">
+          <span className="text-12 font-medium text-text-primary">
             상담 결과 PDF 출력
           </span>
         </Button>

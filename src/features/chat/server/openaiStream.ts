@@ -6,7 +6,12 @@ import type { Stream } from 'openai/core/streaming';
 
 import { CHAT_TOOLS } from '@/features/chat/server/tools';
 import type { SSESend } from '@/features/chat/lib/sse';
-import { openai, OPENAI_MODEL } from '@/shared/lib/openai';
+import {
+  openai,
+  OPENAI_MODEL,
+  OPENAI_TEMPERATURE,
+  OPENAI_SEED,
+} from '@/shared/lib/openai';
 
 // NFR-002: 응답 대기는 최대 60초로 제한
 const REQUEST_TIMEOUT_MS = 60_000;
@@ -42,6 +47,8 @@ export async function streamCompletion({
       model: OPENAI_MODEL,
       messages,
       stream: true,
+      temperature: OPENAI_TEMPERATURE,
+      seed: OPENAI_SEED,
       ...(useTools ? { tools: CHAT_TOOLS } : {}),
     },
     { timeout: REQUEST_TIMEOUT_MS },

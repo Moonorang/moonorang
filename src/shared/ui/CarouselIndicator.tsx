@@ -3,23 +3,22 @@ import { cn } from '@/shared/utils/cn';
 interface CarouselIndicatorProps {
   total: number;
   activeIndex: number;
-  className?: string;
+  appendClassName?: string;
 }
 
 export default function CarouselIndicator({
   total,
   activeIndex,
-  className,
+  appendClassName,
 }: CarouselIndicatorProps) {
   if (total <= 1) return null;
 
   return (
     <div
       role="tablist"
-      aria-label="카드 목록 위치"
       className={cn(
-        'flex w-fit items-center justify-center gap-1.5 rounded-full bg-text-main/50 px-3 py-1',
-        className,
+        'flex w-fit items-center justify-center gap-1.5 rounded-full bg-text-primary/50 px-3 py-1',
+        appendClassName,
       )}
     >
       {Array.from({ length: total }).map((_, index) => {
@@ -33,7 +32,7 @@ export default function CarouselIndicator({
             aria-label={`${index + 1}번째 카드`}
             className={cn(
               'h-2 w-2 rounded-full transition-all duration-300',
-              isActive ? 'bg-neutral-pure-white' : 'bg-border-gray',
+              isActive ? 'bg-background-default' : 'bg-border-default',
             )}
           />
         );

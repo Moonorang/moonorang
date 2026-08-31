@@ -15,8 +15,8 @@ interface DrawerProps {
   children: ReactNode;
   /** 우측 상단 닫기 버튼 노출 여부 */
   hasCloseButton?: boolean;
-  /** 패널에 덧붙일 클래스 (폭 조정 등) */
-  className?: string;
+  /** 패널에 덧붙일 클래스 (폭 조정 등). 배치 전용 - 색상 등 디자인은 여기 넣지 않는다 */
+  appendClassName?: string;
 }
 
 /**
@@ -30,7 +30,7 @@ export default function Drawer({
   ariaLabel,
   children,
   hasCloseButton = true,
-  className,
+  appendClassName,
 }: DrawerProps) {
   // 부수 효과: 배경 스크롤 차단 및 Escape로 닫기
   useEffect(() => {
@@ -77,8 +77,8 @@ export default function Drawer({
               exit={{ x: '100%' }}
               transition={{ type: 'tween', ease: 'easeOut', duration: 0.25 }}
               className={cn(
-                'pointer-events-auto absolute top-0 right-0 flex h-full w-[70%] flex-col bg-neutral-pure-white',
-                className,
+                'pointer-events-auto absolute top-0 right-0 flex h-full w-[70%] flex-col bg-background-default',
+                appendClassName,
               )}
             >
               {hasCloseButton && (
@@ -87,7 +87,7 @@ export default function Drawer({
                     type="button"
                     onClick={onClose}
                     aria-label={`${ariaLabel} 닫기`}
-                    className="flex h-6 w-6 items-center justify-center text-text-main transition-colors hover:cursor-pointer hover:text-primary-red"
+                    className="flex h-6 w-6 items-center justify-center text-text-primary transition-colors hover:cursor-pointer hover:text-action-primary"
                   >
                     <X size={24} strokeWidth={1.5} aria-hidden="true" />
                   </button>

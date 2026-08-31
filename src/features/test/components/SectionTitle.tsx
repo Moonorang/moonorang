@@ -3,8 +3,8 @@ import Image from 'next/image';
 type SectionTone = 'yellow' | 'red';
 
 const TONE_STYLES: Record<SectionTone, string> = {
-  yellow: 'bg-secondary-light-yellow',
-  red: 'bg-secondary-light-red',
+  yellow: 'bg-action-secondary-light',
+  red: 'bg-action-primary-light',
 };
 
 interface SectionTitleProps {
@@ -30,7 +30,7 @@ export default function SectionTitle({
       >
         <Image src={iconSrc} alt="" width={iconWidth} height={iconHeight} />
       </div>
-      <h2 className="text-12 font-medium text-text-main">{title}</h2>
+      <h2 className="text-12 font-medium text-text-primary">{title}</h2>
     </div>
   );
 }

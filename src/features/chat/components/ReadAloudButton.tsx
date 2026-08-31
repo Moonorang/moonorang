@@ -9,7 +9,7 @@ import { cn } from '@/shared/utils/cn';
 
 interface ReadAloudButtonProps {
   text: string;
-  className?: string;
+  appendClassName?: string;
 }
 
 const subscribeToNothing = () => () => {};
@@ -18,7 +18,7 @@ const getIsSupportedOnServer = () => false;
 
 export default function ReadAloudButton({
   text,
-  className,
+  appendClassName,
 }: ReadAloudButtonProps) {
   const isSupported = useSyncExternalStore(
     subscribeToNothing,
@@ -59,14 +59,14 @@ export default function ReadAloudButton({
     <Button
       variant="ghost"
       radius="full"
+      size="sm"
+      gap="sm"
       onClick={handleReadAloudClick}
       aria-label={isSpeaking ? '읽기 중지' : '메시지 읽기'}
-      className={cn(
-        'flex items-center justify-center gap-1 bg-neutral-pure-white px-2 py-1.5 text-10 text-text-main',
-        className,
-      )}
+      // ghost 기본값 대신 흰 배경의 작은 알약 모양 - 여기서만 쓰는 조합이라 변형 대신 탈출구로 처리
+      appendClassName={cn('bg-background-default', appendClassName)}
     >
-      <Volume2 size={12} aria-hidden className="text-secondary-blue" />
+      <Volume2 size={12} aria-hidden className="text-accent-2" />
       <span>{isSpeaking ? '정지' : '읽기'}</span>
     </Button>
   );

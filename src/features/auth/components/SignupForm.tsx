@@ -153,7 +153,7 @@ export default function SignupForm({
       </FormField>
 
       {submitError && (
-        <p role="alert" className="text-12 text-semantic-error">
+        <p role="alert" className="text-12 text-status-error">
           {submitError}
         </p>
       )}
@@ -161,8 +161,9 @@ export default function SignupForm({
       <Button
         type="submit"
         variant="main"
+        size="xl"
+        isFullWidth
         disabled={isSubmitting}
-        className="w-full py-3 text-14 font-bold"
       >
         {isSubmitting ? '저장 중...' : '시작하기'}
       </Button>

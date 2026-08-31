@@ -5,12 +5,18 @@ import { useState } from 'react';
 import { LogIn, Send, Plus, Mic, Search } from 'lucide-react';
 import Button from '@/shared/ui/Button';
 import CarouselIndicator from '@/shared/ui/CarouselIndicator';
+import CheckBox from '@/shared/ui/CheckBox';
+import StepProgress from '@/shared/ui/StepProgress';
 import Tag from '@/shared/ui/Tag';
 
 import PlanCard from '@/entities/plan/ui/PlanCard';
+import PlanDetailCard from '@/features/join/components/PlanDetailCard';
+
+import JoinFlowCard from '@/features/join/components/JoinFlowCard';
 
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatAvatar from '@/features/chat/components/ChatAvatar';
+import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import UserMessage from '@/features/chat/components/UserMessage';
 
 export default function NotFoundPage() {
@@ -119,6 +125,50 @@ export default function NotFoundPage() {
         />
       </div>
       <br />
+      요금제 상세 카드 (채팅에서 신청하기를 누르면 뜨는 카드)
+      <div className="m-5 w-90 rounded-md bg-background-default p-4">
+        <PlanDetailCard
+          plan={{
+            id: 11,
+            name: '너겟75',
+            description: '최대 혜택 상당액 73,600원/월',
+            monthlyFee: 75000,
+            dataAllowance: '무제한',
+            voiceSms: '기본제공 / 기본제공 / 300분 무료',
+            benefits: {
+              media_contents: '콘텐츠·음악 감상 등 최대 15,000원/월',
+              vip_membership:
+                'VIP콕 7,000원/월 (네이버플러스 선택 시 무료 영화 예매)',
+              max_benefit_value: '73,600원/월',
+              tethering_sharing: '100GB',
+            },
+          }}
+          onJoin={() => {}}
+        />
+      </div>
+      <br />
+      요금제 가입 절차 카드 (상세 확인 - 약관 동의 - 본인 확인 순으로 카드 한
+      장의 내용만 바뀜. 하단 버튼과 좌측 상단 화살표로 이동)
+      <div className="m-5 w-90">
+        <JoinFlowCard
+          plan={{
+            id: 11,
+            name: '너겟75',
+            description: '최대 혜택 상당액 73,600원/월',
+            monthlyFee: 75000,
+            dataAllowance: '무제한',
+            voiceSms: '기본제공 / 기본제공 / 300분 무료',
+            benefits: {
+              media_contents: '콘텐츠·음악 감상 등 최대 15,000원/월',
+              vip_membership:
+                'VIP콕 7,000원/월 (네이버플러스 선택 시 무료 영화 예매)',
+              max_benefit_value: '73,600원/월',
+              tethering_sharing: '100GB',
+            },
+          }}
+        />
+      </div>
+      <br />
       AI 어시스턴트 프로필
       <ChatAvatar></ChatAvatar>
       요금제 채팅 (components/chat에 AiMessage와 UserMessage를 적절하게 사용하면
@@ -133,43 +183,129 @@ export default function NotFoundPage() {
           createdAt={'2026-08-26T14:00:00+09:00'}
         />
       </div>
-      버튼 목록
-      <br />
-      <Button variant="main" radius="md">
-        버튼
-      </Button>
-      <Button variant="secondary" radius="md">
-        버튼
-      </Button>
-      <Button variant="outline" radius="md">
-        버튼
-      </Button>
-      <Button variant="ghost" radius="md">
-        버튼
-      </Button>
-      <Button variant="answer" radius="full">
-        버튼
-      </Button>
-      <Button variant="filter" radius="full">
-        버튼
-      </Button>
-      <Button variant="gradient" radius="md" className="min-w-100">
-        버튼
-      </Button>
+      버튼 종류
+      {/* variant */}
+      <p className="mt-4 text-12 font-bold text-text-primary">variant</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <Button variant="main">main</Button>
+        <Button variant="secondary">secondary</Button>
+        <Button variant="answer">answer</Button>
+        <Button variant="filter">filter</Button>
+        <Button variant="outline">outline</Button>
+        <Button variant="ghost">ghost</Button>
+        <Button variant="gradient">gradient</Button>
+      </div>
+      {/* radius */}
+      <p className="mt-4 text-12 font-bold text-text-primary">radius</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <Button variant="main" radius="sm">
+          sm
+        </Button>
+        <Button variant="main" radius="md">
+          md
+        </Button>
+        <Button variant="main" radius="full">
+          full
+        </Button>
+      </div>
+      {/* size - none 은 패딩이 없어서 아이콘 전용 버튼에 쓴다 */}
+      <p className="mt-4 text-12 font-bold text-text-primary">size</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="none" appendClassName="h-10 w-10">
+          <Plus size={18} aria-hidden />
+        </Button>
+        <Button variant="outline" size="sm">
+          sm
+        </Button>
+        <Button variant="outline" size="md">
+          md
+        </Button>
+        <Button variant="outline" size="lg">
+          lg
+        </Button>
+        <Button variant="outline" size="xl">
+          xl
+        </Button>
+      </div>
+      {/* gap - 아이콘 + 라벨 사이 간격 */}
+      <p className="mt-4 text-12 font-bold text-text-primary">gap</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <Button variant="answer" gap="sm">
+          <Search size={14} aria-hidden /> gap sm
+        </Button>
+        <Button variant="answer" gap="md">
+          <Search size={14} aria-hidden /> gap md
+        </Button>
+      </div>
+      {/* isFullWidth */}
+      <p className="mt-4 text-12 font-bold text-text-primary">isFullWidth</p>
+      <div className="mt-1">
+        <Button variant="main" isFullWidth>
+          꽉 채운 버튼
+        </Button>
+      </div>
+      {/* isActive - ghost variant 의 토글 강조 (채팅 입력창 + 버튼 등) */}
+      <p className="mt-4 text-12 font-bold text-text-primary">
+        isActive (ghost)
+      </p>
+      <div className="mt-1 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          radius="sm"
+          size="none"
+          appendClassName="h-10 w-10"
+        >
+          <Plus size={18} aria-hidden />
+        </Button>
+        <Button
+          variant="ghost"
+          radius="sm"
+          size="none"
+          isActive
+          appendClassName="h-10 w-10"
+        >
+          <Plus size={18} aria-hidden />
+        </Button>
+      </div>
       <br />
       인디케이터
       <CarouselIndicator total={3} activeIndex={2} />
+      <br />
+      단계 진행 표시줄 (요금제 가입 절차)
+      <div className="m-5 w-90">
+        <StepProgress total={4} currentIndex={1} ariaLabel="예시 진행 상황" />
+      </div>
+      체크박스 (선택 / 미선택)
+      <div className="m-5 flex items-center gap-2">
+        <CheckBox
+          id="preview-checkbox-on"
+          isChecked
+          onChange={() => {}}
+          ariaLabel="선택된 체크박스"
+        />
+        <CheckBox
+          id="preview-checkbox-off"
+          isChecked={false}
+          onChange={() => {}}
+          ariaLabel="선택되지 않은 체크박스"
+        />
+      </div>
       태그
       <br />
       <Tag>추천1위 기본적으로 쓰이는 태그</Tag>
       <br />
+      <br />
+      최하단 이동 버튼 (채팅 화면에서 위로 스크롤했을 때만 노출됨)
+      <div className="m-5">
+        <ScrollToBottomButton onClick={() => {}} />
+      </div>
       <br />
       OpenAI 연결 확인 (임시)
       <div className="m-5 flex max-w-100 flex-col gap-2">
         <input
           value={testInput}
           onChange={(e) => setTestInput(e.target.value)}
-          className="rounded-md border border-border-gray px-3 py-2 text-14"
+          className="rounded-md border border-border-default px-3 py-2 text-14"
         />
         <Button
           variant="main"
@@ -180,12 +316,12 @@ export default function NotFoundPage() {
         </Button>
 
         {testReply && (
-          <p className="rounded-md bg-secondary-light-yellow p-3 text-14">
+          <p className="rounded-md bg-action-secondary-light p-3 text-14">
             {testReply}
           </p>
         )}
         {testError && (
-          <p className="rounded-md bg-secondary-light-red p-3 text-14 text-primary-red">
+          <p className="rounded-md bg-action-primary-light p-3 text-14 text-action-primary">
             {testError}
           </p>
         )}

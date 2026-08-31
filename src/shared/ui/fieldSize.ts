@@ -36,4 +36,4 @@ export const FIELD_ICON_SIZE: Record<FieldSize, number> = {
 
 /** 크기와 무관한 공통 모양 (테두리·배경·포커스) */
 export const FIELD_BASE_CLASS =
-  'w-full rounded-md border border-border-gray bg-neutral-pure-white text-text-main transition-colors outline-none placeholder:text-text-secondary focus:border-primary-red';
+  'w-full rounded-md border border-border-default bg-background-default text-text-primary transition-colors outline-none placeholder:text-text-secondary focus:border-action-primary';

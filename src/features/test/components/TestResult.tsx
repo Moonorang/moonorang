@@ -37,10 +37,10 @@ export default function TestResult({ displayName }: TestResultProps) {
           priority
         />
         <div className="flex w-full flex-col gap-2">
-          <h1 className="text-20 font-bold text-neutral-pure-white">
+          <h1 className="text-20 font-bold text-background-default">
             {result.type.name}
           </h1>
-          <p className="text-14 font-medium text-neutral-pure-white">
+          <p className="text-14 font-medium text-background-default">
             {result.type.description}
           </p>
         </div>
@@ -56,9 +56,9 @@ export default function TestResult({ displayName }: TestResultProps) {
           iconTone="yellow"
         />
         {recommendedPlan ? (
-          <PlanCard plan={recommendedPlan} rank={1} className="w-full" />
+          <PlanCard plan={recommendedPlan} rank={1} appendClassName="w-full" />
         ) : (
-          <p className="rounded-md bg-neutral-pure-white p-4 text-12 text-text-secondary">
+          <p className="rounded-md bg-background-default p-4 text-12 text-text-secondary">
             추천 요금제를 불러오는 중이에요.
           </p>
         )}
@@ -81,8 +81,10 @@ export default function TestResult({ displayName }: TestResultProps) {
         <Button
           variant="main"
           radius="full"
+          size="lg"
+          gap="md"
           onClick={shareResult}
-          className="flex flex-1 items-center justify-center gap-2 py-2.5 text-12 font-medium"
+          appendClassName="flex-1"
         >
           <Share2 size={16} aria-hidden />
           친구에게 공유하기
@@ -90,8 +92,10 @@ export default function TestResult({ displayName }: TestResultProps) {
         <Button
           variant="outline"
           radius="full"
+          size="lg"
+          gap="md"
           onClick={retryTest}
-          className="flex flex-1 items-center justify-center gap-2 py-2.5 text-12 font-medium text-text-secondary"
+          appendClassName="flex-1"
         >
           <Pencil size={16} aria-hidden />
           다시 테스트하기

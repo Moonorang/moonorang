@@ -19,7 +19,7 @@ interface ChatInputProps {
   // 응답 생성 중일 때 입력과 전송을 막음
   disabled?: boolean;
   placeholder?: string;
-  className?: string;
+  appendClassName?: string;
 }
 
 export default function ChatInput({
@@ -31,7 +31,7 @@ export default function ChatInput({
   onMicClick,
   disabled = false,
   placeholder = '무너에게 무엇이든 물어보세요!',
-  className,
+  appendClassName,
 }: ChatInputProps) {
   const canSend = value.trim().length > 0 && !disabled;
 
@@ -56,25 +56,23 @@ export default function ChatInput({
       className={cn(
         'fixed inset-x-0 bottom-0 z-(--z-chat-input)',
         'mx-auto flex w-full items-center gap-2',
-        'border-t border-border-gray bg-neutral-pure-white px-4 py-2',
-        className,
+        'border-t border-border-default bg-background-default px-4 py-2',
+        appendClassName,
       )}
     >
       <Button
         variant="ghost"
+        radius="sm"
+        size="none"
+        isActive={isPlusOpen}
         onClick={onPlusClick}
         aria-label="추가 기능 열기"
-        className={cn(
-          'flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-sm p-0',
-          isPlusOpen
-            ? 'bg-secondary-light-yellow text-primary-yellow'
-            : 'text-text-secondary',
-        )}
+        appendClassName="h-10 w-10 shrink-0"
       >
         <Plus size={20} aria-hidden />
       </Button>
 
-      <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-neutral-off-white px-4 py-2.5 focus-within:ring-1 focus-within:ring-border-gray">
+      <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-background-subtle px-4 py-2.5 focus-within:ring-1 focus-within:ring-border-default">
         <input
           type="text"
           value={value}
@@ -84,7 +82,7 @@ export default function ChatInput({
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder={placeholder}
-          className="min-w-0 flex-1 truncate bg-transparent text-12 text-text-main placeholder:text-text-secondary focus:outline-none disabled:cursor-not-allowed"
+          className="min-w-0 flex-1 truncate bg-transparent text-12 text-text-primary placeholder:text-text-secondary focus:outline-none disabled:cursor-not-allowed"
         />
 
         <button
@@ -92,7 +90,7 @@ export default function ChatInput({
           onClick={onMicClick}
           disabled={disabled}
           aria-label="음성으로 입력"
-          className="flex shrink-0 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-primary-red disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex shrink-0 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-action-primary disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Mic size={20} aria-hidden />
         </button>
@@ -101,12 +99,11 @@ export default function ChatInput({
       <Button
         type="submit"
         variant="secondary"
+        radius="sm"
+        size="none"
         disabled={!canSend}
         aria-label="메시지 보내기"
-        className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-sm p-0 text-neutral-pure-white transition-colors',
-          !canSend && 'bg-text-gray',
-        )}
+        appendClassName="h-10 w-10 shrink-0"
       >
         <Send size={18} aria-hidden />
       </Button>

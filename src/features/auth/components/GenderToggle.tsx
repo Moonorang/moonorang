@@ -43,7 +43,7 @@ export default function GenderToggle({
     <div
       role="group"
       aria-label="성별"
-      className="flex shrink-0 overflow-hidden rounded-md border border-border-gray"
+      className="flex shrink-0 overflow-hidden rounded-md border border-border-default"
     >
       {GENDER_OPTIONS.map((option) => {
         const isSelected = value === option.value;
@@ -59,8 +59,8 @@ export default function GenderToggle({
               TOGGLE_WIDTH[size],
               'transition-colors hover:cursor-pointer',
               isSelected
-                ? 'bg-primary-red text-neutral-pure-white'
-                : 'bg-neutral-pure-white text-text-secondary',
+                ? 'bg-action-primary text-background-default'
+                : 'bg-background-default text-text-secondary',
             )}
           >
             {option.label}
