@@ -8,4 +8,6 @@ interface MenuLink {
   href: string;
 }
 
-export const MENU_LINKS: MenuLink[] = [{ label: '상품·혜택', href: '/catalog' }];
+export const MENU_LINKS: MenuLink[] = [
+  { label: '상품·혜택', href: '/catalog' },
+];
