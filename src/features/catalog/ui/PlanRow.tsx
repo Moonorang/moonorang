@@ -1,0 +1,73 @@
+import CatalogCard from '@/features/catalog/ui/CatalogCard';
+import DetailRow from '@/features/catalog/ui/DetailRow';
+
+import { isMeaningful } from '@/features/catalog/lib/isMeaningful';
+import { formatWon } from '@/shared/utils/formatCurrency';
+import { parseDataAllowance, parseVoiceSms } from '@/entities/plan/lib/format';
+import type { Plan } from '@/entities/plan/types';
+
+interface PlanRowProps {
+  plan: Plan;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+// DATA-002: 요금제명·월 요금·데이터·음성·문자·부가 혜택
+export default function PlanRow({ plan, isExpanded, onToggle }: PlanRowProps) {
+  const { amount, throttleSpeed } = parseDataAllowance(plan.dataAllowance);
+  const { call, sms } = parseVoiceSms(plan.voiceSms);
+  const tetheringSharing = plan.benefits?.tethering_sharing;
+  const maxBenefitValue = plan.benefits?.max_benefit_value;
+  const mediaContents = plan.benefits?.media_contents;
+  const vipMembership = plan.benefits?.vip_membership;
+
+  return (
+    <CatalogCard
+      expandSummary={
+        isMeaningful(maxBenefitValue)
+          ? `최대 ${maxBenefitValue} 상당 혜택`
+          : undefined
+      }
+      isExpanded={isExpanded}
+      onToggle={onToggle}
+      detail={
+        <dl>
+          <DetailRow label="데이터" value={plan.dataAllowance} />
+          {throttleSpeed && <DetailRow label="소진 후" value={throttleSpeed} />}
+          <DetailRow label="음성 통화" value={call} />
+          {sms && <DetailRow label="문자" value={sms} />}
+          {tetheringSharing && (
+            <DetailRow label="테더링·쉐어링" value={tetheringSharing} />
+          )}
+          {isMeaningful(mediaContents) && (
+            <DetailRow label="미디어 혜택" value={mediaContents} />
+          )}
+          {isMeaningful(vipMembership) && (
+            <DetailRow label="멤버십 혜택" value={vipMembership} />
+          )}
+        </dl>
+      }
+    >
+      <div className="flex items-center gap-3 px-4 pt-5 pb-2">
+        <p className="w-14 shrink-0 pl-1 text-14 font-medium text-text-main">
+          {plan.name}
+        </p>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-12 font-medium text-text-main">
+            데이터 {amount}
+          </p>
+          {tetheringSharing && (
+            <p className="truncate text-10 text-text-main">
+              테더링 + 쉐어링 {tetheringSharing}
+            </p>
+          )}
+        </div>
+
+        <p className="shrink-0 text-14 font-semibold text-primary-red">
+          월 {formatWon(plan.monthlyFee)} 원
+        </p>
+      </div>
+    </CatalogCard>
+  );
+}
