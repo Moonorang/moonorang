@@ -6,16 +6,16 @@ import type { DateInput } from '@/shared/utils/formatTime';
 interface UserMessageProps {
   content: string;
   createdAt?: DateInput;
-  className?: string;
+  appendClassName?: string;
 }
 
 export default function UserMessage({
   content,
   createdAt,
-  className,
+  appendClassName,
 }: UserMessageProps) {
   return (
-    <div className={cn('flex w-full justify-end', className)}>
+    <div className={cn('flex w-full justify-end', appendClassName)}>
       <ChatBubble variant="user" createdAt={createdAt}>
         {content}
       </ChatBubble>

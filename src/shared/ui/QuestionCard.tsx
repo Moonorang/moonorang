@@ -152,12 +152,7 @@ export default function QuestionCard({
 
           {/* 건너뛰기 (CARD-011) */}
           <div className="flex h-6 items-center justify-end px-1">
-            <Button
-              variant="outline"
-              radius="sm"
-              onClick={onSkip}
-              className="px-2 py-1"
-            >
+            <Button variant="outline" radius="sm" size="sm" onClick={onSkip}>
               건너뛰기
             </Button>
           </div>

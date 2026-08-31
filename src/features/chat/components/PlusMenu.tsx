@@ -10,7 +10,7 @@ interface PlusMenuProps {
   onClose?: () => void;
   onReset?: () => void;
   onPlanTest?: () => void;
-  className?: string;
+  appendClassName?: string;
 }
 
 export default function PlusMenu({
@@ -18,7 +18,7 @@ export default function PlusMenu({
   onClose,
   onReset,
   onPlanTest,
-  className,
+  appendClassName,
 }: PlusMenuProps) {
   if (!isOpen) return null;
 
@@ -43,12 +43,15 @@ export default function PlusMenu({
       <div
         className={cn(
           'absolute bottom-[70px] left-4 z-(--z-modal) flex w-50 flex-col gap-2 rounded-md bg-background-default p-3 shadow-default',
-          className,
+          appendClassName,
         )}
       >
         <Button
           variant="ghost"
-          className="flex w-full items-center gap-2 rounded-sm p-0"
+          radius="sm"
+          size="none"
+          isFullWidth
+          gap="md"
           onClick={handleResetClick}
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-action-secondary-light text-action-secondary">
@@ -68,7 +71,10 @@ export default function PlusMenu({
 
         <Button
           variant="ghost"
-          className="flex w-full items-center gap-2 rounded-sm p-0"
+          radius="sm"
+          size="none"
+          isFullWidth
+          gap="md"
           onClick={handlePlanTestClick}
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-accent-2-light text-accent-2">
@@ -88,7 +94,10 @@ export default function PlusMenu({
 
         <Button
           variant="ghost"
-          className="flex w-full items-center gap-2 rounded-sm p-0"
+          radius="sm"
+          size="none"
+          isFullWidth
+          gap="md"
           onClick={onClose}
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-action-primary-light text-action-primary">

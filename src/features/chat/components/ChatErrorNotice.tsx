@@ -8,7 +8,7 @@ import type { ChatErrorReason } from '@/features/chat/types';
 interface ChatErrorNoticeProps {
   reason: ChatErrorReason;
   onRetry?: () => void;
-  className?: string;
+  appendClassName?: string;
 }
 
 // 실패 사유를 구분해서 표시
@@ -38,7 +38,7 @@ const REASON_CONTENT: Record<
 export default function ChatErrorNotice({
   reason,
   onRetry,
-  className,
+  appendClassName,
 }: ChatErrorNoticeProps) {
   const { icon: Icon, title, description } = REASON_CONTENT[reason];
 
@@ -47,7 +47,7 @@ export default function ChatErrorNotice({
       role="alert"
       className={cn(
         'flex w-full items-start gap-3 rounded-md border border-action-primary-light bg-action-primary-light/40 p-3',
-        className,
+        appendClassName,
       )}
     >
       <Icon
@@ -67,7 +67,7 @@ export default function ChatErrorNotice({
             variant="outline"
             radius="full"
             onClick={onRetry}
-            className="self-start"
+            appendClassName="self-start"
           >
             다시 시도
           </Button>

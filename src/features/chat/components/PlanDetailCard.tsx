@@ -83,12 +83,14 @@ export default function PlanDetailCard({ plan, onJoin }: PlanDetailCardProps) {
         )}
       </ul>
 
-      {/* 시안의 높이 38px 을 맞추려면 기본 padding(py-2)과 글자 크기(text-10)를 덮어야 한다 */}
+      {/* 시안의 높이 38px 은 size="lg"(py-2.5 + text-12)가 그대로 만들어 준다 */}
       <Button
         variant="main"
         radius="sm"
+        size="lg"
+        isFullWidth
         onClick={onJoin}
-        className="mt-[18px] w-full py-2.5 text-12 font-medium"
+        appendClassName="mt-[18px]"
       >
         신청하기
       </Button>
