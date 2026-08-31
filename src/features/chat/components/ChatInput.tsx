@@ -72,7 +72,7 @@ export default function ChatInput({
         <Plus size={20} aria-hidden />
       </Button>
 
-      <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-background-subtle px-4 py-2.5 focus-within:ring-1 focus-within:ring-border-default">
+      <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-background-subtle px-4 py-2.5 focus-within:ring-1 focus-within:ring-action-secondary">
         <input
           type="text"
           value={value}

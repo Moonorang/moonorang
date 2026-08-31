@@ -59,7 +59,7 @@ export default function PlanCard({
   return (
     <div
       className={cn(
-        'flex w-[80%] flex-col gap-2 rounded-md bg-background-default p-4',
+        'flex w-[80%] flex-col gap-2 rounded-md bg-background-default p-4 shadow-default',
         appendClassName,
       )}
     >
@@ -118,7 +118,7 @@ export default function PlanCard({
 
       <div className="flex gap-1">
         <Button
-          variant="main"
+          variant="outline"
           radius="full"
           onClick={onViewDetail}
           appendClassName="flex-1"
@@ -126,7 +126,7 @@ export default function PlanCard({
           상세보기
         </Button>
         <Button
-          variant="gradient"
+          variant="main"
           radius="full"
           onClick={onJoin}
           appendClassName="flex-3"

@@ -3,12 +3,15 @@ import { cn } from '@/shared/utils/cn';
 interface CarouselIndicatorProps {
   total: number;
   activeIndex: number;
+  /** 점을 눌러 해당 순번으로 바로 이동할 때 쓴다. 없으면 그냥 현재 위치 표시만 한다 */
+  onSelect?: (index: number) => void;
   appendClassName?: string;
 }
 
 export default function CarouselIndicator({
   total,
   activeIndex,
+  onSelect,
   appendClassName,
 }: CarouselIndicatorProps) {
   if (total <= 1) return null;
@@ -25,13 +28,15 @@ export default function CarouselIndicator({
         const isActive = index === activeIndex;
 
         return (
-          <span
+          <button
             key={index}
+            type="button"
             role="tab"
             aria-selected={isActive}
-            aria-label={`${index + 1}번째 카드`}
+            aria-label={`${index + 1}번째 카드로 이동`}
+            onClick={() => onSelect?.(index)}
             className={cn(
-              'h-2 w-2 rounded-full transition-all duration-300',
+              'h-2 w-2 cursor-pointer rounded-full transition-all duration-300',
               isActive ? 'bg-background-default' : 'bg-border-default',
             )}
           />
