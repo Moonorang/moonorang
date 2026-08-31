@@ -14,10 +14,6 @@ export interface ChatKeywords {
   dataUsageGb?: number;
   /** 예상 월 테더링/쉐어링 사용량 (GB) */
   tetheringGb?: number;
-  /** 가족 결합 여부 */
-  isBundle?: boolean | null;
-  /** 요금제 성향 검사 타입 등 자유 서술 */
-  planPreferenceType?: string;
 }
 
 // 서버가 plans 테이블 조회 + 계산 결과를 합쳐서 클라이언트로 보내는 형태

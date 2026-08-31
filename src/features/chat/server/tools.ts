@@ -12,7 +12,7 @@ export const EXTRACT_CONDITIONS_TOOL: ChatCompletionTool = {
   function: {
     name: 'extract_conditions',
     description:
-      '사용자 발화에서 요금제 조건(예산, 데이터/테더링 사용량, 결합 여부, 성향)을 새로 언급했거나 정정했을 때만 호출한다. 언급 안 된 필드는 아예 넣지 않는다. 조건이 전혀 없는 발화면 호출하지 않는다.',
+      '사용자 발화에서 요금제 조건(예산, 데이터/테더링 사용량)을 새로 언급했거나 정정했을 때만 호출한다. 언급 안 된 필드는 아예 넣지 않는다. 조건이 전혀 없는 발화면 호출하지 않는다.',
     parameters: {
       type: 'object',
       properties: {
@@ -24,11 +24,6 @@ export const EXTRACT_CONDITIONS_TOOL: ChatCompletionTool = {
         tetheringGb: {
           type: 'number',
           description: '한 달 예상 테더링/쉐어링 사용량 (GB)',
-        },
-        isBundle: { type: 'boolean', description: '가족 결합 여부' },
-        planPreferenceType: {
-          type: 'string',
-          description: '요금제 성향 (자유 서술, 예: 데이터 헤비유저)',
         },
       },
       additionalProperties: false,
@@ -77,9 +72,6 @@ export function parseExtractConditionsArguments(
       result.dataUsageGb = parsed.dataUsageGb;
     if (typeof parsed.tetheringGb === 'number')
       result.tetheringGb = parsed.tetheringGb;
-    if (typeof parsed.isBundle === 'boolean') result.isBundle = parsed.isBundle;
-    if (typeof parsed.planPreferenceType === 'string')
-      result.planPreferenceType = parsed.planPreferenceType;
 
     return Object.keys(result).length > 0 ? result : null;
   } catch {

@@ -34,8 +34,6 @@ const KEYWORD_LABELS: Record<keyof ChatKeywords, string> = {
   budget: '예산',
   dataUsageGb: '데이터 사용량(GB)',
   tetheringGb: '테더링/쉐어링 사용량(GB)',
-  isBundle: '가족 결합 여부',
-  planPreferenceType: '요금제 성향',
 };
 
 // 지금까지 파악된 조건을 한 줄씩 나열 - 모델이 같은 걸 다시 안 묻고,
@@ -65,7 +63,7 @@ ${formatPlanCatalog(plans)}
 ${formatKeywords(keywords)}
 
 ## 조건을 파악했을 때
-- 예산, 데이터/테더링 사용량, 결합 여부, 성향 등 이번 발화에서 새로 언급되거나 정정된
+- 예산, 데이터/테더링 사용량 등 이번 발화에서 새로 언급되거나 정정된
   값이 있으면 extract_conditions 도구를 호출하세요. 언급 안 된 값은 넣지 마세요.
 - 위 "지금까지 파악된 조건"에 이미 있는 값은 다시 묻지 마세요.
 
