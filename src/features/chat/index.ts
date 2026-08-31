@@ -12,7 +12,7 @@ export { default as ScrollToBottomButton } from './components/ScrollToBottomButt
 export { default as SuggestionChips } from './components/SuggestionChips';
 export { default as UserMessage } from './components/UserMessage';
 export { useChat, type ChatError } from './hooks/useChat';
-export { WELCOME_MESSAGE, WELCOME_CREATED_AT } from './constants';
+export { WELCOME_MESSAGE } from './constants';
 export { parseChatRequest } from './lib/schema';
 export { formatSSEEvent, parseSSEEvent, SSE_HEADERS } from './lib/sse';
 export { selectRecommendedPlans } from './lib/selectPlans';
@@ -25,4 +25,7 @@ export type {
   ChatKeywords,
   PlanRecommendation,
 } from './types';
-export type { ScoredPlan, SelectRecommendedPlansResult } from './lib/selectPlans';
+export type {
+  ScoredPlan,
+  SelectRecommendedPlansResult,
+} from './lib/selectPlans';

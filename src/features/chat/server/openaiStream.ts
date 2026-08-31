@@ -1,10 +1,10 @@
 import type {
   ChatCompletionChunk,
   ChatCompletionMessageParam,
+  ChatCompletionTool,
 } from 'openai/resources/chat/completions';
 import type { Stream } from 'openai/core/streaming';
 
-import { CHAT_TOOLS } from '@/features/chat/server/tools';
 import type { SSESend } from '@/features/chat/lib/sse';
 import {
   openai,
@@ -25,7 +25,8 @@ export interface ToolCallBuilder {
 
 interface StreamCompletionParams {
   messages: ChatCompletionMessageParam[];
-  useTools: boolean;
+  /** 이번 호출에서 쓸 tool 목록. 넘기지 않으면 tool 없이 자연어만 받는다 */
+  tools?: ChatCompletionTool[];
   send: SSESend;
   /** 클라이언트가 연결을 끊었을 때 중단할 수 있도록 스트림을 바깥에 알린다 */
   onStreamCreated: (stream: Stream<ChatCompletionChunk>) => void;
@@ -38,7 +39,7 @@ interface StreamCompletionParams {
  */
 export async function streamCompletion({
   messages,
-  useTools,
+  tools,
   send,
   onStreamCreated,
 }: StreamCompletionParams): Promise<ToolCallBuilder[]> {
@@ -49,7 +50,7 @@ export async function streamCompletion({
       stream: true,
       temperature: OPENAI_TEMPERATURE,
       seed: OPENAI_SEED,
-      ...(useTools ? { tools: CHAT_TOOLS } : {}),
+      ...(tools && tools.length > 0 ? { tools } : {}),
     },
     { timeout: REQUEST_TIMEOUT_MS },
   );

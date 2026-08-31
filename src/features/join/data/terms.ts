@@ -21,7 +21,7 @@ export interface JoinTerm {
 export const JOIN_TERMS: JoinTerm[] = [
   {
     id: 'service',
-    title: 'U+ 모바일 서비스 이용약관',
+    title: '모바일 서비스 이용약관',
     isRequired: true,
     content: `제1조 (목적)
 이 약관은 회사가 제공하는 이동통신 서비스의 이용 조건과 절차, 회사와 이용자의 권리·의무를 정하는 것을 목적으로 합니다.
@@ -43,7 +43,7 @@ export const JOIN_TERMS: JoinTerm[] = [
   },
   {
     id: 'privacy',
-    title: 'U+ 개인정보 수집·이용 동의',
+    title: '개인정보 수집·이용 동의',
     isRequired: true,
     content: `1. 수집하는 항목
 - 필수: 이름, 생년월일, 성별, 연락처, 주소, 결제 정보
@@ -63,7 +63,7 @@ export const JOIN_TERMS: JoinTerm[] = [
   },
   {
     id: 'identity',
-    title: 'U+ 고유식별정보 처리 동의',
+    title: '고유식별정보 처리 동의',
     isRequired: true,
     content: `1. 처리하는 정보
 주민등록번호, 외국인등록번호 등 고유식별정보
@@ -81,7 +81,7 @@ export const JOIN_TERMS: JoinTerm[] = [
   },
   {
     id: 'marketing',
-    title: 'U+ 마케팅 정보 수신 동의',
+    title: '마케팅 정보 수신 동의',
     isRequired: false,
     content: `1. 수신하는 정보
 - 신규 요금제, 부가서비스, 구독 상품 안내

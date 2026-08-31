@@ -174,14 +174,8 @@ export default function NotFoundPage() {
       요금제 채팅 (components/chat에 AiMessage와 UserMessage를 적절하게 사용하면
       됨)
       <div className="w-100">
-        <AiMessage
-          content="요금제를 추천해드릴게요."
-          createdAt={'2026-08-26T14:00:00+09:00'}
-        />
-        <UserMessage
-          content="내 요금제 추천해줘."
-          createdAt={'2026-08-26T14:00:00+09:00'}
-        />
+        <AiMessage content="요금제를 추천해드릴게요." />
+        <UserMessage content="내 요금제 추천해줘." />
       </div>
       버튼 종류
       {/* variant */}

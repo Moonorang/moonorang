@@ -59,18 +59,21 @@ export default function TermsStep({
     >
       <div className="pt-4">
         {/* 전체 동의 - 두 줄 문구를 감싸는 테두리 상자 */}
-        <div className="flex items-center gap-3 rounded-md border border-text-secondary px-4 py-2.5">
+        <div className="flex items-center gap-2 rounded-md border border-text-secondary px-3 py-2.5">
           <CheckBox
             id="join-term-all"
             isChecked={isAllAgreed}
             onChange={handleAllToggle}
           />
 
-          <label htmlFor="join-term-all" className="cursor-pointer">
+          <label
+            htmlFor="join-term-all"
+            className="min-w-0 cursor-pointer break-keep"
+          >
             <span className="block text-12 text-text-primary">
               모든 약관을 확인 후 동의합니다.
             </span>
-            <span className="block text-12 text-text-secondary">
+            <span className="block text-10 text-text-secondary">
               (선택항목 포함)
             </span>
           </label>
@@ -82,7 +85,7 @@ export default function TermsStep({
 
             return (
               <li key={term.id} className="flex flex-col">
-                <div className="flex items-center gap-3 px-4">
+                <div className="flex items-center gap-2">
                   <CheckBox
                     id={`join-term-${term.id}`}
                     isChecked={agreedIds.includes(term.id)}
@@ -93,10 +96,14 @@ export default function TermsStep({
 
                   <label
                     htmlFor={`join-term-${term.id}`}
-                    className="flex-1 cursor-pointer text-12 text-text-primary"
+                    className="min-w-0 flex-1 cursor-pointer text-12 break-keep text-text-primary"
                   >
-                    {term.title} ({term.isRequired ? '필수' : '선택'})
+                    {term.title}
                   </label>
+
+                  <span className="shrink-0 text-10 text-text-secondary">
+                    {term.isRequired ? '필수' : '선택'}
+                  </span>
 
                   <button
                     type="button"
@@ -107,8 +114,8 @@ export default function TermsStep({
                     className="shrink-0 cursor-pointer text-text-primary transition-colors hover:text-action-primary"
                   >
                     <ChevronRight
-                      size={20}
-                      strokeWidth={1.4}
+                      size={18}
+                      strokeWidth={1.5}
                       aria-hidden
                       className={cn(
                         'transition-transform',
@@ -124,7 +131,7 @@ export default function TermsStep({
                     id={`join-term-detail-${term.id}`}
                     className="mt-2 max-h-40 overflow-y-auto rounded-sm bg-background-subtle p-3"
                   >
-                    <p className="text-10 leading-relaxed whitespace-pre-line text-text-secondary">
+                    <p className="text-10 leading-relaxed break-keep whitespace-pre-line text-text-secondary">
                       {term.content}
                     </p>
                   </div>

@@ -53,6 +53,7 @@ export default function PlusMenu({
           isFullWidth
           gap="md"
           onClick={handleResetClick}
+          appendClassName="justify-start"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-action-secondary-light text-action-secondary">
             <Image
@@ -62,12 +63,12 @@ export default function PlusMenu({
               height={20}
             />
           </div>
-          <span className="text-12 font-medium text-text-primary">
+          <span className="text-left text-12 font-medium text-text-primary">
             대화 초기화
           </span>
         </Button>
 
-        <div className="mx-2 h-px bg-border-light" />
+        <div className="h-px w-full bg-border-light" />
 
         <Button
           variant="ghost"
@@ -76,6 +77,7 @@ export default function PlusMenu({
           isFullWidth
           gap="md"
           onClick={handlePlanTestClick}
+          appendClassName="justify-start"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-accent-2-light text-accent-2">
             <Image
@@ -85,7 +87,7 @@ export default function PlusMenu({
               height={20}
             />
           </div>
-          <span className="text-12 font-medium text-text-primary">
+          <span className="text-left text-12 font-medium text-text-primary">
             요금제 성향 검사
           </span>
         </Button>
@@ -99,6 +101,7 @@ export default function PlusMenu({
           isFullWidth
           gap="md"
           onClick={onClose}
+          appendClassName="justify-start"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-action-primary-light text-action-primary">
             <Image
@@ -108,7 +111,7 @@ export default function PlusMenu({
               height={20}
             />
           </div>
-          <span className="text-12 font-medium text-text-primary">
+          <span className="text-left text-12 font-medium text-text-primary">
             상담 결과 PDF 출력
           </span>
         </Button>

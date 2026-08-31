@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 
+import { createId } from '@/shared/utils/createId';
 import { parseSSEEvent } from '@/features/chat/lib/sse';
 import type {
   ChatErrorReason,
@@ -138,12 +139,12 @@ export function useChat() {
 
       const now = new Date().toISOString();
       const userMessage: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: createId(),
         role: 'user',
         content: trimmed,
         createdAt: now,
       };
-      const aiMessageId = crypto.randomUUID();
+      const aiMessageId = createId();
 
       lastUserTextRef.current = trimmed;
       lastAiMessageIdRef.current = aiMessageId;

@@ -11,7 +11,7 @@ import PlusMenu from '@/features/chat/components/PlusMenu';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import SuggestionChips from '@/features/chat/components/SuggestionChips';
 import UserMessage from '@/features/chat/components/UserMessage';
-import { WELCOME_CREATED_AT, WELCOME_MESSAGE } from '@/features/chat/constants';
+import { WELCOME_MESSAGE } from '@/features/chat/constants';
 import { useChat } from '@/features/chat/hooks/useChat';
 
 import type { Plan } from '@/entities/plan/types';
@@ -31,7 +31,6 @@ interface PlanJoinBlock {
   plan: Plan;
   /** 이 메시지 바로 뒤에 끼워 넣는다 - 대화 순서를 지키기 위한 것 */
   afterMessageId: string;
-  createdAt: string;
 }
 
 interface ChatRoomProps {
@@ -114,10 +113,7 @@ export default function ChatRoom({
     if (joinBlocks.some((block) => block.plan.id === plan.id)) return;
 
     setIsAtBottom(true);
-    setJoinBlocks((prev) => [
-      ...prev,
-      { plan, afterMessageId, createdAt: new Date().toISOString() },
-    ]);
+    setJoinBlocks((prev) => [...prev, { plan, afterMessageId }]);
   };
 
   // CHAT-014: 대화를 비울 때 가입 카드도 같이 걷어낸다
@@ -139,19 +135,15 @@ export default function ChatRoom({
       >
         {/* 채팅 내역 영역 */}
         <div className="flex flex-col gap-6 px-4 py-6">
-          <AiMessage content={WELCOME_MESSAGE} createdAt={WELCOME_CREATED_AT} />
+          <AiMessage content={WELCOME_MESSAGE} />
 
           {messages.map((message) => (
             <Fragment key={message.id}>
               {message.role === 'user' ? (
-                <UserMessage
-                  content={message.content}
-                  createdAt={message.createdAt}
-                />
+                <UserMessage content={message.content} />
               ) : (
                 <AiMessage
                   content={message.content}
-                  createdAt={message.createdAt}
                   isStreaming={isStreaming && message.id === lastMessageId}
                 >
                   {message.recommendations &&
@@ -171,12 +163,8 @@ export default function ChatRoom({
                   <Fragment key={block.plan.id}>
                     <UserMessage
                       content={`${block.plan.name} 요금제 가입할래`}
-                      createdAt={block.createdAt}
                     />
-                    <AiMessage
-                      content={PLAN_JOIN_GUIDE}
-                      createdAt={block.createdAt}
-                    >
+                    <AiMessage content={PLAN_JOIN_GUIDE}>
                       {renderJoinFlow?.(block.plan)}
                     </AiMessage>
                   </Fragment>
@@ -199,11 +187,11 @@ export default function ChatRoom({
         {/*
           대화가 짧아도 카드가 위로 밀려 올라가지 않도록 입력창 바로 위에 둔다.
           mt-auto 로 남는 공간을 흡수하고, sticky 로 스크롤해도 자리를 지킨다.
-          scrollport 는 패딩 박스라 bottom-0 이면 고정된 입력창에 가린다 -
-          입력창 높이만큼 띄운다.
+          스크롤 영역이 이미 pb-(--height-chat-input) 로 입력창 자리를 비워두므로
+          여기서 또 띄우면 간격이 두 배가 된다 - bottom-0 으로 그 여백에 붙인다.
         */}
         {overlay && (
-          <div className="sticky bottom-(--height-chat-input) z-10 mt-auto px-4 pb-4">
+          <div className="sticky bottom-0 z-10 mt-auto px-4 pb-1">
             {overlay}
           </div>
         )}
