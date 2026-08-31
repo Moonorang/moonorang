@@ -27,7 +27,7 @@ export default function AddOnRow({
         hasDetail ? (
           <div className="flex flex-col gap-2">
             {description?.guide && (
-              <p className="text-12 text-text-main">{description.guide}</p>
+              <p className="text-12 text-text-primary">{description.guide}</p>
             )}
             {!!description?.features?.length && (
               <ul className="flex list-disc flex-col gap-1 pl-4">
@@ -44,7 +44,7 @@ export default function AddOnRow({
     >
       <div className="flex items-center gap-3 px-4 py-4">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-14 font-semibold text-text-main">
+          <p className="truncate text-14 font-semibold text-text-primary">
             {addOn.title}
           </p>
           <p className="truncate text-12 text-text-secondary">
@@ -52,7 +52,7 @@ export default function AddOnRow({
           </p>
         </div>
 
-        <p className="shrink-0 text-14 font-semibold text-primary-red">
+        <p className="shrink-0 text-14 font-semibold text-action-primary">
           {formatMonthlyFee(addOn.baseMonthlyRate)}
         </p>
       </div>

@@ -77,6 +77,16 @@ export default function PlanCardCarousel({
     }, SCROLL_SETTLE_MS);
   };
 
+  // 인디케이터 점을 누르면 해당 순번의 카드로 스크롤한다.
+  const handleSelectIndex = (index: number) => {
+    const element = scrollAreaRef.current;
+    if (!element) return;
+
+    element.scrollTo({ left: index * element.clientWidth, behavior: 'smooth' });
+    activeIndexRef.current = index;
+    setActiveIndex(index);
+  };
+
   // 4. 렌더링
   return (
     <div className="flex w-full flex-col gap-1">
@@ -106,6 +116,7 @@ export default function PlanCardCarousel({
         <CarouselIndicator
           total={recommendations.length}
           activeIndex={activeIndex}
+          onSelect={handleSelectIndex}
         />
       </div>
     </div>

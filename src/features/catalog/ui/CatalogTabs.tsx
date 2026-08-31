@@ -20,7 +20,7 @@ export default function CatalogTabs({
     <div
       role="tablist"
       aria-label="상품 카테고리"
-      className="sticky top-(--height-header) z-10 flex gap-5 border-b border-border-light-gray bg-neutral-pure-white px-4"
+      className="sticky top-(--height-header) z-10 flex gap-5 border-b border-border-light bg-background-default px-4"
     >
       {CATALOG_TABS.map((tab) => {
         const isActive = tab.key === activeTab;
@@ -36,8 +36,8 @@ export default function CatalogTabs({
             className={cn(
               'cursor-pointer border-b py-2 text-14 transition-colors',
               isActive
-                ? 'border-primary-red text-primary-red'
-                : 'border-transparent text-text-secondary hover:text-primary-red',
+                ? 'border-action-primary text-action-primary'
+                : 'border-transparent text-text-secondary hover:text-action-primary',
             )}
           >
             {tab.label}

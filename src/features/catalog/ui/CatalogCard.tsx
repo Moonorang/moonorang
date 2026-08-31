@@ -27,7 +27,7 @@ export default function CatalogCard({
   const hasDetail = !!expandSummary && !!detail && !!onToggle;
 
   return (
-    <div className="overflow-hidden rounded-lg bg-neutral-pure-white shadow-default">
+    <div className="overflow-hidden rounded-lg bg-background-default shadow-default">
       {children}
 
       {hasDetail && (
@@ -39,7 +39,7 @@ export default function CatalogCard({
       )}
 
       {hasDetail && isExpanded && (
-        <div className="border-t border-border-light-gray px-4 py-3">
+        <div className="border-t border-border-light px-4 py-3">
           {detail}
         </div>
       )}

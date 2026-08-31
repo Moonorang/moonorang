@@ -23,7 +23,7 @@ export default function SubscriptionRow({
     <CatalogCard>
       <div className="flex items-center gap-3 px-4 py-4">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-14 font-semibold text-text-main">
+          <p className="truncate text-14 font-semibold text-text-primary">
             {subscription.name}
           </p>
           {subscription.highlight && (
@@ -31,7 +31,7 @@ export default function SubscriptionRow({
               {subscription.highlight}
             </p>
           )}
-          {label && <Tag className="mt-1.5">{label}</Tag>}
+          {label && <Tag appendClassName="mt-1.5">{label}</Tag>}
         </div>
 
         <div className="shrink-0 text-right">
@@ -40,7 +40,7 @@ export default function SubscriptionRow({
               월 {formatWon(subscription.baseMonthlyFee)}
             </p>
           )}
-          <p className="text-14 font-semibold text-primary-red">
+          <p className="text-14 font-semibold text-action-primary">
             {formatMonthlyFee(fee)}
           </p>
         </div>

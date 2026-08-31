@@ -189,5 +189,26 @@ export function useChat() {
     setKeywords({});
   }, []);
 
-  return { messages, isStreaming, error, keywords, sendMessage, retry, reset };
+  /**
+   * CARD-008~009: 선택형 질문 카드에서 옵션을 고르면 곧바로(=LLM 왕복 없이) keywords만
+   * 갱신한다. LLM 판단을 거치지 않는 결정론적 값이라 이렇게 처리하는 게 더 정확하고 빠르다.
+   * 말풍선은 여기서 안 만든다 - 문항을 다 마쳤을 때 ChatRoom이 답변을 한 번에 모아
+   * 하나의 메시지로 보낸다(여러 개로 쪼개지 않기 위함).
+   */
+  const setKeywordValue = useCallback((field: keyof ChatKeywords, value: number) => {
+    const next = { ...keywordsRef.current, [field]: value };
+    keywordsRef.current = next;
+    setKeywords(next);
+  }, []);
+
+  return {
+    messages,
+    isStreaming,
+    error,
+    keywords,
+    sendMessage,
+    retry,
+    reset,
+    setKeywordValue,
+  };
 }
