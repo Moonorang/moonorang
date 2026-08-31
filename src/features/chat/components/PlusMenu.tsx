@@ -53,6 +53,7 @@ export default function PlusMenu({
           isFullWidth
           gap="md"
           onClick={handleResetClick}
+          appendClassName="justify-start"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-action-secondary-light text-action-secondary">
             <Image
@@ -76,6 +77,7 @@ export default function PlusMenu({
           isFullWidth
           gap="md"
           onClick={handlePlanTestClick}
+          appendClassName="justify-start"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-accent-2-light text-accent-2">
             <Image
@@ -99,6 +101,7 @@ export default function PlusMenu({
           isFullWidth
           gap="md"
           onClick={onClose}
+          appendClassName="justify-start"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-action-primary-light text-action-primary">
             <Image
