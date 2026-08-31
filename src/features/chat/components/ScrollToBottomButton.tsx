@@ -1,5 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 
+import Button from '@/shared/ui/Button';
+
 interface ScrollToBottomButtonProps {
   onClick: () => void;
 }
@@ -12,13 +14,17 @@ export default function ScrollToBottomButton({
   onClick,
 }: ScrollToBottomButtonProps) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
+      radius="full"
+      size="none"
       onClick={onClick}
       aria-label="맨 아래로 이동"
-      className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-border-default bg-background-default text-text-secondary shadow-default transition-colors hover:text-text-primary"
+      // h-10 w-10 은 카탈로그(not-found.tsx)의 아이콘 버튼 관용구를 따른 것.
+      // shadow-default 는 Button 에 실을 prop 이 없어 임시로 얹는다 - isIconOnly 가 생기면 걷어낸다
+      appendClassName="h-10 w-10 shadow-default"
     >
       <ChevronDown size={20} aria-hidden />
-    </button>
+    </Button>
   );
 }
