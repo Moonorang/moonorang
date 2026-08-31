@@ -1,68 +1,79 @@
 import type { ChatCompletionTool } from 'openai/resources/chat/completions';
 
-import type { RecommendPlansToolInput } from '@/features/chat/types';
+import type { ChatKeywords } from '@/features/chat/types';
 
-// LLM이 요금제를 추천할 때 호출하는 tool
-export const RECOMMEND_PLANS_TOOL: ChatCompletionTool = {
+/**
+ * 사용자 발화에서 조건을 뽑아낼 때 LLM이 호출하는 tool.
+ * CARD-013: 자유 입력에서도 조건을 추출해 구조화 형식으로 저장.
+ * 언급된 필드만 채워서 온다 - mergeKeywords가 나머지 기존값을 보존한다.
+ */
+export const EXTRACT_CONDITIONS_TOOL: ChatCompletionTool = {
   type: 'function',
   function: {
-    name: 'recommend_plans',
+    name: 'extract_conditions',
     description:
-      '사용자에게 요금제를 추천할 때 호출한다. 요금제명·가격 등 실제 데이터는 시스템이 DB에서 채워 넣으므로, 여기서는 어떤 요금제(id)를 몇 위로 왜 추천하는지만 전달한다. 조건에 맞는 요금제가 없으면 이 도구를 호출하지 말고 텍스트로 안내한다.',
+      '사용자 발화에서 요금제 조건(예산, 데이터/테더링 사용량)을 새로 언급했거나 정정했을 때만 호출한다. 언급 안 된 필드는 아예 넣지 않는다. 조건이 전혀 없는 발화면 호출하지 않는다.',
     parameters: {
       type: 'object',
       properties: {
-        recommendations: {
-          type: 'array',
-          description: '추천 요금제 목록 (보통 1~3개)',
-          items: {
-            type: 'object',
-            properties: {
-              planId: { type: 'integer', description: '추천할 요금제의 id' },
-              rank: { type: 'integer', description: '추천 순위, 1부터 시작' },
-              reason: {
-                type: 'string',
-                description: '이 요금제를 추천하는 이유 (한국어, 1~2문장)',
-              },
-            },
-            required: ['planId', 'rank', 'reason'],
-            additionalProperties: false,
-          },
+        budget: { type: 'integer', description: '한 달 예산 상한 (원)' },
+        dataUsageGb: {
+          type: 'number',
+          description: '한 달 예상 데이터 사용량 (GB)',
+        },
+        tetheringGb: {
+          type: 'number',
+          description: '한 달 예상 테더링/쉐어링 사용량 (GB)',
         },
       },
-      required: ['recommendations'],
       additionalProperties: false,
     },
   },
 };
 
-export const CHAT_TOOLS: ChatCompletionTool[] = [RECOMMEND_PLANS_TOOL];
+/**
+ * 사용자에게 요금제를 추천할 시점을 알리는 tool. 인자는 없다 -
+ * CARD-001: 어떤 요금제를 몇 위로 추천할지는 서버가 지금까지 파악된 조건으로 직접 계산하며,
+ * 이 tool은 "지금 추천해달라"는 의도 신호로만 쓴다.
+ */
+export const RECOMMEND_PLANS_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'recommend_plans',
+    description:
+      '사용자가 요금제 추천을 원하는 시점에 호출한다. 실제 추천 요금제·순위는 서버가 계산하므로 인자는 없다. 조건을 아직 잘 모르겠으면 호출하지 말고 먼저 물어본다.',
+    parameters: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+};
 
-// recommend_plans tool call의 JSON 문자열을 파싱
-// 모델이 스키마를 안 지킨 값을 보낼 수도 있어서, 최소한의 모양 검증까지 함
-// 실패하면 null - 호출부에서 invalid_format 에러로 처리
-export function parseRecommendPlansArguments(
+export const CHAT_TOOLS: ChatCompletionTool[] = [
+  EXTRACT_CONDITIONS_TOOL,
+  RECOMMEND_PLANS_TOOL,
+];
+
+// extract_conditions tool call의 JSON 문자열을 파싱한다.
+// 모델이 스키마를 안 지킨 값(잘못된 타입 등)을 보낼 수도 있어서 필드별로 타입을 검증하고,
+// 통과 못 한 필드는 조용히 제외한다(CARD-014) - 그 필드만 이번 턴에 안 갱신될 뿐,
+// 대화 자체가 끊기면 안 되므로 전체 실패로 처리하지 않는다.
+// 유효한 필드가 하나도 없으면 null.
+export function parseExtractConditionsArguments(
   rawArguments: string,
-): RecommendPlansToolInput | null {
+): ChatKeywords | null {
   try {
-    const parsed = JSON.parse(rawArguments);
+    const parsed = JSON.parse(rawArguments) as Record<string, unknown>;
+    const result: ChatKeywords = {};
 
-    if (!Array.isArray(parsed?.recommendations)) return null;
+    if (typeof parsed.budget === 'number') result.budget = parsed.budget;
+    if (typeof parsed.dataUsageGb === 'number')
+      result.dataUsageGb = parsed.dataUsageGb;
+    if (typeof parsed.tetheringGb === 'number')
+      result.tetheringGb = parsed.tetheringGb;
 
-    const recommendations = parsed.recommendations.filter(
-      (
-        item: unknown,
-      ): item is RecommendPlansToolInput['recommendations'][number] =>
-        typeof item === 'object' &&
-        item !== null &&
-        typeof (item as { planId?: unknown }).planId === 'number' &&
-        typeof (item as { rank?: unknown }).rank === 'number' &&
-        typeof (item as { reason?: unknown }).reason === 'string',
-    );
-
-    if (recommendations.length === 0) return null;
-
-    return { recommendations };
+    return Object.keys(result).length > 0 ? result : null;
   } catch {
     return null;
   }
