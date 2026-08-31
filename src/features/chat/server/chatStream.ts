@@ -8,12 +8,51 @@ import type { Stream } from 'openai/core/streaming';
 
 import { getAllPlans } from '@/entities/plan/server/planRepository';
 import { mergeKeywords } from '@/features/chat/lib/mergeKeywords';
-import { createSSESender } from '@/features/chat/lib/sse';
-import { streamCompletion } from '@/features/chat/server/openaiStream';
+import { createSSESender, type SSESend } from '@/features/chat/lib/sse';
+import { runSavingsAnalysis } from '@/features/chat/server/analyzeSavings';
+import { streamCompletion, type ToolCallBuilder } from '@/features/chat/server/openaiStream';
 import { runPlanRecommendation } from '@/features/chat/server/recommendPlans';
 import { buildSystemPrompt } from '@/features/chat/server/systemPrompt';
 import { parseExtractConditionsArguments } from '@/features/chat/server/tools';
 import type { ChatKeywords } from '@/features/chat/types';
+
+import type { Plan } from '@/entities/plan/types';
+
+interface ToolResultContext {
+  plans: Plan[];
+  mergedKeywords: ChatKeywords;
+  userId: string | null;
+  send: SSESend;
+}
+
+// 호출된 tool 이름별로 실제 계산/조회를 수행하고, 다음 턴의 tool 결과 메시지 content로
+// 쓸 값을 돌려준다. recommend_plans/analyze_savings/show_usage_trend는 여기서 SSE
+// 이벤트도 같이 내보낸다(카드 데이터를 텍스트보다 먼저 화면에 꽂아 넣기 위함).
+async function getToolResultContent(
+  call: ToolCallBuilder,
+  { plans, mergedKeywords, userId, send }: ToolResultContext,
+): Promise<unknown> {
+  switch (call.name) {
+    case 'recommend_plans':
+      return runPlanRecommendation(plans, mergedKeywords, send);
+    case 'analyze_savings':
+      return runSavingsAnalysis({
+        userId,
+        allPlans: plans,
+        send,
+        includeSavingsDecision: true,
+      });
+    case 'show_usage_trend':
+      return runSavingsAnalysis({
+        userId,
+        allPlans: plans,
+        send,
+        includeSavingsDecision: false,
+      });
+    default:
+      return { ok: true, keywords: mergedKeywords };
+  }
+}
 
 /**
  * 한 번의 상담 요청을 SSE 스트림으로 만든다.
@@ -32,6 +71,8 @@ export function createChatStream(
   message: string,
   incomingKeywords: ChatKeywords,
   summary?: string,
+  /** CARD-023: 절약 상담은 로그인 사용자 전용 - route.ts가 미리 확인해서 넘겨준다 */
+  userId: string | null = null,
 ): ReadableStream {
   // 클라이언트가 연결을 끊었을 때(페이지 이동 등) cancel() 에서 진행 중인 스트림을 정리
   let activeStream: Stream<ChatCompletionChunk> | null = null;
@@ -76,6 +117,12 @@ export function createChatStream(
         const recommendCall = toolCalls.find(
           (call) => call.name === 'recommend_plans',
         );
+        const analyzeSavingsCall = toolCalls.find(
+          (call) => call.name === 'analyze_savings',
+        );
+        const showUsageTrendCall = toolCalls.find(
+          (call) => call.name === 'show_usage_trend',
+        );
 
         const mergedKeywords = extractCall
           ? mergeKeywords(
@@ -84,19 +131,25 @@ export function createChatStream(
             )
           : incomingKeywords;
 
-        // recommend_plans는 항상 확정된 추천을 설명할 2턴이 필요하고,
-        // 그게 아니어도 1턴이 텍스트 없이 tool만 부르고 끝났으면 빈 말풍선을 막기 위해 2턴을 돌린다.
+        // recommend_plans/analyze_savings/show_usage_trend는 전부 확정된 결과를
+        // 설명할 2턴이 필요하고, 그게 아니어도 1턴이 텍스트 없이 tool만 부르고
+        // 끝났으면 빈 말풍선을 막기 위해 2턴을 돌린다.
         const needsFollowUpTurn =
           Boolean(recommendCall) ||
+          Boolean(analyzeSavingsCall) ||
+          Boolean(showUsageTrendCall) ||
           (Boolean(extractCall) && !hasStreamedText);
 
         if (needsFollowUpTurn) {
           // 이번 턴에 실제로 호출된 tool들을 하나의 assistant 메시지로 재구성하고,
           // 각각에 대응하는 tool 결과 메시지를 붙인다 - OpenAI는 한 응답의 tool_calls
           // 전부에 대해 결과가 있어야 다음 턴을 받아준다.
-          const calledTools = [extractCall, recommendCall].filter(
-            (call): call is NonNullable<typeof call> => Boolean(call),
-          );
+          const calledTools = [
+            extractCall,
+            recommendCall,
+            analyzeSavingsCall,
+            showUsageTrendCall,
+          ].filter((call): call is NonNullable<typeof call> => Boolean(call));
 
           const assistantToolCalls: ChatCompletionMessageToolCall[] =
             calledTools.map((call) => ({
@@ -106,18 +159,20 @@ export function createChatStream(
             }));
 
           const toolResultMessages: ChatCompletionMessageParam[] =
-            calledTools.map((call) => {
-              const content =
-                call.name === 'recommend_plans'
-                  ? runPlanRecommendation(plans, mergedKeywords, send)
-                  : { ok: true, keywords: mergedKeywords };
-
-              return {
+            await Promise.all(
+              calledTools.map(async (call) => ({
                 role: 'tool' as const,
                 tool_call_id: call.id,
-                content: JSON.stringify(content),
-              };
-            });
+                content: JSON.stringify(
+                  await getToolResultContent(call, {
+                    plans,
+                    mergedKeywords,
+                    userId,
+                    send,
+                  }),
+                ),
+              })),
+            );
 
           await streamCompletion({
             messages: [

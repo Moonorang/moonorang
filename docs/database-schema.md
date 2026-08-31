@@ -81,8 +81,8 @@ DATA-001~002의 요금제 마스터 데이터. **추천 요금제 카드(CARD-01
 | `current_plan_id` | integer | FK → `plans.id`, 현재 이용 요금제 |
 | `birth` | date | 생년월일 |
 | `gender` | varchar(10) | `MALE` / `FEMALE` / `OTHER` |
-| `remaining_data` | integer | 이번 달 남은 데이터(MB) |
-| `data_limit` | integer | 이번 달 데이터 제공량(MB) |
+| `remaining_data` | integer | 이번 달 남은 데이터(GB) — 컬럼명과 달리 실제 저장 단위는 GB |
+| `data_limit` | integer | 이번 달 데이터 제공량(GB) — 컬럼명과 달리 실제 저장 단위는 GB |
 | `point` | integer | 보유 포인트 (`point_history` 합계와 일치해야 함, NFR-013) |
 | `created_at` / `updated_at` | timestamptz | 생성/수정 일시 |
 

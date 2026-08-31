@@ -1,4 +1,5 @@
 import type { Plan } from '@/entities/plan/types';
+import type { UsageAnalysisResult } from '@/entities/usage/types';
 
 // 스펙
 
@@ -33,6 +34,8 @@ export type ChatStreamEvent =
   | { event: 'recommendation'; data: { plans: PlanRecommendation[] } }
   // 이번 턴까지 반영된 최신 조건 - 클라이언트가 다음 요청에 그대로 실어 보낸다
   | { event: 'keywords'; data: { keywords: ChatKeywords } }
+  // CARD-022~026/028 - entities/usage(features/usage와 공유하는 도메인 개념)를 그대로 실어 보낸다
+  | { event: 'usageAnalysis'; data: UsageAnalysisResult }
   | { event: 'done'; data: Record<string, never> }
   | { event: 'error'; data: { reason: ChatErrorReason; message: string } };
 
@@ -77,4 +80,6 @@ export interface ChatMessage {
   createdAt: string;
   // recommendation 이벤트가 오면 채워짐 (AI 메시지에만 해당)
   recommendations?: PlanRecommendation[];
+  // usageAnalysis 이벤트가 오면 채워짐 (AI 메시지에만 해당)
+  usageAnalysis?: UsageAnalysisResult;
 }

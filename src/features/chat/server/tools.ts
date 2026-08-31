@@ -55,9 +55,42 @@ export const RECOMMEND_PLANS_TOOL: ChatCompletionTool = {
   },
 };
 
+/**
+ * CARD-022~026: 로그인 사용자가 "절약해줘"처럼 현재 요금제 기준 절약 상담을 원할 때.
+ * 사용량 분석 카드 + 3개월 추세를 함께 보낸다. 인자는 없다 - 실제 판단은 서버 계산.
+ */
+export const ANALYZE_SAVINGS_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'analyze_savings',
+    description:
+      '사용자가 로그인 상태에서 "내 요금제 절약해줘", "돈 아낄 수 있는 방법 알려줘"처럼 ' +
+      '현재 요금제 기준 절약(또는 데이터 부족 시 상향) 상담을 원할 때 호출한다. 실제 판단은 ' +
+      '서버가 계산하므로 인자는 없다.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+  },
+};
+
+/**
+ * CARD-024/028: "내 데이터 사용량 추세 알려줘"처럼 절약 판단 없이 추세만 보고 싶을 때.
+ * analyze_savings와 달리 대안 요금제 판단은 하지 않고 3개월 추세 차트만 보낸다.
+ */
+export const SHOW_USAGE_TREND_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'show_usage_trend',
+    description:
+      '사용자가 절약 여부 판단 없이 "내 데이터 사용량 추세 알려줘"처럼 최근 3개월 사용량 ' +
+      '자체만 보고 싶어할 때 호출한다. analyze_savings와 달리 대안 요금제는 추천하지 않는다.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+  },
+};
+
 export const CHAT_TOOLS: ChatCompletionTool[] = [
   EXTRACT_CONDITIONS_TOOL,
   RECOMMEND_PLANS_TOOL,
+  ANALYZE_SAVINGS_TOOL,
+  SHOW_USAGE_TREND_TOOL,
 ];
 
 // extract_conditions tool call의 JSON 문자열을 파싱한다.

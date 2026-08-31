@@ -190,6 +190,16 @@ export function useChat() {
         setKeywords(next);
       };
 
+      const setAiMessageUsageAnalysis = (
+        usageAnalysis: ChatMessage['usageAnalysis'],
+      ) => {
+        updateMessages((prev) =>
+          prev.map((message) =>
+            message.id === aiMessageId ? { ...message, usageAnalysis } : message,
+          ),
+        );
+      };
+
       try {
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -232,6 +242,8 @@ export function useChat() {
               setAiMessageRecommendations(parsed.data.plans);
             } else if (parsed?.event === 'keywords') {
               updateKeywords(parsed.data.keywords);
+            } else if (parsed?.event === 'usageAnalysis') {
+              setAiMessageUsageAnalysis(parsed.data);
             } else if (parsed?.event === 'error') {
               setError(parsed.data);
             }
@@ -301,7 +313,12 @@ export function useChat() {
     updateMessages((prev) =>
       prev.map((message) =>
         message.id === aiMessageId
-          ? { ...message, content: '', recommendations: undefined }
+          ? {
+              ...message,
+              content: '',
+              recommendations: undefined,
+              usageAnalysis: undefined,
+            }
           : message,
       ),
     );
