@@ -9,8 +9,10 @@ import { applyMask } from '@/shared/utils/applyMask';
 
 // 네이티브 input 의 size(글자 수 기준 폭)는 쓰지 않으므로 크기 토큰이 그 이름을 가져간다.
 // className 은 받지 않는다 - 모양은 props 로만, 배치는 감싸는 요소로.
-interface TextFieldProps
-  extends Omit<ComponentPropsWithRef<'input'>, 'size' | 'className'> {
+interface TextFieldProps extends Omit<
+  ComponentPropsWithRef<'input'>,
+  'size' | 'className'
+> {
   size?: FieldSize;
   /** AUTH-007: 오류 상태를 보조기술에 알린다 */
   isInvalid?: boolean;

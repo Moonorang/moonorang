@@ -15,11 +15,10 @@ export interface SelectOption {
   label: string;
 }
 
-interface SelectFieldProps
-  extends Omit<
-    ComponentPropsWithRef<'select'>,
-    'size' | 'className' | 'children'
-  > {
+interface SelectFieldProps extends Omit<
+  ComponentPropsWithRef<'select'>,
+  'size' | 'className' | 'children'
+> {
   size?: FieldSize;
   isInvalid?: boolean;
   options: SelectOption[];
