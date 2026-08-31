@@ -3,7 +3,11 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { parseSSEEvent } from '@/features/chat/lib/sse';
-import type { ChatErrorReason, ChatMessage } from '@/features/chat/types';
+import type {
+  ChatErrorReason,
+  ChatKeywords,
+  ChatMessage,
+} from '@/features/chat/types';
 
 export interface ChatError {
   reason: ChatErrorReason;
@@ -25,6 +29,11 @@ export function useChat() {
   // 재시도용: 직전 요청의 입력을 기억해둠
   const lastUserTextRef = useRef<string | null>(null);
   const lastAiMessageIdRef = useRef<string | null>(null);
+
+  // CHAT-011: 지금까지 파악된 조건. 서버는 DB에 저장하지 않고, 매 요청마다
+  // 이 값을 실어 보내고 응답의 keywords 이벤트로 갱신받는 왕복 방식으로 기억한다.
+  const [keywords, setKeywords] = useState<ChatKeywords>({});
+  const keywordsRef = useRef<ChatKeywords>({});
 
   const runChatRequest = useCallback(
     async (userText: string, aiMessageId: string) => {
@@ -53,11 +62,19 @@ export function useChat() {
         );
       };
 
+      const updateKeywords = (next: ChatKeywords) => {
+        keywordsRef.current = next;
+        setKeywords(next);
+      };
+
       try {
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: userText }),
+          body: JSON.stringify({
+            message: userText,
+            keywords: keywordsRef.current,
+          }),
         });
 
         if (!response.body) {
@@ -89,6 +106,8 @@ export function useChat() {
               appendToAiMessage(parsed.data.delta);
             } else if (parsed?.event === 'recommendation') {
               setAiMessageRecommendations(parsed.data.plans);
+            } else if (parsed?.event === 'keywords') {
+              updateKeywords(parsed.data.keywords);
             } else if (parsed?.event === 'error') {
               setError(parsed.data);
             }
@@ -160,13 +179,15 @@ export function useChat() {
     void runChatRequest(userText, aiMessageId);
   }, [isStreaming, runChatRequest]);
 
-  /** CHAT-014: 전체 대화 내역을 비운다. */
+  /** CHAT-014: 전체 대화 내역을 비운다. 파악해둔 조건도 새 대화로 취급해 같이 지운다. */
   const reset = useCallback(() => {
     setMessages([]);
     setError(null);
     lastUserTextRef.current = null;
     lastAiMessageIdRef.current = null;
+    keywordsRef.current = {};
+    setKeywords({});
   }, []);
 
-  return { messages, isStreaming, error, sendMessage, retry, reset };
+  return { messages, isStreaming, error, keywords, sendMessage, retry, reset };
 }

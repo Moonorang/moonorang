@@ -13,10 +13,14 @@ export { useChat, type ChatError } from './hooks/useChat';
 export { WELCOME_MESSAGE, WELCOME_CREATED_AT } from './constants';
 export { parseChatRequest } from './lib/schema';
 export { formatSSEEvent, parseSSEEvent, SSE_HEADERS } from './lib/sse';
+export { selectRecommendedPlans } from './lib/selectPlans';
+export { mergeKeywords } from './lib/mergeKeywords';
 export type {
   ChatMessage,
   ChatErrorReason,
   ChatStreamEvent,
   ChatRequestBody,
+  ChatKeywords,
   PlanRecommendation,
 } from './types';
+export type { ScoredPlan, SelectRecommendedPlansResult } from './lib/selectPlans';
