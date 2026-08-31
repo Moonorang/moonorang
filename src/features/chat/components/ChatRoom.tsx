@@ -19,6 +19,7 @@ import { useConditionQuestions } from '@/features/chat/hooks/useConditionQuestio
 import type { ChatKeywords } from '@/features/chat/types';
 
 import type { Plan } from '@/entities/plan/types';
+import type { UsageAnalysisResult } from '@/entities/usage/types';
 
 /** 최하단에서 이 거리(px) 이내면 바닥에 있는 것으로 본다 */
 const BOTTOM_THRESHOLD_PX = 24;
@@ -52,6 +53,15 @@ interface ChatRoomProps {
    * (features 끼리 직접 참조하지 않기 위한 슬롯).
    */
   renderJoinFlow?: (plan: Plan) => ReactNode;
+  /**
+   * CARD-022~028: usageAnalysis 이벤트가 온 메시지에 끼워 넣는 사용량 분석/절약 카드.
+   * features/usage도 다른 feature라 직접 참조 못 해 슬롯으로 받는다. onJoin은 이 화면이
+   * 이미 갖고 있는 가입 카드 흐름(joinBlocks)에 그대로 연결해준다.
+   */
+  renderUsageAnalysis?: (
+    data: UsageAnalysisResult,
+    handlers: { onJoin: (plan: Plan) => void },
+  ) => ReactNode;
 }
 
 /** 채팅 화면 본체 - 대화 내역, 추천 질문 칩, 입력창, 추가 기능 메뉴 */
@@ -59,6 +69,7 @@ export default function ChatRoom({
   overlay,
   onPlanTest,
   renderJoinFlow,
+  renderUsageAnalysis,
 }: ChatRoomProps) {
   // 1. 상태 및 훅
   const [value, setValue] = useState('');
@@ -68,10 +79,12 @@ export default function ChatRoom({
     isStreaming,
     error,
     keywords,
+    summary,
     sendMessage,
     retry,
     reset,
     setKeywordValue,
+    pruneVisibleMessages,
   } = useChat();
   const conditionQuestions = useConditionQuestions();
 
@@ -109,6 +122,12 @@ export default function ChatRoom({
 
     scrollToBottom();
   }, [messages, joinBlocks, error, isAtBottom, scrollToBottom]);
+
+  // 화면 유지 상한을 넘긴 오래된(이미 요약된) 턴은, 사용자가 맨 아래를 보고 있을 때만
+  // 걷어낸다 - 과거 대화를 스크롤해서 보는 도중에 눈앞에서 사라지는 걸 막기 위함.
+  useEffect(() => {
+    if (isAtBottom) pruneVisibleMessages();
+  }, [isAtBottom, messages.length, pruneVisibleMessages]);
 
   // 3. 이벤트 핸들러
   const handleScroll = () => {
@@ -231,12 +250,14 @@ export default function ChatRoom({
   // 대화가 시작됐고(환영 메시지 제외), 마지막 메시지가 텍스트만 있는 AI 응답이고,
   // 예산·데이터 사용량이 아직 둘 다 없을 때. systemPrompt의 "조건이 둘 다 없으면
   // 먼저 물어보라"는 지침과 같은 조건이라 실제로 되묻는 순간과 맞아떨어진다.
+  // usageAnalysis(절약 상담/사용량 추세) 응답은 조건을 되묻는 상황이 아니라서 제외한다.
   const shouldShowConditionEntryChips =
     !isStreaming &&
     !resolvedOverlay &&
     !!lastMessage &&
     lastMessage.role === 'ai' &&
     !lastMessage.recommendations?.length &&
+    !lastMessage.usageAnalysis &&
     !keywords.budget &&
     !keywords.dataUsageGb &&
     dismissedEntryChipsFor !== lastMessageId;
@@ -253,6 +274,19 @@ export default function ChatRoom({
         {/* 채팅 내역 영역 */}
         <div className="flex flex-col gap-6 px-4 py-6">
           <AiMessage content={WELCOME_MESSAGE} createdAt={WELCOME_CREATED_AT} />
+
+          {/*
+            CHAT-011/012: 오래된 대화가 요약돼서 화면에서는 걷어내진 상태임을 알려주는
+            안내선. summary가 있다는 건 지금 안 보이는 이전 대화가 있다는 뜻이라, 갑자기
+            대화가 끊긴 것처럼 보이지 않도록 경계를 표시한다.
+          */}
+          {summary && (
+            <div className="flex items-center gap-2 text-10 text-text-secondary">
+              <span className="h-px flex-1 bg-border-light" />
+              이전 대화 내용이 요약되었어요
+              <span className="h-px flex-1 bg-border-light" />
+            </div>
+          )}
 
           {messages.map((message) => (
             <Fragment key={message.id}>
@@ -274,6 +308,10 @@ export default function ChatRoom({
                         onJoin={(plan) => handleJoin(plan, message.id)}
                       />
                     )}
+                  {message.usageAnalysis &&
+                    renderUsageAnalysis?.(message.usageAnalysis, {
+                      onJoin: (plan) => handleJoin(plan, message.id),
+                    })}
                 </AiMessage>
               )}
 
