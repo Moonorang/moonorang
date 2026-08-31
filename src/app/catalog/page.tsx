@@ -1,21 +1,13 @@
-'use client';
+import CatalogView from '@/features/catalog/ui/CatalogView';
 
-import CatalogTabs from '@/features/catalog/ui/CatalogTabs';
+import { getCatalogData } from '@/features/catalog/server';
 
-import { useCatalogTabs } from '@/features/catalog/hooks/useCatalogTabs';
+/**
+ * 상품·혜택 목록 (DATA-005/011/016/020).
+ * 로그인 여부와 무관한 공개 마스터 데이터라 서버에서 받아 화면으로 내려준다.
+ */
+export default async function CatalogPage() {
+  const catalog = await getCatalogData();
 
-export default function CatalogPage() {
-  // 1. 상태 및 훅
-  const { activeTab, panelId, handleTabChange } = useCatalogTabs();
-
-  // 2. 렌더링
-  return (
-    <main className="mx-auto flex w-full max-w-(--width-container) flex-col pt-(--height-header) pb-10">
-      <CatalogTabs activeTab={activeTab} onTabChange={handleTabChange} />
-
-      <div id={panelId} className="flex flex-col gap-3 px-4 py-4">
-        {activeTab}
-      </div>
-    </main>
-  );
+  return <CatalogView catalog={catalog} />;
 }
