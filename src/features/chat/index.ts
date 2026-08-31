@@ -7,6 +7,7 @@ export { default as ConditionEntryChips } from './components/ConditionEntryChips
 export { default as ConditionQuestionCard } from './components/ConditionQuestionCard';
 export { default as ChatErrorNotice } from './components/ChatErrorNotice';
 export { default as ChatInput } from './components/ChatInput';
+export { default as FloatingChatButton } from './components/FloatingChatButton';
 export { default as FormattedMessage } from './components/FormattedMessage';
 export { default as PlanCardCarousel } from './components/PlanCardCarousel';
 export { default as PlusMenu } from './components/PlusMenu';

@@ -7,21 +7,25 @@ import { usePathname } from 'next/navigation';
 
 import { AnimatePresence, motion } from 'framer-motion';
 
-/** 채팅 화면 자체의 경로 - 여기서는 버튼을 숨긴다 */
+import { isFloatingChatButtonHidden } from '@/features/chat/data/floatingButtonHiddenRoutes';
+
+/** 채팅 화면 자체의 경로 - 이동 목적지이자, 여길 벗어나야 버튼이 뜬다 */
 const CHAT_PATH = '/';
 /** 안내 말풍선이 떠 있는 시간(ms) */
 const TOOLTIP_VISIBLE_MS = 2800;
 
 /**
  * 채팅이 아닌 다른 화면 우측 하단에 떠 있는, 채팅으로 돌아가는 버튼.
- * 헤더처럼 모든 라우트에 걸치는 전역 UI라 app/_floating-chat-button 에 둔다.
+ * "채팅으로 돌아가기"라는 채팅 도메인 개념이라 features/chat 소속이지만, 모든
+ * 라우트에 걸쳐 떠 있어야 해서 실제로 마운트되는 자리는 app/layout.tsx다
+ * (app이 features를 가져다 쓰는 건 정상적인 방향이라 문제 없음).
  *
  * 채팅 화면을 벗어나 처음 나타나는 순간에만 "채팅으로 돌아가기" 말풍선을 잠깐
  * 붙였다가 없앤다 - 매번 페이지를 옮길 때마다 뜨면 거슬리므로 세션당 한 번만.
  */
 export default function FloatingChatButton() {
   const pathname = usePathname();
-  const isChatPath = pathname === CHAT_PATH;
+  const isHidden = isFloatingChatButtonHidden(pathname);
 
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const hasShownTooltipRef = useRef(false);
@@ -29,24 +33,23 @@ export default function FloatingChatButton() {
   // 세션당 한 번만 "보여주기로 결정"한다 - 여기엔 타이머가 없어서, 개발 모드의
   // StrictMode 이중 실행(mount → cleanup → mount)이 일어나도 취소할 게 없다.
   useEffect(() => {
-    if (isChatPath || hasShownTooltipRef.current) return;
+    if (isHidden || hasShownTooltipRef.current) return;
 
     hasShownTooltipRef.current = true;
     setIsTooltipVisible(true);
-  }, [isChatPath]);
+  }, [isHidden]);
 
-  // 실제로 숨기는 타이머는 별도 effect로 분리한다. isTooltipVisible이 true가 되는
-  // 순간에만 반응하므로, 위 effect와 달리 StrictMode 이중 실행과 부딪히지 않는다 -
-  // 같은 effect 안에 두면 이중 실행의 cleanup이 타이머를 취소해버려서 문구가
-  // 영원히 안 사라지는 문제가 있었다.
   useEffect(() => {
     if (!isTooltipVisible) return;
 
-    const timer = setTimeout(() => setIsTooltipVisible(false), TOOLTIP_VISIBLE_MS);
+    const timer = setTimeout(
+      () => setIsTooltipVisible(false),
+      TOOLTIP_VISIBLE_MS,
+    );
     return () => clearTimeout(timer);
   }, [isTooltipVisible]);
 
-  if (isChatPath) return null;
+  if (isHidden) return null;
 
   return (
     <div className="fixed right-4 bottom-6 z-40 flex items-center gap-2">

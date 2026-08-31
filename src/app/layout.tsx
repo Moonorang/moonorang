@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 
+import { FloatingChatButton } from '@/features/chat';
+
+import { AppHeader } from '@/app/_header';
+
 import { displayFont, notoSansKr } from '@/shared/fonts';
 import '@/shared/styles/globals.css';
-import { FloatingChatButton } from '@/app/_floating-chat-button';
-import { AppHeader } from '@/app/_header';
 
 export const metadata: Metadata = {
   title: '무너랑',
