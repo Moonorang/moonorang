@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import ChatAvatar from '@/features/chat/components/ChatAvatar';
 import ChatBubble from '@/features/chat/components/ChatBubble';
+import FormattedMessage from '@/features/chat/components/FormattedMessage';
 import ReadAloudButton from '@/features/chat/components/ReadAloudButton';
 import TypingIndicator from '@/features/chat/components/TypingIndicator';
 
@@ -33,7 +34,11 @@ export default function AiMessage({
 
       <div className="flex w-full flex-col items-start gap-2">
         <ChatBubble variant="ai" createdAt={createdAt}>
-          {isWaitingForFirstToken ? <TypingIndicator /> : content}
+          {isWaitingForFirstToken ? (
+            <TypingIndicator />
+          ) : (
+            <FormattedMessage text={content} />
+          )}
         </ChatBubble>
 
         {!isStreaming && <ReadAloudButton text={content} />}
