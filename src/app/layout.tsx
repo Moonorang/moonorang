@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { displayFont, notoSansKr } from '@/shared/fonts';
 import '@/shared/styles/globals.css';
+import { FloatingChatButton } from '@/app/_floating-chat-button';
 import { AppHeader } from '@/app/_header';
 
 export const metadata: Metadata = {
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       <body className="flex min-h-full flex-col">
         <AppHeader />
         {children}
+        <FloatingChatButton />
       </body>
     </html>
   );
