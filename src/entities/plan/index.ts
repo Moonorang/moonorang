@@ -2,10 +2,6 @@
 // 서버 전용(planRepository)은 @/entities/plan/server 로 따로 가져간다.
 export { default as PlanCard } from './ui/PlanCard';
 export {
-  default as PlanCarousel,
-  type PlanCarouselItem,
-} from './ui/PlanCarousel';
-export {
   parseDataAllowance,
   parseDataAllowanceToGb,
   parseTetheringSharingGb,

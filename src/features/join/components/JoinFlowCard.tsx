@@ -1,0 +1,129 @@
+'use client';
+
+import { useState } from 'react';
+
+import { ChevronLeft } from 'lucide-react';
+
+import StepProgress from '@/shared/ui/StepProgress';
+
+import IdentityStep from '@/features/join/components/IdentityStep';
+import PlanConfirmStep from '@/features/join/components/PlanConfirmStep';
+import TermsStep from '@/features/join/components/TermsStep';
+import { JOIN_STEPS } from '@/features/join/data/steps';
+import {
+  findNextStepIndex,
+  findPrevStepIndex,
+} from '@/features/join/lib/steps';
+import type { IdentityValues } from '@/features/join/lib/identitySchema';
+
+import type { Plan } from '@/entities/plan/types';
+
+/** 본인 확인에 아직 아무것도 입력하지 않은 상태 */
+const EMPTY_IDENTITY: IdentityValues = {
+  name: '',
+  rrnFront: '',
+  rrnBack: '',
+  issuedDate: '',
+};
+
+interface JoinFlowCardProps {
+  /** 가입할 요금제 */
+  plan: Plan;
+}
+
+/**
+ * CARD-029 ~ CARD-032: 대화 안에서 단계별로 진행하는 요금제 가입 카드.
+ * 단계가 넘어가도 새 메시지를 쌓지 않고 이 카드 한 장의 내용만 바뀐다 -
+ * 가입은 한 번의 흐름이지 여러 번의 대화가 아니기 때문이다.
+ *
+ * 단계별 입력값을 각 단계가 아니라 여기서 들고 있는 이유는 CARD-040 때문이다.
+ * 이전 단계로 돌아가면 그 단계 컴포넌트는 사라지므로, 값을 카드가 갖고 있어야
+ * 되돌아가서 고치고 다시 올 수 있다.
+ */
+export default function JoinFlowCard({ plan }: JoinFlowCardProps) {
+  // 1. 상태 및 훅
+  const [stepIndex, setStepIndex] = useState(0);
+  const [agreedTermIds, setAgreedTermIds] = useState<string[]>([]);
+  const [identity, setIdentity] = useState<IdentityValues>(EMPTY_IDENTITY);
+
+  const step = JOIN_STEPS[stepIndex];
+  const nextStepIndex = findNextStepIndex(stepIndex);
+  const prevStepIndex = findPrevStepIndex(stepIndex);
+
+  // 2. 이벤트 핸들러
+  const handleNext = () => {
+    // 뒤에 남은 화면이 없으면 절차를 마친 것으로 본다
+    if (nextStepIndex === -1) return;
+
+    setStepIndex(nextStepIndex);
+  };
+
+  const handlePrev = () => {
+    setStepIndex(prevStepIndex);
+  };
+
+  const handleIdentityNext = (values: IdentityValues) => {
+    setIdentity(values);
+    handleNext();
+  };
+
+  // 3. 렌더링
+  // 입력값은 최종 확인 단계(CARD-042)가 붙는 시점에 여기서 모아 넘긴다
+  const submitLabel = nextStepIndex === -1 ? '완료' : '다음';
+
+  // 폭·여백은 대화에 나란히 서는 PlanCard 와 같은 값으로 맞춘다
+  return (
+    <div className="flex w-[80%] flex-col rounded-md bg-background-default p-4">
+      <div className="flex items-center gap-1">
+        {/*
+          CARD-040: 첫 단계에서는 돌아갈 곳이 없어 잠가둔다.
+          Header·QuestionCard 의 이전 버튼과 같은 방식으로 그린다
+        */}
+        <button
+          type="button"
+          onClick={handlePrev}
+          disabled={prevStepIndex === -1}
+          aria-label="이전 단계로 이동"
+          className="shrink-0 cursor-pointer text-text-secondary transition-colors hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
+        </button>
+
+        <h3 className="text-14 font-medium text-text-primary">{step.title}</h3>
+      </div>
+
+      <div className="mt-3">
+        <StepProgress
+          total={JOIN_STEPS.length}
+          currentIndex={stepIndex}
+          ariaLabel="요금제 가입 진행 상황"
+        />
+      </div>
+
+      {step.id === 'plan' && (
+        <PlanConfirmStep
+          plan={plan}
+          submitLabel={submitLabel}
+          onNext={handleNext}
+        />
+      )}
+
+      {step.id === 'terms' && (
+        <TermsStep
+          submitLabel={submitLabel}
+          agreedIds={agreedTermIds}
+          onAgreedIdsChange={setAgreedTermIds}
+          onNext={handleNext}
+        />
+      )}
+
+      {step.id === 'identity' && (
+        <IdentityStep
+          submitLabel={submitLabel}
+          defaultValues={identity}
+          onNext={handleIdentityNext}
+        />
+      )}
+    </div>
+  );
+}

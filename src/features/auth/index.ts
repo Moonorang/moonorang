@@ -5,11 +5,7 @@ export { default as KakaoLoginButton } from './components/KakaoLoginButton';
 export { default as GenderToggle } from './components/GenderToggle';
 export { useAuth } from './hooks/useAuth';
 export { signupSchema, type SignupFormValues } from './lib/signupSchema';
-export {
-  formatContact,
-  formatBirth,
-  toIsoBirth,
-} from './lib/formatUserInput';
+export { formatContact, formatBirth, toIsoBirth } from './lib/formatUserInput';
 export { getDisplayName } from './lib/getDisplayName';
 export { getKakaoNickname } from './lib/getKakaoNickname';
 export { getLoginErrorMessage } from './lib/loginErrorMessage';

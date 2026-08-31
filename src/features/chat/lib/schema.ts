@@ -1,8 +1,7 @@
 import type { ChatRequestBody } from '@/features/chat/types';
 
 type ParseResult =
-  | { ok: true; data: ChatRequestBody }
-  | { ok: false; message: string };
+  { ok: true; data: ChatRequestBody } | { ok: false; message: string };
 
 /**
  * /api/chat 요청 바디 검증.
