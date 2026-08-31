@@ -23,7 +23,10 @@ import type { ChatKeywords } from '@/features/chat/types';
  *      extract_conditions로, 추천 의도는 recommend_plans(트리거)로 모아둔다.
  * 2턴: recommend_plans 가 호출됐으면 - 실제 순위는 서버가 계산해서 recommendation
  *      이벤트로 먼저 내보내고, 그 결과를 tool 메시지로 넣어 다시 호출해
- *      자연어 마무리 응답을 스트리밍한다. recommend_plans 가 없었으면 1턴으로 끝난다.
+ *      자연어 마무리 응답을 스트리밍한다.
+ *      recommend_plans 가 없어도, 1턴이 tool만 부르고 텍스트를 하나도 안 보냈으면
+ *      (조건만 언급한 메시지 등) 빈 말풍선을 막기 위해 같은 방식으로 2턴을 돌린다.
+ *      둘 다 아니면(텍스트가 이미 있었으면) 1턴으로 끝난다.
  */
 export function createChatStream(
   message: string,
@@ -47,10 +50,19 @@ export function createChatStream(
           { role: 'user', content: message },
         ];
 
+        // 1턴이 텍스트를 하나도 안 보내고 tool만 부르고 끝나는 경우가 있다
+        // (예: 조건만 언급한 메시지에 extract_conditions만 호출하고 끝냄) -
+        // 그러면 화면엔 빈 말풍선만 남으므로, 텍스트가 없었는지 여기서 추적해둔다.
+        let hasStreamedText = false;
+        const trackingSend: typeof send = (event) => {
+          if (event.event === 'token' && event.data.delta) hasStreamedText = true;
+          send(event);
+        };
+
         const toolCalls = await streamCompletion({
           messages,
           useTools: true,
-          send,
+          send: trackingSend,
           onStreamCreated: rememberStream,
         });
 
@@ -68,7 +80,13 @@ export function createChatStream(
             )
           : incomingKeywords;
 
-        if (recommendCall) {
+        // recommend_plans는 항상 확정된 추천을 설명할 2턴이 필요하고,
+        // 그게 아니어도 1턴이 텍스트 없이 tool만 부르고 끝났으면 빈 말풍선을 막기 위해 2턴을 돌린다.
+        const needsFollowUpTurn =
+          Boolean(recommendCall) ||
+          (Boolean(extractCall) && !hasStreamedText);
+
+        if (needsFollowUpTurn) {
           // 이번 턴에 실제로 호출된 tool들을 하나의 assistant 메시지로 재구성하고,
           // 각각에 대응하는 tool 결과 메시지를 붙인다 - OpenAI는 한 응답의 tool_calls
           // 전부에 대해 결과가 있어야 다음 턴을 받아준다.
