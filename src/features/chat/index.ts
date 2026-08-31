@@ -12,6 +12,7 @@ export { default as PlusMenu } from './components/PlusMenu';
 export { default as ReadAloudButton } from './components/ReadAloudButton';
 export { default as ScrollToBottomButton } from './components/ScrollToBottomButton';
 export { default as SuggestionChips } from './components/SuggestionChips';
+export { default as TypingIndicator } from './components/TypingIndicator';
 export { default as UserMessage } from './components/UserMessage';
 export { useChat, type ChatError } from './hooks/useChat';
 export { useConditionQuestions } from './hooks/useConditionQuestions';
