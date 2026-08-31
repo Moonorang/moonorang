@@ -2,8 +2,8 @@ import { Gauge, MessageCircle, PhoneCall, Share2, Wifi } from 'lucide-react';
 
 import Button from '@/shared/ui/Button';
 
-import BenefitRow from '@/features/chat/components/BenefitRow';
-import { getPlanBenefitDetail } from '@/features/chat/data/planBenefits';
+import BenefitRow from '@/features/join/components/BenefitRow';
+import { getPlanBenefitDetail } from '@/features/join/data/planBenefits';
 
 import { formatWon } from '@/shared/utils/formatCurrency';
 import { parseDataAllowance, parseVoiceSms } from '@/entities/plan/lib/format';
@@ -11,7 +11,11 @@ import type { Plan } from '@/entities/plan/types';
 
 interface PlanDetailCardProps {
   plan: Plan;
-  // 약관 동의 단계는 아직 없다. 붙는 시점에 이 자리로 넘긴다
+  /**
+   * 가입 절차로 들어가는 버튼의 동작.
+   * 넘기지 않으면 버튼 자체를 그리지 않는다 - 이미 가입 절차 안이라면
+   * 같은 버튼이 한 번 더 나올 이유가 없다.
+   */
   onJoin?: () => void;
 }
 
@@ -32,7 +36,11 @@ function PlanFeatureRow({
   );
 }
 
-/** 신청하기를 눌렀을 때 대화에 쌓이는 요금제 상세 카드 */
+/**
+ * 요금제 하나를 펼쳐 보여주는 상세 내용.
+ * 대화 말풍선 안(features/chat)과 가입 모달 안(features/join) 양쪽에서 쓰므로
+ * 폭·배경·바깥 여백은 감싸는 쪽이 정하고 여기서는 안쪽 간격만 갖는다.
+ */
 export default function PlanDetailCard({ plan, onJoin }: PlanDetailCardProps) {
   const { amount: dataAmount, throttleSpeed } = parseDataAllowance(
     plan.dataAllowance,
@@ -42,7 +50,7 @@ export default function PlanDetailCard({ plan, onJoin }: PlanDetailCardProps) {
   const { mainBenefits, addOnServices } = getPlanBenefitDetail(plan.id);
 
   return (
-    <div className="flex w-[80%] flex-col rounded-md bg-background-default p-4">
+    <div className="flex flex-col">
       <div className="flex items-end justify-between gap-2">
         <h3 className="text-14 font-medium text-text-primary">{plan.name}</h3>
         <p className="text-14 text-action-primary">
@@ -84,16 +92,18 @@ export default function PlanDetailCard({ plan, onJoin }: PlanDetailCardProps) {
       </ul>
 
       {/* 시안의 높이 38px 은 size="lg"(py-2.5 + text-12)가 그대로 만들어 준다 */}
-      <Button
-        variant="main"
-        radius="sm"
-        size="lg"
-        isFullWidth
-        onClick={onJoin}
-        appendClassName="mt-[18px]"
-      >
-        신청하기
-      </Button>
+      {onJoin && (
+        <Button
+          variant="main"
+          radius="sm"
+          size="lg"
+          isFullWidth
+          onClick={onJoin}
+          appendClassName="mt-[18px]"
+        >
+          신청하기
+        </Button>
+      )}
 
       {mainBenefits.length > 0 && (
         <>

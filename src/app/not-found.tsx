@@ -5,10 +5,14 @@ import { useState } from 'react';
 import { LogIn, Send, Plus, Mic, Search } from 'lucide-react';
 import Button from '@/shared/ui/Button';
 import CarouselIndicator from '@/shared/ui/CarouselIndicator';
+import CheckBox from '@/shared/ui/CheckBox';
+import StepProgress from '@/shared/ui/StepProgress';
 import Tag from '@/shared/ui/Tag';
 
 import PlanCard from '@/entities/plan/ui/PlanCard';
-import PlanDetailCard from '@/features/chat/components/PlanDetailCard';
+import PlanDetailCard from '@/features/join/components/PlanDetailCard';
+
+import JoinFlowCard from '@/features/join/components/JoinFlowCard';
 
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatAvatar from '@/features/chat/components/ChatAvatar';
@@ -122,7 +126,7 @@ export default function NotFoundPage() {
       </div>
       <br />
       요금제 상세 카드 (채팅에서 신청하기를 누르면 뜨는 카드)
-      <div className="m-5 w-90">
+      <div className="m-5 w-90 rounded-md bg-background-default p-4">
         <PlanDetailCard
           plan={{
             id: 11,
@@ -140,6 +144,28 @@ export default function NotFoundPage() {
             },
           }}
           onJoin={() => {}}
+        />
+      </div>
+      <br />
+      요금제 가입 절차 카드 (상세 확인 - 약관 동의 - 본인 확인 순으로 카드 한
+      장의 내용만 바뀜. 하단 버튼과 좌측 상단 화살표로 이동)
+      <div className="m-5 w-90">
+        <JoinFlowCard
+          plan={{
+            id: 11,
+            name: '너겟75',
+            description: '최대 혜택 상당액 73,600원/월',
+            monthlyFee: 75000,
+            dataAllowance: '무제한',
+            voiceSms: '기본제공 / 기본제공 / 300분 무료',
+            benefits: {
+              media_contents: '콘텐츠·음악 감상 등 최대 15,000원/월',
+              vip_membership:
+                'VIP콕 7,000원/월 (네이버플러스 선택 시 무료 영화 예매)',
+              max_benefit_value: '73,600원/월',
+              tethering_sharing: '100GB',
+            },
+          }}
         />
       </div>
       <br />
@@ -244,6 +270,26 @@ export default function NotFoundPage() {
       <br />
       인디케이터
       <CarouselIndicator total={3} activeIndex={2} />
+      <br />
+      단계 진행 표시줄 (요금제 가입 절차)
+      <div className="m-5 w-90">
+        <StepProgress total={4} currentIndex={1} ariaLabel="예시 진행 상황" />
+      </div>
+      체크박스 (선택 / 미선택)
+      <div className="m-5 flex items-center gap-2">
+        <CheckBox
+          id="preview-checkbox-on"
+          isChecked
+          onChange={() => {}}
+          ariaLabel="선택된 체크박스"
+        />
+        <CheckBox
+          id="preview-checkbox-off"
+          isChecked={false}
+          onChange={() => {}}
+          ariaLabel="선택되지 않은 체크박스"
+        />
+      </div>
       태그
       <br />
       <Tag>추천1위 기본적으로 쓰이는 태그</Tag>

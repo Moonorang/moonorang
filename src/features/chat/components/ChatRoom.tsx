@@ -7,7 +7,6 @@ import AiMessage from '@/features/chat/components/AiMessage';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
 import PlanCardCarousel from '@/features/chat/components/PlanCardCarousel';
-import PlanDetailCard from '@/features/chat/components/PlanDetailCard';
 import PlusMenu from '@/features/chat/components/PlusMenu';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import SuggestionChips from '@/features/chat/components/SuggestionChips';
@@ -21,14 +20,14 @@ import type { Plan } from '@/entities/plan/types';
 const BOTTOM_THRESHOLD_PX = 24;
 
 /**
- * 상세 카드와 함께 남기는 안내 문구.
+ * 가입 카드와 함께 남기는 안내 문구.
  * 문구가 매번 달라지면 안 되고 대화 문맥도 아니라서 모델을 거치지 않고 여기서 만든다.
  */
-const PLAN_DETAIL_GUIDE = `선택하신 요금제의 상세 내용을 확인해주세요!
+const PLAN_JOIN_GUIDE = `선택하신 요금제의 상세 내용을 확인해주세요!
 선택하신 요금제가 맞으신가요?`;
 
-/** 신청하기로 띄운 요금제 상세 카드 한 장 */
-interface PlanDetailBlock {
+/** 신청하기로 띄운 가입 카드 한 장 */
+interface PlanJoinBlock {
   plan: Plan;
   /** 이 메시지 바로 뒤에 끼워 넣는다 - 대화 순서를 지키기 위한 것 */
   afterMessageId: string;
@@ -43,17 +42,27 @@ interface ChatRoomProps {
   overlay?: ReactNode;
   /** CHAT-015: 추가 기능 메뉴의 '요금제 성향 검사' 진입 */
   onPlanTest?: () => void;
+  /**
+   * CARD-029: 신청하기로 띄우는 가입 카드.
+   * 대화 순서에 맞는 자리는 여기서 잡고, 카드 자체는 바깥에서 그린다
+   * (features 끼리 직접 참조하지 않기 위한 슬롯).
+   */
+  renderJoinFlow?: (plan: Plan) => ReactNode;
 }
 
 /** 채팅 화면 본체 - 대화 내역, 추천 질문 칩, 입력창, 추가 기능 메뉴 */
-export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
+export default function ChatRoom({
+  overlay,
+  onPlanTest,
+  renderJoinFlow,
+}: ChatRoomProps) {
   // 1. 상태 및 훅
   const [value, setValue] = useState('');
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
   // 바닥에 있는지 여부 - 자동 스크롤 여부와 버튼 노출을 함께 결정한다
   const [isAtBottom, setIsAtBottom] = useState(true);
-  // 신청하기로 띄운 상세 카드들. 대화 이력(messages)과 섞지 않고 따로 들고 있는다
-  const [detailBlocks, setDetailBlocks] = useState<PlanDetailBlock[]>([]);
+  // 신청하기로 띄운 가입 카드들. 대화 이력(messages)과 섞지 않고 따로 들고 있는다
+  const [joinBlocks, setJoinBlocks] = useState<PlanJoinBlock[]>([]);
   const { messages, isStreaming, error, sendMessage, retry, reset } = useChat();
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -74,7 +83,7 @@ export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
     if (!isAtBottom) return;
 
     scrollToBottom();
-  }, [messages, detailBlocks, error, isAtBottom, scrollToBottom]);
+  }, [messages, joinBlocks, error, isAtBottom, scrollToBottom]);
 
   // 3. 이벤트 핸들러
   const handleScroll = () => {
@@ -99,22 +108,22 @@ export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
     sendMessage(text);
   };
 
-  // CARD-033: 신청 전에 고른 요금제가 맞는지 상세 내용으로 확인시킨다
+  // CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다
   const handleJoin = (plan: Plan, afterMessageId: string) => {
     // 같은 요금제를 또 누르면 무시한다 - 같은 카드가 여러 장 쌓이지 않게
-    if (detailBlocks.some((block) => block.plan.id === plan.id)) return;
+    if (joinBlocks.some((block) => block.plan.id === plan.id)) return;
 
     setIsAtBottom(true);
-    setDetailBlocks((prev) => [
+    setJoinBlocks((prev) => [
       ...prev,
       { plan, afterMessageId, createdAt: new Date().toISOString() },
     ]);
   };
 
-  // CHAT-014: 대화를 비울 때 상세 카드도 같이 걷어낸다
+  // CHAT-014: 대화를 비울 때 가입 카드도 같이 걷어낸다
   const handleReset = () => {
     reset();
-    setDetailBlocks([]);
+    setJoinBlocks([]);
   };
 
   const lastMessageId = messages[messages.length - 1]?.id;
@@ -155,8 +164,8 @@ export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
                 </AiMessage>
               )}
 
-              {/* 이 메시지 뒤에 띄운 상세 카드 - 대화 순서를 그대로 지킨다 */}
-              {detailBlocks
+              {/* 이 메시지 뒤에 띄운 가입 카드 - 대화 순서를 그대로 지킨다 */}
+              {joinBlocks
                 .filter((block) => block.afterMessageId === message.id)
                 .map((block) => (
                   <Fragment key={block.plan.id}>
@@ -165,10 +174,10 @@ export default function ChatRoom({ overlay, onPlanTest }: ChatRoomProps) {
                       createdAt={block.createdAt}
                     />
                     <AiMessage
-                      content={PLAN_DETAIL_GUIDE}
+                      content={PLAN_JOIN_GUIDE}
                       createdAt={block.createdAt}
                     >
-                      <PlanDetailCard plan={block.plan} />
+                      {renderJoinFlow?.(block.plan)}
                     </AiMessage>
                   </Fragment>
                 ))}

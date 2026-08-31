@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/shared/utils/cn';
-import type { BenefitTone } from '@/features/chat/data/planBenefits';
+import type { BenefitTone } from '@/features/join/data/planBenefits';
 
 interface BenefitRowProps {
   icon: LucideIcon;

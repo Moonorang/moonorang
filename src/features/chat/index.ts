@@ -6,7 +6,6 @@ export { default as ChatBubble } from './components/ChatBubble';
 export { default as ChatErrorNotice } from './components/ChatErrorNotice';
 export { default as ChatInput } from './components/ChatInput';
 export { default as PlanCardCarousel } from './components/PlanCardCarousel';
-export { default as PlanDetailCard } from './components/PlanDetailCard';
 export { default as PlusMenu } from './components/PlusMenu';
 export { default as ReadAloudButton } from './components/ReadAloudButton';
 export { default as ScrollToBottomButton } from './components/ScrollToBottomButton';
