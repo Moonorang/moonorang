@@ -2,15 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
 import CarouselIndicator from '@/shared/ui/CarouselIndicator';
 
 import PlanCard from '@/entities/plan/ui/PlanCard';
 
 import type { Plan } from '@/entities/plan/types';
 import type { PlanRecommendation } from '@/features/chat/types';
-
-// PlanCard 가 가진 자기 폭. 인디케이터를 카드 가운데에 맞추는 데 쓴다
-const CARD_WIDTH = 'w-[80%]';
 
 // 스크롤이 멎었다고 보는 시간
 const SCROLL_SETTLE_MS = 100;
@@ -88,31 +87,63 @@ export default function PlanCardCarousel({
   };
 
   // 4. 렌더링
+  const lastIndex = recommendations.length - 1;
+
   return (
     <div className="flex w-full flex-col gap-1">
-      {/* 가로 스크롤 + 스냅. 스크롤바는 가리고 스와이프만 남긴다 */}
-      <div
-        ref={scrollAreaRef}
-        onScroll={handleScroll}
-        className="flex w-full snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto [&::-webkit-scrollbar]:hidden"
-      >
-        {recommendations.map((item) => (
-          <div
-            key={item.plan.id}
-            className="flex w-full shrink-0 snap-start snap-always"
+      {/*
+        화살표를 카드 바깥에 두려고 카드를 칸 가운데로 옮겼다. PlanCard 는 자기 폭이
+        80% 라 좌우에 10% 씩 빈 자리가 생기고, 화살표가 그 자리에 들어가 카드를
+        가리지 않는다. 카드 폭은 그대로다.
+      */}
+      <div className="relative w-full">
+        {/* 가로 스크롤 + 스냅. 스크롤바는 가리고 스와이프만 남긴다 */}
+        <div
+          ref={scrollAreaRef}
+          onScroll={handleScroll}
+          className="flex w-full snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto [&::-webkit-scrollbar]:hidden"
+        >
+          {recommendations.map((item) => (
+            <div
+              key={item.plan.id}
+              className="flex w-full shrink-0 snap-start snap-always justify-center"
+            >
+              <PlanCard
+                plan={item.plan}
+                rank={item.rank}
+                annualSavings={item.annualSavings}
+                onJoin={onJoin ? () => onJoin(item.plan) : undefined}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* 첫 장에는 다음만, 마지막 장에는 이전만 나온다 */}
+        {activeIndex > 0 && (
+          <button
+            type="button"
+            onClick={() => handleSelectIndex(activeIndex - 1)}
+            aria-label="이전 요금제 보기"
+            className="absolute top-1/2 left-0 -translate-y-1/2 cursor-pointer text-text-secondary transition-colors hover:text-text-primary"
           >
-            <PlanCard
-              plan={item.plan}
-              rank={item.rank}
-              annualSavings={item.annualSavings}
-              onJoin={onJoin ? () => onJoin(item.plan) : undefined}
-            />
-          </div>
-        ))}
+            <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
+          </button>
+        )}
+
+        {activeIndex < lastIndex && (
+          <button
+            type="button"
+            onClick={() => handleSelectIndex(activeIndex + 1)}
+            aria-label="다음 요금제 보기"
+            className="absolute top-1/2 right-0 -translate-y-1/2 cursor-pointer text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <ChevronRight size={20} strokeWidth={1.5} aria-hidden />
+          </button>
+        )}
       </div>
 
-      {/* 카드가 왼쪽에 붙어 있으므로, 카드와 같은 폭 안에서 가운데로 맞춘다 */}
-      <div className={`flex ${CARD_WIDTH} justify-center`}>
+      {/* 카드가 칸 가운데에 있으므로 인디케이터도 전체 폭 기준으로 가운데 */}
+      <div className="flex w-full justify-center">
         <CarouselIndicator
           total={recommendations.length}
           activeIndex={activeIndex}
