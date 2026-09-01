@@ -1,10 +1,12 @@
 import { serializeCardPayload } from '@/features/chat/lib/chatCard';
 import {
+  getChatSummary,
   getOrCreateActiveChat,
   insertMessages,
   updateChatKeywords,
   upsertChatSummary,
 } from '@/features/chat/server/chatRepository';
+import { mergeSummaries } from '@/features/chat/server/summarizeConversation';
 import type { ChatKeywords, ChatMessage, PlanJoinBlock } from '@/features/chat/types';
 
 interface MigrateGuestChatParams {
@@ -75,9 +77,19 @@ export async function migrateGuestChat(
   // 게스트 때 이미 요약돼있던 구간이 있으면, 방금 넣은 마지막 메시지를 기준점으로
   // 그대로 이어붙인다 - 그래야 회원 전환 직후에도 8턴 카운트가 0부터 다시 시작하지
   // 않고, 게스트 시절 쌓아둔 압축 맥락을 그대로 이어받는다.
+  //
+  // 로그아웃 전 회원 쪽에도 이미 요약이 있었다면(둘 다 각자 8턴을 넘긴 경우) 단순
+  // upsert로 덮어쓰면 안 된다 - chat_summary는 chat_id당 1행이라, 게스트 요약으로
+  // 그냥 덮으면 로그아웃 전 대화가 요약에서 통째로 사라진다. 이때는 두 요약을
+  // 합쳐서 하나로 만든다.
   const lastMessage = inserted[inserted.length - 1];
   if (summary && lastMessage) {
-    tasks.push(upsertChatSummary(chat.id, summary, Number(lastMessage.id)));
+    const existingSummary = await getChatSummary(chat.id);
+    const mergedSummary = existingSummary?.summary
+      ? await mergeSummaries(existingSummary.summary, summary)
+      : summary;
+
+    tasks.push(upsertChatSummary(chat.id, mergedSummary, Number(lastMessage.id)));
   }
 
   await Promise.all(tasks);

@@ -29,3 +29,42 @@ export async function summarizeConversation(
 
   return completion.choices[0]?.message.content?.trim() || existingSummary || '';
 }
+
+/**
+ * 이미 압축된 요약 두 개를 하나로 합친다. summarizeConversation과 달리 입력이 원문
+ * 턴이 아니라 "이미 요약된 텍스트 두 개"라는 점이 다르다 - 로그아웃 전 회원 대화가
+ * 이미 요약돼있는 상태에서, 로그아웃 중 게스트로 나눈 대화도 따로 요약된 채로 있을 때
+ * (둘 다 각자 요약 트리거를 넘긴 드문 경우) 로그인 승계 시점에 사용한다.
+ */
+export async function mergeSummaries(
+  memberSummary: string,
+  guestSummary: string,
+): Promise<string> {
+  const completion = await openai.chat.completions.create(
+    {
+      model: OPENAI_MODEL,
+      messages: [
+        {
+          role: 'user',
+          content: `다음은 같은 사용자와 통신사 요금제 상담 챗봇 '무너'가 나눈 대화를
+시간순으로 두 구간(로그인 전/후)에 걸쳐 각각 압축해둔 요약입니다. 두 요약에 담긴
+내용을 모두 유지한 채, 이후 상담에서 참고할 수 있도록 하나의 요약으로 합치세요.
+사람이 아니라 챗봇이 다음 턴에 참고할 메모이므로 3~5문장 이내로 간결하게 쓰세요.
+
+## 요약 1 (먼저 있었던 대화)
+${memberSummary}
+
+## 요약 2 (이어서 있었던 대화)
+${guestSummary}`,
+        },
+      ],
+      temperature: OPENAI_TEMPERATURE,
+      seed: OPENAI_SEED,
+    },
+    { timeout: SUMMARIZE_TIMEOUT_MS },
+  );
+
+  return (
+    completion.choices[0]?.message.content?.trim() || `${memberSummary}\n${guestSummary}`
+  );
+}
