@@ -98,6 +98,11 @@ export default function ChatRoom({
   // 조건 수집 카드에서 선택한 답변을 문항이 끝날 때까지 모아뒀다가 한 번에 보낸다
   // (CARD-012: 요약을 하나의 말풍선으로 남김 - 문항마다 따로 쪼개지 않는다)
   const [conditionAnswers, setConditionAnswers] = useState<string[]>([]);
+  // CARD-011: 조건 수집 카드의 기타(직접 입력)가 열려 있는 동안, 하단 채팅
+  // 입력창도 같이 열어 두면 두 군데에 동시에 타이핑하는 것처럼 보여 혼란스럽다 -
+  // 열려 있는 동안은 채팅 입력창을 막는다. setState 함수는 항상 같은 참조라
+  // ConditionQuestionCard에 그대로 넘겨도 매 렌더마다 새 함수가 되지 않는다.
+  const [isConditionFreeTextEditing, setIsConditionFreeTextEditing] = useState(false);
 
   // 바닥에 있는지 여부 - 자동 스크롤 여부와 버튼 노출을 함께 결정한다
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -236,6 +241,7 @@ export default function ChatRoom({
     reset();
     setJoinBlocks([]);
     setConditionAnswers([]);
+    setIsConditionFreeTextEditing(false);
   };
 
   const lastMessage = messages[messages.length - 1];
@@ -255,6 +261,7 @@ export default function ChatRoom({
         onNext={conditionQuestions.goToNext}
         onSkip={handleConditionSkip}
         onClose={() => finishConditionQuestions(conditionAnswers)}
+        onFreeTextEditingChange={setIsConditionFreeTextEditing}
       />
     ) : undefined);
 
@@ -396,6 +403,7 @@ export default function ChatRoom({
         isPlusOpen={isPlusMenuOpen}
         disabled={isStreaming}
         onStop={stopGeneration}
+        isLocked={isConditionFreeTextEditing}
       />
     </div>
   );
