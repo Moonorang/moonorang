@@ -19,6 +19,54 @@ import ChatAvatar from '@/features/chat/components/ChatAvatar';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import UserMessage from '@/features/chat/components/UserMessage';
 
+import UsageAnalysisSection from '@/features/usage/components/UsageAnalysisSection';
+import UsageTrendChart from '@/features/usage/components/UsageTrendChart';
+import type { UsageAnalysisResult } from '@/entities/usage/types';
+
+// UsageAnalysisSection 데모용 - 채팅에서 실제로 오는 usageAnalysis 이벤트 형태 그대로.
+// CARD-025~026: 사용량이 요금제 제공량보다 여유 있어서 downgrade(절약) 케이스로 구성.
+const usageAnalysisDemo: UsageAnalysisResult = {
+  currentPlan: {
+    id: 7,
+    name: '너겟49',
+    description: '최대 혜택 상당액 24,400원/월',
+    monthlyFee: 49000,
+    dataAllowance: '120GB (소진 후 5Mbps)',
+    voiceSms: '기본제공 / 기본제공 / 300분 무료',
+    benefits: {
+      max_benefit_value: '24,400원/월',
+      tethering_sharing: '60GB',
+    },
+  },
+  remainingDataGb: 85,
+  dataLimitGb: 120,
+  trend: {
+    points: [
+      { billingMonth: '2026-06', dataUsedMb: 8 * 1024 },
+      { billingMonth: '2026-07', dataUsedMb: 12 * 1024 },
+      { billingMonth: '2026-08', dataUsedMb: 9 * 1024 },
+    ],
+    averageMb: ((8 + 12 + 9) / 3) * 1024,
+    planLimitMb: 120 * 1024,
+  },
+  savings: {
+    type: 'downgrade',
+    recommendedPlan: {
+      plan: {
+        id: 1,
+        name: '너겟26',
+        description: '최대 혜택 상당액 12,000원/월',
+        monthlyFee: 26000,
+        dataAllowance: '11GB (소진 후 1Mbps)',
+        voiceSms: '기본제공 / 기본제공 / 300분 무료',
+        benefits: null,
+      },
+      reason: '최근 3개월 평균 데이터 사용량이 약 10GB로 현재 요금제 제공량보다 여유가 있어요.',
+      annualSavings: (49000 - 26000) * 12,
+    },
+  },
+};
+
 export default function NotFoundPage() {
   // OpenAI 연결 확인용 상태 (임시)
   const [testInput, setTestInput] = useState('안녕! 너 누구야?');
@@ -167,6 +215,87 @@ export default function NotFoundPage() {
             },
           }}
         />
+      </div>
+      <br />
+      데이터 사용량 추세 차트 (CARD-024/028 - 요금제 제공량이 실사용량보다 훨씬
+      크면 위쪽 22% 구간을 압축해서 한계선을 표시함)
+      <div className="m-5 flex flex-wrap gap-4">
+        <div className="w-80 rounded-md bg-background-default p-4 shadow-default">
+          <p className="mb-2 text-12 font-bold text-text-primary">
+            일반(한계선 근처)
+          </p>
+          <UsageTrendChart
+            points={[
+              { billingMonth: '2026-06', dataUsedMb: 62 * 1024 },
+              { billingMonth: '2026-07', dataUsedMb: 78 * 1024 },
+              { billingMonth: '2026-08', dataUsedMb: 92 * 1024 },
+            ]}
+            averageMb={((62 + 78 + 92) / 3) * 1024}
+            planLimitMb={120 * 1024}
+          />
+        </div>
+        <div className="w-80 rounded-md bg-background-default p-4 shadow-default">
+          <p className="mb-2 text-12 font-bold text-text-primary">
+            여유 많음(압축 구간 발동)
+          </p>
+          <UsageTrendChart
+            points={[
+              { billingMonth: '2026-06', dataUsedMb: 8 * 1024 },
+              { billingMonth: '2026-07', dataUsedMb: 12 * 1024 },
+              { billingMonth: '2026-08', dataUsedMb: 9 * 1024 },
+            ]}
+            averageMb={((8 + 12 + 9) / 3) * 1024}
+            planLimitMb={120 * 1024}
+          />
+        </div>
+        <div className="w-80 rounded-md bg-background-default p-4 shadow-default">
+          <p className="mb-2 text-12 font-bold text-text-primary">
+            무제한 요금제(한계선 없음)
+          </p>
+          <UsageTrendChart
+            points={[
+              { billingMonth: '2026-06', dataUsedMb: 45 * 1024 },
+              { billingMonth: '2026-07', dataUsedMb: 60 * 1024 },
+              { billingMonth: '2026-08', dataUsedMb: 55 * 1024 },
+            ]}
+            averageMb={((45 + 60 + 55) / 3) * 1024}
+            planLimitMb={null}
+          />
+        </div>
+        <div className="w-80 rounded-md bg-background-default p-4 shadow-default">
+          <p className="mb-2 text-12 font-bold text-text-primary">
+            거의 다 참(평균선·한계선 겹침 방지 확인용)
+          </p>
+          <UsageTrendChart
+            points={[
+              { billingMonth: '2026-06', dataUsedMb: 118 * 1024 },
+              { billingMonth: '2026-07', dataUsedMb: 119 * 1024 },
+              { billingMonth: '2026-08', dataUsedMb: 120 * 1024 },
+            ]}
+            averageMb={((118 + 119 + 120) / 3) * 1024}
+            planLimitMb={120 * 1024}
+          />
+        </div>
+        <div className="w-80 rounded-md bg-background-default p-4 shadow-default">
+          <p className="mb-2 text-12 font-bold text-text-primary">
+            데이터 거의 안 씀(그리드가 GB 단위로 커지지 않는지 확인용)
+          </p>
+          <UsageTrendChart
+            points={[
+              { billingMonth: '2026-06', dataUsedMb: 1.2 * 1024 },
+              { billingMonth: '2026-07', dataUsedMb: 1.8 * 1024 },
+              { billingMonth: '2026-08', dataUsedMb: 1.5 * 1024 },
+            ]}
+            averageMb={((1.2 + 1.8 + 1.5) / 3) * 1024}
+            planLimitMb={120 * 1024}
+          />
+        </div>
+      </div>
+      <br />
+      개인화 카드 전체 조합 (채팅에서 usageAnalysis 이벤트가 오면 실제로 뜨는 형태 -
+      사용량 분석 카드 + 위 차트 + 절약 대안 요금제)
+      <div className="m-5 w-90 rounded-md bg-background-subtle p-4">
+        <UsageAnalysisSection data={usageAnalysisDemo} onJoin={() => {}} onViewDetail={() => {}} />
       </div>
       <br />
       AI 어시스턴트 프로필
