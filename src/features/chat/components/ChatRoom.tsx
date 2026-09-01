@@ -31,13 +31,6 @@ const BOTTOM_THRESHOLD_PX = 24;
 const PLAN_JOIN_GUIDE = `선택하신 요금제의 상세 내용을 확인해주세요!
 선택하신 요금제가 맞으신가요?`;
 
-/** 신청하기로 띄운 가입 카드 한 장 */
-interface PlanJoinBlock {
-  plan: Plan;
-  /** 이 메시지 바로 뒤에 끼워 넣는다 - 대화 순서를 지키기 위한 것 */
-  afterMessageId: string;
-}
-
 interface ChatRoomProps {
   /**
    * 대화 영역 하단에 끼워 넣을 카드 (성향 검사 문항 등).
@@ -79,9 +72,11 @@ export default function ChatRoom({
     error,
     keywords,
     summary,
+    joinBlocks,
     sendMessage,
     retry,
     reset,
+    addJoinBlock,
     setKeywordValue,
     pruneVisibleMessages,
   } = useChat();
@@ -99,8 +94,6 @@ export default function ChatRoom({
 
   // 바닥에 있는지 여부 - 자동 스크롤 여부와 버튼 노출을 함께 결정한다
   const [isAtBottom, setIsAtBottom] = useState(true);
-  // 신청하기로 띄운 가입 카드들. 대화 이력(messages)과 섞지 않고 따로 들고 있는다
-  const [joinBlocks, setJoinBlocks] = useState<PlanJoinBlock[]>([]);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -205,19 +198,17 @@ export default function ChatRoom({
     }
   };
 
-  // CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다
+  // CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다.
+  // 카드 목록은 useChat이 들고 있다 - 대화 내역과 같이 저장·복구돼야 하기 때문.
   const handleJoin = (plan: Plan, afterMessageId: string) => {
-    // 같은 요금제를 또 누르면 무시한다 - 같은 카드가 여러 장 쌓이지 않게
-    if (joinBlocks.some((block) => block.plan.id === plan.id)) return;
-
     setIsAtBottom(true);
-    setJoinBlocks((prev) => [...prev, { plan, afterMessageId }]);
+    addJoinBlock(plan, afterMessageId);
   };
 
   // CHAT-014: 대화를 비울 때 가입 카드도, 조건 수집 진행 상태도 같이 걷어낸다
+  // (가입 카드는 reset이 같이 비운다)
   const handleReset = () => {
     reset();
-    setJoinBlocks([]);
     setConditionAnswers([]);
     setDismissedEntryChipsFor(null);
   };

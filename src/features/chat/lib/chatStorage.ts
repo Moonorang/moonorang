@@ -1,5 +1,9 @@
 import { CHAT_STORAGE_KEY } from '@/features/chat/constants';
-import type { ChatKeywords, ChatMessage } from '@/features/chat/types';
+import type {
+  ChatKeywords,
+  ChatMessage,
+  PlanJoinBlock,
+} from '@/features/chat/types';
 
 export interface StoredChatState {
   messages: ChatMessage[];
@@ -8,6 +12,8 @@ export interface StoredChatState {
   /** messages 중 앞에서부터 몇 턴이 이미 summary에 반영됐는지 */
   summarizedTurnCount: number;
   keywords: ChatKeywords;
+  /** CARD-029: 대화 중간에 띄운 가입 카드들 - 메시지와 같이 복구해야 순서가 유지된다 */
+  joinBlocks: PlanJoinBlock[];
 }
 
 /**
@@ -43,6 +49,8 @@ export function loadChatState(): StoredChatState | null {
         typeof parsed.summarizedTurnCount === 'number' ? parsed.summarizedTurnCount : 0,
       keywords:
         parsed.keywords && typeof parsed.keywords === 'object' ? parsed.keywords : {},
+      // 이 필드가 없던 시절에 저장된 값도 그대로 복구돼야 한다 - 없으면 빈 배열
+      joinBlocks: Array.isArray(parsed.joinBlocks) ? parsed.joinBlocks : [],
     };
   } catch {
     return null;
