@@ -62,8 +62,12 @@ export default function CardStep({
           error={errors.cardNumber?.message ?? errors.issuer?.message}
         >
           <div className="flex items-center gap-1.5">
-            {/* 배치(flex)는 감싸는 요소가 맡고, 입력 칸은 폭을 모른다 */}
-            <div className="flex-2">
+            {/*
+              배치(flex)는 감싸는 요소가 맡고, 입력 칸은 폭을 모른다.
+              min-w-0 이 없으면 flex 자식이 기본값 min-width:auto 라 placeholder 폭
+              아래로 안 줄어들고, 그만큼 옆 칸을 화면 밖으로 밀어낸다(NFR-010).
+            */}
+            <div className="min-w-0 flex-2">
               <TextField
                 id="join-card-number"
                 type="text"
@@ -77,7 +81,7 @@ export default function CardStep({
               />
             </div>
 
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <SelectField
                 size="sm"
                 placeholder="카드사"
