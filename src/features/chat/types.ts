@@ -52,6 +52,13 @@ export interface ChatRequestBody {
    * 시스템 프롬프트에 "이전 대화 요약"으로 끼워 넣는다.
    */
   summary?: string;
+  /**
+   * §2.4 "최근 채팅 메시지 N개" - summary에 아직 반영 안 된(=summarizedTurnCount 이후)
+   * 구간의 원문. 요약은 8턴에 한 번만 갱신되므로, 이걸 안 보내면 그 사이(최대 7턴)는
+   * 모델이 직전 대화조차 기억 못 하게 된다. 요약 직후엔 최근 3턴 정도로 짧다가
+   * 다음 요약 직전엔 최대 7턴까지 늘어나는 식으로 오르내린다.
+   */
+  recentMessages?: SummarizeTurnMessage[];
 }
 
 /** 요약 대상이 되는 메시지 한 개 - chat completions 메시지보다 가벼운 형태만 필요하다 */

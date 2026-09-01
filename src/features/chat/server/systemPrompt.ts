@@ -39,9 +39,7 @@ const KEYWORD_LABELS: Record<keyof ChatKeywords, string> = {
 // 지금까지 파악된 조건을 한 줄씩 나열 - 모델이 같은 걸 다시 안 묻고,
 // 대화가 여러 턴에 걸쳐도 맥락을 이어가게 한다.
 function formatKeywords(keywords: ChatKeywords): string {
-  const entries = (
-    Object.keys(KEYWORD_LABELS) as (keyof ChatKeywords)[]
-  )
+  const entries = (Object.keys(KEYWORD_LABELS) as (keyof ChatKeywords)[])
     .filter((key) => keywords[key] !== undefined && keywords[key] !== null)
     .map((key) => `- ${KEYWORD_LABELS[key]}: ${keywords[key]}`);
 
@@ -55,7 +53,6 @@ function formatSummarySection(summary?: string): string {
   return `\n## 이전 대화 요약 (지금은 화면에 안 보이지만 있었던 대화)\n${summary}\n`;
 }
 
-// recommend_plans / extract_conditions 사용 지침을 포함한 시스템 프롬프트
 export function buildSystemPrompt(
   plans: Plan[],
   keywords: ChatKeywords,

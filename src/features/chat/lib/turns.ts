@@ -1,4 +1,4 @@
-import type { ChatMessage } from '@/features/chat/types';
+import type { ChatMessage, SummarizeTurnMessage } from '@/features/chat/types';
 
 /**
  * 완전한 턴(사용자+AI) 개수. 메시지는 항상 사용자→AI 쌍으로 쌓이므로 2로 나눈다.
@@ -35,6 +35,26 @@ export function selectTurnsToSummarize(
   const endIndex = startIndex + turnCount * 2;
 
   return { turnsToSummarize: messages.slice(startIndex, endIndex), turnCount };
+}
+
+/**
+ * §2.4 "최근 채팅 메시지 N개" - summary에 아직 반영 안 된(summarizedTurnCount 이후) 구간의
+ * 원문을 골라낸다. 이 함수를 부르는 시점엔 messages 맨 끝에 "방금 보낸 사용자 메시지 +
+ * 아직 비어있는 AI 자리"가 이미 붙어있는 상태라(sendMessage/retry가 먼저 붙여둠), 그 2개는
+ * 별도 message 필드로 보내므로 여기서는 제외한다. 빈 content(응답 실패로 비워진 AI 메시지
+ * 등)도 모델에게 의미 없는 turn이라 같이 걸러낸다.
+ */
+export function selectUnsummarizedHistory(
+  messages: ChatMessage[],
+  summarizedTurnCount: number,
+): SummarizeTurnMessage[] {
+  const startIndex = summarizedTurnCount * 2;
+  const endIndex = Math.max(startIndex, messages.length - 2);
+
+  return messages
+    .slice(startIndex, endIndex)
+    .filter((message) => message.content.trim().length > 0)
+    .map((message) => ({ role: message.role, content: message.content }));
 }
 
 export interface PruneResult {

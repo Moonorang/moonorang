@@ -29,14 +29,25 @@ export function parseChatRequest(body: unknown): ParseResult {
   // summary도 keywords와 같은 이유로, 형식이 안 맞으면 그냥 없는 것으로 취급한다.
   const summary = typeof parsed?.summary === 'string' ? parsed.summary : undefined;
 
-  return { ok: true, data: { message, keywords, summary } };
+  // recentMessages(§2.4 "최근 채팅 메시지 N개")도 같은 이유로, 형식이 안 맞으면
+  // 빈 배열로 대체한다 - 대화 자체를 막을 이유는 아니고, 다만 이번 요청에서
+  // 짧은 기억 공백이 생길 뿐이다.
+  const recentMessages =
+    Array.isArray(parsed?.recentMessages) &&
+    parsed.recentMessages.every(isSummarizeTurnMessage)
+      ? parsed.recentMessages
+      : [];
+
+  return { ok: true, data: { message, keywords, summary, recentMessages } };
 }
 
 type SummarizeParseResult =
   | { ok: true; data: ChatSummarizeRequestBody }
   | { ok: false; message: string };
 
-function isSummarizeTurnMessage(value: unknown): value is SummarizeTurnMessage {
+export function isSummarizeTurnMessage(
+  value: unknown,
+): value is SummarizeTurnMessage {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<SummarizeTurnMessage>;
 

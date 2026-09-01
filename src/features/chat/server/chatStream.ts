@@ -10,16 +10,11 @@ import { getAllPlans } from '@/entities/plan/server/planRepository';
 import { mergeKeywords } from '@/features/chat/lib/mergeKeywords';
 import { createSSESender, type SSESend } from '@/features/chat/lib/sse';
 import { runSavingsAnalysis } from '@/features/chat/server/analyzeSavings';
-import { extractConditions } from '@/features/chat/server/extractConditions';
 import { streamCompletion, type ToolCallBuilder } from '@/features/chat/server/openaiStream';
 import { runPlanRecommendation } from '@/features/chat/server/recommendPlans';
 import { buildSystemPrompt } from '@/features/chat/server/systemPrompt';
-import {
-  ANALYZE_SAVINGS_TOOL,
-  RECOMMEND_PLANS_TOOL,
-  SHOW_USAGE_TREND_TOOL,
-} from '@/features/chat/server/tools';
-import type { ChatKeywords, PlanRecommendation } from '@/features/chat/types';
+import { ACTION_TOOLS, parseExtractConditionsArguments } from '@/features/chat/server/tools';
+import type { ChatKeywords, SummarizeTurnMessage } from '@/features/chat/types';
 
 import type { Plan } from '@/entities/plan/types';
 
@@ -60,20 +55,70 @@ async function getToolResultContent(
 }
 
 /**
+ * 호출된 tool들 각각의 실행 결과로 (assistant tool_calls 메시지 + tool 결과 메시지들)을
+ * 만들어 messages 뒤에 이어붙인다. calls가 비어있으면 원본을 그대로 돌려준다.
+ */
+async function appendToolRound(
+  messages: ChatCompletionMessageParam[],
+  calls: ToolCallBuilder[],
+  context: ToolResultContext,
+): Promise<ChatCompletionMessageParam[]> {
+  if (calls.length === 0) return messages;
+
+  const assistantToolCalls: ChatCompletionMessageToolCall[] = calls.map(
+    (call) => ({
+      id: call.id,
+      type: 'function',
+      function: { name: call.name, arguments: call.argsBuffer },
+    }),
+  );
+
+  const toolResultMessages: ChatCompletionMessageParam[] = await Promise.all(
+    calls.map(async (call) => ({
+      role: 'tool' as const,
+      tool_call_id: call.id,
+      content: JSON.stringify(await getToolResultContent(call, context)),
+    })),
+  );
+
+  return [
+    ...messages,
+    { role: 'assistant', content: null, tool_calls: assistantToolCalls },
+    ...toolResultMessages,
+  ];
+}
+
+// 카탈로그에 있는 실제 요금제명이 텍스트에 하나라도 등장하는지 - recommend_plans가
+// 안 불렸는데 이게 참이면, 그 텍스트는 모델이 지어낸 것이다(CARD-002/NFR-003~004 위반).
+function containsPlanName(text: string, plans: Plan[]): boolean {
+  return plans.some((plan) => text.includes(plan.name));
+}
+
+/**
  * 한 번의 상담 요청을 SSE 스트림으로 만든다.
  *
- * 0단계: 이번 발화의 조건을 전용 호출로 먼저 추출한다(extractConditions).
- *        대화 호출에 얹지 않는 이유는 그 함수 주석에 적어뒀다.
- * 1턴: 시스템 프롬프트(+ 방금 추출한 조건까지 반영) + 사용자 메시지로 호출.
- *      텍스트는 곧바로 token 이벤트로 흘려보내고, 추천·절약·사용량 의도는
- *      각각의 트리거 tool 로 받는다.
- * 2턴: tool 이 하나라도 호출됐으면 - 그 결과를 tool 메시지로 넣어 다시 호출해
- *      자연어 마무리 응답을 스트리밍한다. tool 이 하나도 없었으면
- *      (텍스트로만 답한 턴) 1턴으로 끝난다.
- *
- * 이벤트 순서는 token(설명) -> recommendation(카드) -> keywords -> done 이다.
- * 추천 순위는 2턴의 tool 결과로 필요해서 미리 계산하지만, 카드가 설명보다 먼저
- * 뜨면 읽기 전에 결론부터 보이므로 이벤트만 붙잡아 뒀다가 설명 뒤에 내보낸다.
+ * 1턴: 시스템 프롬프트(+ 지금까지 파악된 조건) + 사용자 메시지로 호출. 아직 도구 호출
+ *      여부가 안 정해진 구간이라 텍스트를 곧바로 화면에 보내지 않고 서버가 들고
+ *      있는다(emitTokens: false) - 검증 전에 잘못된 내용이 화면에 노출되는 걸 막기
+ *      위함이다. 이번 턴에 언급된 조건은 extract_conditions로, 추천 의도는
+ *      recommend_plans(트리거)로 모아둔다.
+ * 1.5턴(보정): extract_conditions는 불렀는데 실행 도구(recommend_plans/
+ *      analyze_savings/show_usage_trend)를 하나도 안 부른 경우 - 모델이 두 도구를
+ *      한 번에 병렬 호출하는 걸 가끔 놓치는 걸 실측으로 확인했다. 텍스트 생성 없이
+ *      (emitTokens: false) 실행 도구 중 필요한 게 있으면 지금 호출하라고 한 번 더
+ *      묻는다 - 추천 여부 자체의 판단은 여전히 모델이 하고(강제 호출 아님, tools
+ *      'auto'), 다만 "narration과 tool call을 동시에 못 하는" 실패 유형만 보정한다.
+ * 가드레일: 위 보정까지 거치고도 실행 도구가 끝내 하나도 안 불렸는데, 1턴 텍스트에
+ *      실제 요금제명이 등장하면 - 서버 계산을 거치지 않은 값이 확실하므로(모델이
+ *      직접 지어낸 것) 그 텍스트를 화면에 내보내지 않고 invalid_format 에러로
+ *      처리한다. 이 시점까지는 아직 아무것도 화면에 안 나간 상태라 안전하게 버릴 수
+ *      있다.
+ * 2턴: 실행 도구가 하나라도 확정됐으면 - 실제 결과는 서버가 계산해서 카드 이벤트로
+ *      먼저 내보내고, 그 결과를 tool 메시지로 넣어 다시 호출해 자연어 마무리
+ *      응답을 스트리밍한다(이 구간은 이미 검증된 사실을 근거로 하므로 정상적으로
+ *      실시간 스트리밍). 확정된 게 없어도, tool만 부르고 텍스트를 하나도 안
+ *      보냈으면(조건만 언급한 메시지 등) 빈 말풍선을 막기 위해 같은 방식으로 돈다.
+ *      가드레일을 통과한 1턴 텍스트는 여기서 한 번에 흘려보낸 뒤 이어붙인다.
  */
 export function createChatStream(
   message: string,
@@ -81,6 +126,8 @@ export function createChatStream(
   summary?: string,
   /** CARD-023: 절약 상담은 로그인 사용자 전용 - route.ts가 미리 확인해서 넘겨준다 */
   userId: string | null = null,
+  /** §2.4: summary에 아직 반영 안 된 구간의 원문 - 직전 대화를 기억하게 하는 용도 */
+  recentMessages: SummarizeTurnMessage[] = [],
 ): ReadableStream {
   // 클라이언트가 연결을 끊었을 때(페이지 이동 등) cancel() 에서 진행 중인 스트림을 정리
   let activeStream: Stream<ChatCompletionChunk> | null = null;
@@ -94,103 +141,160 @@ export function createChatStream(
       const send = createSSESender(controller);
 
       try {
-        // 이번 발화의 조건을 먼저 확정한다. 대화 호출보다 앞서 두는 이유는
-        // 시스템 프롬프트의 "지금까지 파악된 조건"에 방금 들은 값까지 담기 위해서다 -
-        // 그래야 같은 턴에서 바로 추천으로 넘어갈 수 있고, 이미 말한 걸 되묻지 않는다.
-        const [plans, extracted] = await Promise.all([
-          getAllPlans(),
-          extractConditions(message),
-        ]);
-
-        const mergedKeywords = mergeKeywords(incomingKeywords, extracted);
-
+        const plans = await getAllPlans();
         const messages: ChatCompletionMessageParam[] = [
           {
             role: 'system',
-            content: buildSystemPrompt(plans, mergedKeywords, summary),
+            content: buildSystemPrompt(plans, incomingKeywords, summary),
           },
+          // §2.4 "최근 채팅 메시지 N개" - summary가 아직 못 따라잡은 구간의 원문.
+          // ChatMessage/SummarizeTurnMessage의 'ai' role을 OpenAI의 'assistant'로 바꿔준다.
+          ...recentMessages.map(
+            (turn): ChatCompletionMessageParam => ({
+              role: turn.role === 'ai' ? 'assistant' : 'user',
+              content: turn.content,
+            }),
+          ),
           { role: 'user', content: message },
         ];
 
-        // 조건 추출은 위에서 끝냈으므로 대화 호출에는 트리거 tool 만 준다.
-        // extract_conditions 까지 같이 주면 모델이 그것만 부르고
-        // recommend_plans 를 빠뜨리는 일이 잦다.
-        const toolCalls = await streamCompletion({
-          messages,
-          tools: [
-            RECOMMEND_PLANS_TOOL,
-            ANALYZE_SAVINGS_TOOL,
-            SHOW_USAGE_TREND_TOOL,
-          ],
-          send,
-          onStreamCreated: rememberStream,
-        });
-
-        // tool 을 부른 응답은 finish_reason 이 tool_calls 라 텍스트가 한 글자도 없다.
-        // 여기 남은 tool 은 전부 확정된 결과를 설명할 2턴이 필요한 것들이라,
-        // 하나라도 불렸으면 2턴을 돌려 자연어 응답을 만든다.
-        if (toolCalls.length > 0) {
-          // 이번 턴에 실제로 호출된 tool들을 하나의 assistant 메시지로 재구성하고,
-          // 각각에 대응하는 tool 결과 메시지를 붙인다 - OpenAI는 한 응답의 tool_calls
-          // 전부에 대해 결과가 있어야 다음 턴을 받아준다.
-          const assistantToolCalls: ChatCompletionMessageToolCall[] =
-            toolCalls.map((call) => ({
-              id: call.id,
-              type: 'function',
-              function: { name: call.name, arguments: call.argsBuffer },
-            }));
-
-          // 추천 카드는 설명보다 먼저 뜨면 안 된다 - 사용자는 왜 이 요금제인지
-          // 읽은 다음에 카드를 봐야 한다. 그런데 순위 계산은 다음 턴의 tool 결과로
-          // 필요해서 지금 해야 하므로, 계산은 하되 이벤트만 붙잡아 두고
-          // 자연어 설명이 끝난 뒤에 내보낸다.
-          let heldRecommendations: PlanRecommendation[] | null = null;
-          const holdRecommendation: SSESend = (event) => {
-            if (event.event === 'recommendation') {
-              heldRecommendations = event.data.plans;
-              return;
-            }
-
-            send(event);
-          };
-
-          const toolResultMessages: ChatCompletionMessageParam[] =
-            await Promise.all(
-              toolCalls.map(async (call) => ({
-                role: 'tool' as const,
-                tool_call_id: call.id,
-                content: JSON.stringify(
-                  await getToolResultContent(call, {
-                    plans,
-                    mergedKeywords,
-                    userId,
-                    send: holdRecommendation,
-                  }),
-                ),
-              })),
-            );
-
+        // 1턴은 아직 검증 전이라 텍스트를 화면에 안 보내고 서버가 들고 있는다
+        // (emitTokens: false) - 가드레일을 통과해야 비로소 흘려보낸다.
+        const { toolCalls: turn1Calls, text: turn1Text } =
           await streamCompletion({
-            messages: [
-              ...messages,
-              {
-                role: 'assistant',
-                content: null,
-                tool_calls: assistantToolCalls,
-              },
-              ...toolResultMessages,
-            ],
+            messages,
+            useTools: true,
             send,
+            emitTokens: false,
             onStreamCreated: rememberStream,
           });
 
-          // 설명이 다 나간 뒤에 카드를 띄운다
-          if (heldRecommendations) {
-            send({
-              event: 'recommendation',
-              data: { plans: heldRecommendations },
-            });
-          }
+        const extractCall = turn1Calls.find(
+          (call) => call.name === 'extract_conditions',
+        );
+        let recommendCall = turn1Calls.find(
+          (call) => call.name === 'recommend_plans',
+        );
+        let analyzeSavingsCall = turn1Calls.find(
+          (call) => call.name === 'analyze_savings',
+        );
+        let showUsageTrendCall = turn1Calls.find(
+          (call) => call.name === 'show_usage_trend',
+        );
+
+        const mergedKeywords = extractCall
+          ? mergeKeywords(
+              incomingKeywords,
+              parseExtractConditionsArguments(extractCall.argsBuffer),
+            )
+          : incomingKeywords;
+
+        const toolContext: ToolResultContext = {
+          plans,
+          mergedKeywords,
+          userId,
+          send,
+        };
+
+        // 1턴 이후로는 시스템 프롬프트의 "지금까지 파악된 조건"도 mergedKeywords로
+        // 최신화해서 넘긴다 - 안 그러면 보정 턴/마무리 턴이 "조건 없음"이라고 적힌
+        // 시스템 프롬프트와 방금 추출된 tool 결과가 서로 모순돼, 모델이 recommend_plans
+        // 호출을 주저하는 걸 실측으로 확인했다.
+        const messagesWithMergedKeywords: ChatCompletionMessageParam[] =
+          extractCall
+            ? [
+                {
+                  role: 'system',
+                  content: buildSystemPrompt(plans, mergedKeywords, summary),
+                },
+                ...messages.slice(1),
+              ]
+            : messages;
+
+        // 1턴에서 실제로 호출된 tool들(추후 wrap-up 호출의 메시지 히스토리에 쌓아감)
+        let messagesWithTools = await appendToolRound(
+          messagesWithMergedKeywords,
+          turn1Calls,
+          toolContext,
+        );
+
+        // 1.5턴(보정): extract_conditions는 불렀는데 실행 도구는 하나도 안 부르고
+        // 텍스트까지 낸 경우 - 병렬 호출을 놓친 걸로 보고, 텍스트 없이 실행 도구
+        // 후보만 다시 판단하게 한다(강제 호출 아님 - 필요 없으면 여전히 안 부를 수 있음).
+        const calledActionInTurn1 =
+          Boolean(recommendCall) ||
+          Boolean(analyzeSavingsCall) ||
+          Boolean(showUsageTrendCall);
+
+        if (extractCall && !calledActionInTurn1) {
+          const decision = await streamCompletion({
+            messages: messagesWithTools,
+            useTools: true,
+            tools: ACTION_TOOLS,
+            send,
+            emitTokens: false,
+            onStreamCreated: rememberStream,
+          });
+
+          recommendCall = decision.toolCalls.find(
+            (call) => call.name === 'recommend_plans',
+          );
+          analyzeSavingsCall = decision.toolCalls.find(
+            (call) => call.name === 'analyze_savings',
+          );
+          showUsageTrendCall = decision.toolCalls.find(
+            (call) => call.name === 'show_usage_trend',
+          );
+
+          messagesWithTools = await appendToolRound(
+            messagesWithTools,
+            decision.toolCalls,
+            toolContext,
+          );
+        }
+
+        const actionConfirmed =
+          Boolean(recommendCall) ||
+          Boolean(analyzeSavingsCall) ||
+          Boolean(showUsageTrendCall);
+
+        // 가드레일: 조건은 확인됐는데(extractCall) 실행 도구가 끝내 하나도 안
+        // 불렸고, 그런데도 1턴 텍스트에 실제 요금제명이 있으면 - 서버 계산을 거치지
+        // 않은 값이 확실하다. 아직 아무것도 화면에 안 나간 상태이므로 그대로 버리고
+        // 에러로 전환한다(CARD-006: 재시도 가능).
+        if (extractCall && !actionConfirmed && containsPlanName(turn1Text, plans)) {
+          console.error(
+            '[api/chat] 가드레일: recommend_plans 없이 요금제명 언급 감지 -',
+            turn1Text,
+          );
+          send({
+            event: 'error',
+            data: {
+              reason: 'invalid_format',
+              message: '추천 결과를 확인하지 못했습니다. 다시 시도해주세요.',
+            },
+          });
+          return;
+        }
+
+        // 가드레일을 통과한 1턴 텍스트를 이제 화면에 흘려보낸다.
+        if (turn1Text) {
+          send({ event: 'token', data: { delta: turn1Text } });
+        }
+
+        // 실행 도구가 하나라도 확정됐으면 결과를 설명할 마무리 턴이 필요하고,
+        // 그게 아니어도 1턴이 텍스트 없이 tool만 부르고 끝났으면(조건만 언급한
+        // 메시지 등) 빈 말풍선을 막기 위해 같은 방식으로 마무리 턴을 돌린다.
+        const needsFollowUpTurn =
+          actionConfirmed || (Boolean(extractCall) && !turn1Text);
+
+        if (needsFollowUpTurn) {
+          await streamCompletion({
+            messages: messagesWithTools,
+            useTools: false,
+            send,
+            onStreamCreated: rememberStream,
+          });
         }
 
         // 클라이언트가 다음 요청에 그대로 실어 보낼 수 있게 최신 조건을 알려준다

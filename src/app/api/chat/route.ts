@@ -27,6 +27,7 @@ export async function POST(request: Request) {
       parsed.data.keywords ?? {},
       parsed.data.summary,
       user?.id ?? null,
+      parsed.data.recentMessages ?? [],
     ),
     { headers: SSE_HEADERS },
   );
