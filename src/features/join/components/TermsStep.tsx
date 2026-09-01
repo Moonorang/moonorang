@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 import { ChevronRight } from 'lucide-react';
 
@@ -20,6 +20,28 @@ interface TermsStepProps {
   onNext: () => void;
 }
 
+/**
+ * 이 요소를 감싸고 있는 스크롤 영역(채팅 목록)을 최하단으로 내린다.
+ * 대화 화면 구조를 여기서 알 수는 없으므로 위로 올라가며 실제로 스크롤되는
+ * 조상을 찾는다.
+ */
+function scrollAncestorToBottom(element: HTMLElement | null): void {
+  let parent = element?.parentElement ?? null;
+
+  while (parent) {
+    const isScrollable =
+      parent.scrollHeight > parent.clientHeight &&
+      /auto|scroll/.test(window.getComputedStyle(parent).overflowY);
+
+    if (isScrollable) {
+      parent.scrollTop = parent.scrollHeight;
+      return;
+    }
+
+    parent = parent.parentElement;
+  }
+}
+
 /** CARD-034: 2단계 - 약관 동의. 필수 약관을 모두 받아야 다음으로 넘어간다 */
 export default function TermsStep({
   submitLabel,
@@ -30,10 +52,21 @@ export default function TermsStep({
   // 1. 상태 및 훅
   // 펼쳐 둔 약관 - 좁은 카드라 한 번에 하나만 연다
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   const isAllAgreed = agreedIds.length === JOIN_TERMS.length;
 
-  // 2. 이벤트 핸들러
+  // 2. 부수 효과
+  // 약관을 펼치면 카드가 상세 영역 높이만큼 길어지는데, 스크롤 위치는 그대로라
+  // 바닥 기준으로는 그만큼 위로 밀려난 것처럼 보인다. 펼칠 때마다 최하단에 붙인다.
+  // 그리기 전에 옮겨야(useLayoutEffect) 튀는 순간이 눈에 안 보인다.
+  useLayoutEffect(() => {
+    if (expandedId === null) return;
+
+    scrollAncestorToBottom(listRef.current);
+  }, [expandedId]);
+
+  // 3. 이벤트 핸들러
   const handleAllToggle = (isChecked: boolean) => {
     onAgreedIdsChange(isChecked ? JOIN_TERMS.map((term) => term.id) : []);
   };
@@ -50,7 +83,7 @@ export default function TermsStep({
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
-  // 3. 렌더링
+  // 4. 렌더링
   return (
     <JoinStepLayout
       submitLabel={submitLabel}
@@ -79,7 +112,7 @@ export default function TermsStep({
           </label>
         </div>
 
-        <ul className="mt-4 flex flex-col gap-3">
+        <ul ref={listRef} className="mt-4 flex flex-col gap-3">
           {JOIN_TERMS.map((term) => {
             const isExpanded = expandedId === term.id;
 
