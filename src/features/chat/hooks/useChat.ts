@@ -20,6 +20,8 @@ import type {
 
 import type { Plan } from '@/entities/plan/types';
 
+import { createId } from '@/shared/utils/createId';
+
 export interface ChatError {
   reason: ChatErrorReason;
   message: string;
@@ -303,12 +305,12 @@ export function useChat() {
 
       const now = new Date().toISOString();
       const userMessage: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: createId(),
         role: 'user',
         content: trimmed,
         createdAt: now,
       };
-      const aiMessageId = crypto.randomUUID();
+      const aiMessageId = createId();
 
       lastUserTextRef.current = trimmed;
       lastAiMessageIdRef.current = aiMessageId;
