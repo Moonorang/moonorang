@@ -14,6 +14,7 @@ import { JOIN_STEPS } from '@/features/join/data/steps';
 import {
   findNextStepIndex,
   findPrevStepIndex,
+  getProgressPosition,
 } from '@/features/join/lib/steps';
 import type { CardValues } from '@/features/join/lib/cardSchema';
 import type { IdentityValues } from '@/features/join/lib/identitySchema';
@@ -60,6 +61,7 @@ export default function JoinFlowCard({ plan }: JoinFlowCardProps) {
   const step = JOIN_STEPS[stepIndex];
   const nextStepIndex = findNextStepIndex(stepIndex);
   const prevStepIndex = findPrevStepIndex(stepIndex);
+  const progress = getProgressPosition(stepIndex);
 
   const cardRef = useRef<HTMLDivElement>(null);
   // 카드가 처음 붙는 순간은 ChatRoom 이 최하단으로 끌어내리는 시점이라 건드리지 않는다
@@ -131,13 +133,16 @@ export default function JoinFlowCard({ plan }: JoinFlowCardProps) {
         <h3 className="text-14 font-medium text-text-primary">{step.title}</h3>
       </div>
 
-      <div className="mt-3">
-        <StepProgress
-          total={JOIN_STEPS.length}
-          currentIndex={stepIndex}
-          ariaLabel="요금제 가입 진행 상황"
-        />
-      </div>
+      {/* 상세 확인은 절차가 시작되기 전이라 표시줄을 안 그린다 */}
+      {progress && (
+        <div className="mt-3">
+          <StepProgress
+            total={progress.total}
+            currentIndex={progress.currentIndex}
+            ariaLabel="요금제 가입 진행 상황"
+          />
+        </div>
+      )}
 
       {step.id === 'plan' && (
         <PlanConfirmStep

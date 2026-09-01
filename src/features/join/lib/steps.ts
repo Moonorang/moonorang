@@ -25,3 +25,25 @@ export function findNextStepIndex(from: number): number {
 export function findPrevStepIndex(from: number): number {
   return findStepIndex(from, -1);
 }
+
+export interface StepProgressPosition {
+  /** 진행 표시줄에 그릴 칸 수 */
+  total: number;
+  /** 그중 지금 몇 번째인지 */
+  currentIndex: number;
+}
+
+/**
+ * CARD-032: 진행 표시줄에 쓸 위치.
+ * 표시 대상이 아닌 단계(상세 확인)면 null - 그때는 표시줄을 아예 그리지 않는다.
+ */
+export function getProgressPosition(from: number): StepProgressPosition | null {
+  const progressSteps = JOIN_STEPS.filter((step) => step.hasProgress);
+  const currentIndex = progressSteps.findIndex(
+    (step) => step.id === JOIN_STEPS[from].id,
+  );
+
+  if (currentIndex === -1) return null;
+
+  return { total: progressSteps.length, currentIndex };
+}
