@@ -9,6 +9,7 @@ export const JOIN_STEPS = [
   { id: 'plan', title: '상세 확인', hasScreen: true },
   { id: 'terms', title: '약관 동의', hasScreen: true },
   { id: 'identity', title: '본인 확인', hasScreen: true },
+  { id: 'card', title: '카드 등록', hasScreen: true },
   { id: 'confirm', title: '최종 확인', hasScreen: false },
 ] as const;
 

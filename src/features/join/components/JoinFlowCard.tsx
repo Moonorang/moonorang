@@ -6,6 +6,7 @@ import { ChevronLeft } from 'lucide-react';
 
 import StepProgress from '@/shared/ui/StepProgress';
 
+import CardStep from '@/features/join/components/CardStep';
 import IdentityStep from '@/features/join/components/IdentityStep';
 import PlanConfirmStep from '@/features/join/components/PlanConfirmStep';
 import TermsStep from '@/features/join/components/TermsStep';
@@ -14,6 +15,7 @@ import {
   findNextStepIndex,
   findPrevStepIndex,
 } from '@/features/join/lib/steps';
+import type { CardValues } from '@/features/join/lib/cardSchema';
 import type { IdentityValues } from '@/features/join/lib/identitySchema';
 
 import type { Plan } from '@/entities/plan/types';
@@ -25,6 +27,13 @@ const EMPTY_IDENTITY: IdentityValues = {
   rrnBack: '',
   issuedDate: '',
   mobileNum: '',
+};
+
+/** 카드 등록에 아직 아무것도 입력하지 않은 상태 */
+const EMPTY_CARD: CardValues = {
+  issuer: '',
+  cardNumber: '',
+  expiry: '',
 };
 
 interface JoinFlowCardProps {
@@ -46,6 +55,7 @@ export default function JoinFlowCard({ plan }: JoinFlowCardProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [agreedTermIds, setAgreedTermIds] = useState<string[]>([]);
   const [identity, setIdentity] = useState<IdentityValues>(EMPTY_IDENTITY);
+  const [card, setCard] = useState<CardValues>(EMPTY_CARD);
 
   const step = JOIN_STEPS[stepIndex];
   const nextStepIndex = findNextStepIndex(stepIndex);
@@ -84,6 +94,11 @@ export default function JoinFlowCard({ plan }: JoinFlowCardProps) {
 
   const handleIdentityNext = (values: IdentityValues) => {
     setIdentity(values);
+    handleNext();
+  };
+
+  const handleCardNext = (values: CardValues) => {
+    setCard(values);
     handleNext();
   };
 
@@ -146,6 +161,15 @@ export default function JoinFlowCard({ plan }: JoinFlowCardProps) {
           submitLabel={submitLabel}
           defaultValues={identity}
           onNext={handleIdentityNext}
+        />
+      )}
+
+      {step.id === 'card' && (
+        <CardStep
+          submitLabel={submitLabel}
+          defaultValues={card}
+          onPrev={handlePrev}
+          onNext={handleCardNext}
         />
       )}
     </div>
