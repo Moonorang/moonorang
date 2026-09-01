@@ -18,7 +18,7 @@ export default function CatalogError({ error, retry }: CatalogErrorProps) {
 
   // 2. 렌더링
   return (
-    <main className="mx-auto flex w-full max-w-(--width-container) flex-col pt-(--height-header) pb-10">
+    <main className="flex w-full flex-col pt-(--height-header) pb-10">
       <div className="mx-4 mt-4 flex flex-col items-center gap-3 rounded-lg bg-background-default px-4 py-10 text-center">
         <p className="text-14 font-medium text-text-primary">
           상품 정보를 불러오지 못했어요.

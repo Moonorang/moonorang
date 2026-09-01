@@ -1,7 +1,18 @@
 import { createClient } from '@/shared/lib/supabase/server';
-import type { Subscription } from '@/entities/subscription/types';
+import type {
+  Subscription,
+  SubscriptionDescription,
+} from '@/entities/subscription/types';
 
-const SUBSCRIPTION_COLUMNS = 'id, name, base_monthly_fee, discount, highlight';
+const SUBSCRIPTION_COLUMNS =
+  'id, name, base_monthly_fee, discount, highlight, description';
+
+// description 안의 키는 snake_case 라 컬럼과 같이 camelCase 로 옮긴다.
+interface SubscriptionDescriptionRow {
+  image?: string;
+  sub_title?: string;
+  features?: string[];
+}
 
 interface SubscriptionRow {
   id: number;
@@ -9,6 +20,19 @@ interface SubscriptionRow {
   base_monthly_fee: number;
   discount: number;
   highlight: string | null;
+  description: SubscriptionDescriptionRow | string | null;
+}
+
+function mapDescription(
+  description: SubscriptionRow['description'],
+): SubscriptionDescription | null {
+  if (!description || typeof description === 'string') return null;
+
+  return {
+    image: description.image,
+    subTitle: description.sub_title,
+    features: description.features,
+  };
 }
 
 function mapSubscriptionRow(row: SubscriptionRow): Subscription {
@@ -18,6 +42,7 @@ function mapSubscriptionRow(row: SubscriptionRow): Subscription {
     baseMonthlyFee: row.base_monthly_fee,
     discount: row.discount,
     highlight: row.highlight,
+    description: mapDescription(row.description),
   };
 }
 
