@@ -6,7 +6,6 @@ import type { ReactNode } from 'react';
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
-import ConditionEntryChips from '@/features/chat/components/ConditionEntryChips';
 import ConditionQuestionCard from '@/features/chat/components/ConditionQuestionCard';
 import PlanCardCarousel from '@/features/chat/components/PlanCardCarousel';
 import PlusMenu from '@/features/chat/components/PlusMenu';
@@ -23,6 +22,13 @@ import type { UsageAnalysisResult } from '@/entities/usage/types';
 
 /** 최하단에서 이 거리(px) 이내면 바닥에 있는 것으로 본다 */
 const BOTTOM_THRESHOLD_PX = 24;
+
+/**
+ * AI가 조건(예산·데이터 사용량)을 막 물어본 시점에, 사용자가 이 단어들을 포함해서
+ * 답하면 - LLM 왕복 없이 곧바로 선택형 질문 카드를 연다. 별도 버튼 UI 대신 AI가
+ * 말로 "선택지로 해드릴까요, 텍스트로 하실래요?"라고 물어보고, 그 답을 여기서 감지한다.
+ */
+const CONDITION_CARD_KEYWORDS = ['선택지', '카드', '골라'];
 
 /**
  * 가입 카드와 함께 남기는 안내 문구.
@@ -93,12 +99,6 @@ export default function ChatRoom({
   // (CARD-012: 요약을 하나의 말풍선으로 남김 - 문항마다 따로 쪼개지 않는다)
   const [conditionAnswers, setConditionAnswers] = useState<string[]>([]);
 
-  // "텍스트로 답할게요"를 누르면, 그 시점의 마지막 AI 메시지에 한해서만 칩을 숨긴다.
-  // 다음 AI 메시지가 오면 lastMessageId가 바뀌므로 자동으로 다시 평가된다.
-  const [dismissedEntryChipsFor, setDismissedEntryChipsFor] = useState<
-    string | null
-  >(null);
-
   // 바닥에 있는지 여부 - 자동 스크롤 여부와 버튼 노출을 함께 결정한다
   const [isAtBottom, setIsAtBottom] = useState(true);
   // 신청하기로 띄운 가입 카드들. 대화 이력(messages)과 섞지 않고 따로 들고 있는다
@@ -145,6 +145,18 @@ export default function ChatRoom({
     setValue('');
     // 위로 올려둔 상태에서 보내도 방금 보낸 메시지는 보이게 한다
     setIsAtBottom(true);
+
+    // AI가 방금 조건을 물어보면서 "선택지로 해드릴까요, 텍스트로 하실래요?"라고
+    // 물은 직후라면, 사용자가 선택지를 원한다는 답을 LLM 왕복 없이 바로 감지해서
+    // 카드를 연다 - 버튼 없이 대화만으로 같은 선택을 할 수 있게 하기 위함이다.
+    if (
+      isAwaitingConditionEntryChoice &&
+      CONDITION_CARD_KEYWORDS.some((keyword) => text.includes(keyword))
+    ) {
+      handleOpenConditionQuestions();
+      return;
+    }
+
     sendMessage(text);
   };
 
@@ -224,7 +236,6 @@ export default function ChatRoom({
     reset();
     setJoinBlocks([]);
     setConditionAnswers([]);
-    setDismissedEntryChipsFor(null);
   };
 
   const lastMessage = messages[messages.length - 1];
@@ -247,12 +258,14 @@ export default function ChatRoom({
       />
     ) : undefined);
 
-  // AI가 방금 조건을 물어본 것으로 보이는 시점에만 진입 칩을 보여준다:
-  // 대화가 시작됐고(환영 메시지 제외), 마지막 메시지가 텍스트만 있는 AI 응답이고,
-  // 예산·데이터 사용량이 아직 둘 다 없을 때. systemPrompt의 "조건이 둘 다 없으면
-  // 먼저 물어보라"는 지침과 같은 조건이라 실제로 되묻는 순간과 맞아떨어진다.
-  // usageAnalysis(절약 상담/사용량 추세) 응답은 조건을 되묻는 상황이 아니라서 제외한다.
-  const shouldShowConditionEntryChips =
+  // AI가 방금 조건을 물어본 것으로 보이는 시점인지: 대화가 시작됐고(환영 메시지
+  // 제외), 마지막 메시지가 텍스트만 있는 AI 응답이고, 예산·데이터 사용량이 아직
+  // 둘 다 없을 때. systemPrompt의 "조건이 둘 다 없으면 먼저 물어보라"는 지침과
+  // 같은 조건이라 실제로 되묻는 순간과 맞아떨어진다. usageAnalysis(절약 상담/
+  // 사용량 추세) 응답은 조건을 되묻는 상황이 아니라서 제외한다.
+  // handleSend가 이 순간의 사용자 답에서 "선택지/카드" 같은 키워드를 감지해
+  // 곧바로 선택형 질문 카드를 열지 판단하는 데 쓴다(버튼 UI 없이).
+  const isAwaitingConditionEntryChoice =
     !isStreaming &&
     !resolvedOverlay &&
     !!lastMessage &&
@@ -260,8 +273,7 @@ export default function ChatRoom({
     !lastMessage.recommendations?.length &&
     !lastMessage.usageAnalysis &&
     !keywords.budget &&
-    !keywords.dataUsageGb &&
-    dismissedEntryChipsFor !== lastMessageId;
+    !keywords.dataUsageGb;
 
   // 4. 렌더링
   return (
@@ -336,20 +348,13 @@ export default function ChatRoom({
           {error && <ChatErrorNotice reason={error.reason} onRetry={retry} />}
         </div>
 
-        {/* 메시지 리스트 하단에 칩 버튼 배치 (입력창 위로 떠 있는 듯한 위치) */}
-        {/* 최초 진입 시엔 추천 질문 칩을, AI가 조건을 물어본 시점엔 답변 방식 선택 칩을,
-            오버레이 카드가 떠 있는 동안엔 아무 칩도 안 보여준다. */}
+        {/* 메시지 리스트 하단에 추천 질문 칩 배치 (입력창 위로 떠 있는 듯한 위치) */}
+        {/* 최초 진입 시에만 보여준다 - AI가 조건을 물어본 시점엔 별도 버튼 UI 없이
+            AI 메시지 자체가 "선택지로 해드릴까요, 텍스트로 하실래요?"라고 물어보고,
+            사용자의 다음 답을 handleSend가 감지해 선택형 카드를 열지 판단한다. */}
         {messages.length === 0 && !resolvedOverlay && (
           <div className="mt-auto">
-            <SuggestionChips onSuggest={handleSuggest} />
-          </div>
-        )}
-        {shouldShowConditionEntryChips && (
-          <div className="mt-auto">
-            <ConditionEntryChips
-              onChooseText={() => setDismissedEntryChipsFor(lastMessageId ?? null)}
-              onChooseCard={handleOpenConditionQuestions}
-            />
+            <SuggestionChips onSuggest={handleSuggest} onPlanTest={onPlanTest} />
           </div>
         )}
 
