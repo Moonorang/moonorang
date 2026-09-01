@@ -39,6 +39,11 @@ const PLAN_JOIN_GUIDE = `선택하신 요금제의 상세 내용을 확인해주
 
 interface ChatRoomProps {
   /**
+   * 로그인 여부. features/chat이 features/auth를 직접 참조할 수 없어서 app 레이어가
+   * useAuth로 확인해 내려준다. 아직 확인 전이면 undefined.
+   */
+  isLoggedIn?: boolean;
+  /**
    * 대화 영역 하단에 끼워 넣을 카드 (성향 검사 문항 등).
    * 값이 있으면 떠 있는 것으로 보고 추천 질문 칩을 감춘다.
    */
@@ -64,6 +69,7 @@ interface ChatRoomProps {
 
 /** 채팅 화면 본체 - 대화 내역, 추천 질문 칩, 입력창, 추가 기능 메뉴 */
 export default function ChatRoom({
+  isLoggedIn,
   overlay,
   onPlanTest,
   renderJoinFlow,
@@ -86,7 +92,7 @@ export default function ChatRoom({
     setKeywordValue,
     pruneVisibleMessages,
     stopGeneration,
-  } = useChat();
+  } = useChat(isLoggedIn);
   const conditionQuestions = useConditionQuestions();
 
   // 조건 수집 카드에서 선택한 답변을 문항이 끝날 때까지 모아뒀다가 한 번에 보낸다
