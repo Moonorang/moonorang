@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { Check, MessageSquare } from 'lucide-react';
+import { Check, QrCode } from 'lucide-react';
 
 import Button from '@/shared/ui/Button';
 
@@ -13,19 +13,15 @@ import type { MoStatus } from '@/features/join/hooks/useMoVerification';
 interface MoVerificationProps {
   status: MoStatus;
   isVerified: boolean;
-  /** 문자로 보낼 인증 코드 */
-  code: string;
-  /** 누르면 수신번호와 본문이 채워진 채로 문자 앱이 열린다 */
-  smsHref: string;
+  /** 인증 코드를 담은 QR (PNG data URL) */
+  qrCode: string | null;
+  /** 문자로 보낼 인증 코드 - QR 을 못 읽는 경우를 위해 글자로도 보여준다 */
+  code: string | null;
   secondsLeft: number;
   errorMessage: string | null;
-  /** PC 처럼 문자 앱이 없는 경우를 위한 QR (PNG data URL) */
-  qrCode: string | null;
-  isQrLoading: boolean;
   /** 번호 형식이 맞을 때만 인증을 시작할 수 있다 */
   isMobileNumValid: boolean;
   onStart: () => void;
-  onLoadQrCode: () => void;
 }
 
 /** 남은 시간을 3:05 모양으로 */
@@ -38,53 +34,67 @@ function formatSecondsLeft(seconds: number): string {
 /**
  * CARD-037: MO 본인 인증.
  *
- * 기본 경로는 문자 앱 열기다 - 모바일 서비스라 대부분 폰에서 열고, 그때는 QR 을
- * 찍을 두 번째 기기가 없다. 대신 문자 앱이 없는 PC 를 위해 QR 을 보조로 남긴다.
+ * QR 은 모달로 띄운다 - 카드 안에 넣으면 QR 높이만큼 카드가 늘어 대화가 튄다.
+ * 카드에는 버튼 한 줄만 두어 어느 상태에서도 높이가 변하지 않는다.
  *
- * 카드에는 버튼 한 줄과 보조 링크만 두어 어느 상태에서도 높이가 변하지 않는다 -
- * QR 은 모달로 덮어서 띄운다.
+ * 진행 상태는 useMoVerification 이 들고 있다 - 다음 버튼을 잠그는 판단이
+ * 부모(IdentityStep)에도 필요해서 훅을 그쪽에 두었다.
  */
 export default function MoVerification({
   status,
   isVerified,
+  qrCode,
   code,
-  smsHref,
   secondsLeft,
   errorMessage,
-  qrCode,
-  isQrLoading,
   isMobileNumValid,
   onStart,
-  onLoadQrCode,
 }: MoVerificationProps) {
   // 1. 상태 및 훅
   const [isModalRequested, setIsModalRequested] = useState(false);
 
   // 인증이 끝났거나 시간이 지났으면 QR 을 띄워둘 이유가 없다.
   // 상태를 지우는 대신 이렇게 파생시켜야 렌더 도중에 상태를 바꾸지 않는다.
-  const isModalOpen = isModalRequested && !isVerified && status !== 'expired';
+  const isModalOpen =
+    isModalRequested &&
+    status === 'waiting' &&
+    qrCode !== null &&
+    code !== null;
 
   // 2. 이벤트 핸들러
-  // 대기를 먼저 시작해야 문자를 보내고 돌아왔을 때 이미 조회가 돌고 있다
-  const handleSendSms = () => {
-    onStart();
-    window.location.href = smsHref;
-  };
-
-  const handleOpenQr = () => {
-    onStart();
+  const handleStart = () => {
     setIsModalRequested(true);
-    onLoadQrCode();
+    onStart();
   };
 
   // 3. 렌더링
+  const isIssuing = status === 'issuing';
   const isWaiting = status === 'waiting';
+
+  const buttonLabel = isIssuing
+    ? 'QR 코드 준비 중'
+    : isWaiting
+      ? `QR 코드 다시 보기 · ${formatSecondsLeft(secondsLeft)}`
+      : status === 'idle'
+        ? 'QR 코드 확인하기'
+        : 'QR 코드 다시 받기';
+
+  const handleButtonClick = () => {
+    // 대기 중이면 이미 받아둔 QR 을 다시 띄우기만 한다 - 코드를 새로 받으면
+    // 사용자가 방금 보낸 문자가 헛것이 된다
+    if (isWaiting) {
+      setIsModalRequested(true);
+      return;
+    }
+
+    handleStart();
+  };
 
   return (
     <div className="flex flex-col gap-2 rounded-md bg-background-subtle p-3">
       <p className="text-10 text-text-secondary">
-        {OCTOMO_RECEIVER_NUMBER} 로 인증 문자를 보내면 완료됩니다. 내용을 고치지
-        말고 그대로 보내주세요.
+        QR 을 휴대폰으로 찍어 {OCTOMO_RECEIVER_NUMBER} 로 문자를 보내면 인증이
+        완료됩니다.
       </p>
 
       {isVerified ? (
@@ -96,7 +106,7 @@ export default function MoVerification({
         <>
           {status === 'expired' && (
             <p className="text-10 text-status-error">
-              시간이 지났습니다. 인증 문자를 다시 보내주세요.
+              시간이 지났습니다. QR 코드를 다시 받아주세요.
             </p>
           )}
 
@@ -111,24 +121,12 @@ export default function MoVerification({
             size="md"
             gap="sm"
             isFullWidth
-            disabled={!isMobileNumValid}
-            onClick={handleSendSms}
+            disabled={!isMobileNumValid || isIssuing}
+            onClick={handleButtonClick}
           >
-            <MessageSquare size={14} strokeWidth={1.5} aria-hidden />
-            {isWaiting
-              ? `문자 앱 다시 열기 · ${formatSecondsLeft(secondsLeft)}`
-              : '인증 문자 보내기'}
+            <QrCode size={14} strokeWidth={1.5} aria-hidden />
+            {buttonLabel}
           </Button>
-
-          {/* 문자 앱이 없는 PC 용 보조 경로 */}
-          <button
-            type="button"
-            onClick={handleOpenQr}
-            disabled={!isMobileNumValid}
-            className="cursor-pointer text-10 text-text-secondary underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            PC 라면 QR 코드로 보내기
-          </button>
         </>
       )}
 
@@ -136,7 +134,6 @@ export default function MoVerification({
         <MoQrModal
           qrCode={qrCode}
           code={code}
-          isLoading={isQrLoading}
           secondsLeftLabel={formatSecondsLeft(secondsLeft)}
           onClose={() => setIsModalRequested(false)}
         />

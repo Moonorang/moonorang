@@ -158,15 +158,12 @@ export default function IdentityStep({
         <MoVerification
           status={mo.status}
           isVerified={mo.isVerified}
+          qrCode={mo.qrCode}
           code={mo.code}
-          smsHref={mo.smsHref}
           secondsLeft={mo.secondsLeft}
           errorMessage={mo.errorMessage}
-          qrCode={mo.qrCode}
-          isQrLoading={mo.isQrLoading}
           isMobileNumValid={mobileNumSchema.safeParse(mobileNum).success}
-          onStart={mo.start}
-          onLoadQrCode={() => void mo.loadQrCode()}
+          onStart={() => void mo.start()}
         />
       </div>
     </JoinStepLayout>

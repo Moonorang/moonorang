@@ -6,9 +6,6 @@
 /** 사용자가 인증 문자를 보내는 옥토모 대표번호 */
 export const OCTOMO_RECEIVER_NUMBER = '1666-3538';
 
-/** 같은 번호의 숫자만 - sms: 링크에는 하이픈 없이 넣는다 */
-export const OCTOMO_RECEIVER_DIGITS = '16663538';
-
 /** 인증 문자를 기다리는 시간(초) */
 export const MO_VALID_SECONDS = 180;
 

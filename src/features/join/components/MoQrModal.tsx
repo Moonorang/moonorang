@@ -9,9 +9,8 @@ import Button from '@/shared/ui/Button';
 import { OCTOMO_RECEIVER_NUMBER } from '@/features/join/data/mo';
 
 interface MoQrModalProps {
-  /** 인증 코드를 담은 QR (PNG data URL). 발급 전에는 null */
-  qrCode: string | null;
-  isLoading: boolean;
+  /** 인증 코드를 담은 QR (PNG data URL) */
+  qrCode: string;
   /** 문자로 보낼 인증 코드 - QR 을 못 읽는 경우를 위해 글자로도 보여준다 */
   code: string;
   /** 남은 시간 표시용 문구 (3:05 모양) */
@@ -28,7 +27,6 @@ interface MoQrModalProps {
  */
 export default function MoQrModal({
   qrCode,
-  isLoading,
   code,
   secondsLeftLabel,
   onClose,
@@ -83,23 +81,16 @@ export default function MoQrModal({
           </button>
         </div>
 
-        {qrCode === null ? (
-          // 발급 전/실패 - 자리를 QR 과 같은 크기로 잡아둬야 모달이 덜컹이지 않는다
-          <div className="flex h-50 w-50 items-center justify-center rounded-sm bg-background-subtle text-10 text-text-secondary">
-            {isLoading ? 'QR 코드를 받는 중' : 'QR 코드를 받지 못했습니다'}
-          </div>
-        ) : (
-          /* eslint-disable-next-line @next/next/no-img-element --
-             OCTOMO 가 돌려주는 PNG data URL 이라 next/image 가 최적화할 대상이
-             아니고, 문서가 지원한다고 밝힌 src 형태도 아니다. */
-          <img
-            src={qrCode}
-            alt={`인증 문자용 QR 코드. 문자 내용은 ${code} 입니다`}
-            width={200}
-            height={200}
-            className="rounded-sm bg-background-default"
-          />
-        )}
+        {/* eslint-disable-next-line @next/next/no-img-element --
+            OCTOMO 가 돌려주는 PNG data URL 이라 next/image 가 최적화할 대상이
+            아니고, 문서가 지원한다고 밝힌 src 형태도 아니다. */}
+        <img
+          src={qrCode}
+          alt={`인증 문자용 QR 코드. 문자 내용은 ${code} 입니다`}
+          width={200}
+          height={200}
+          className="rounded-sm bg-background-default"
+        />
 
         <p className="text-center text-12 text-text-primary">
           휴대폰으로 QR 을 찍으면 문자 앱이 열립니다.
