@@ -31,7 +31,7 @@ export default function SubscriptionRow({
       <button
         type="button"
         onClick={handleCardClick}
-        className="flex w-full cursor-pointer items-center gap-4 px-4 py-3 text-left"
+        className="flex w-full flex-1 cursor-pointer items-center gap-4 px-4 py-5 text-left"
       >
         {/* 이미지 높이만큼 늘려, 상품명은 위 끝 · 요금은 아래 끝에 붙인다.
             할인 배지는 그 사이에 놓여서, 있든 없든 요금 위치가 그대로다. */}

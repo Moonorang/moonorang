@@ -28,7 +28,7 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
   const items = catalog[activeTab];
 
   return (
-    <main className="mx-auto flex w-full max-w-(--width-container) flex-col pt-(--height-header) pb-10">
+    <main className="mx-auto flex w-full max-w-(--width-container) flex-col pt-(--height-header)">
       <CatalogTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
       <div

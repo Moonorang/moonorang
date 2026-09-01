@@ -53,7 +53,7 @@ export default function AddOnRow({ addOn }: AddOnRowProps) {
       <button
         type="button"
         onClick={handleCardClick}
-        className="flex w-full cursor-pointer flex-col px-4 pt-3 pb-3 text-left"
+        className="flex w-full flex-1 cursor-pointer flex-col justify-between px-4 py-3 text-left"
       >
         <div className="flex w-full items-center gap-2">
           <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border border-border-default">
@@ -69,11 +69,11 @@ export default function AddOnRow({ addOn }: AddOnRowProps) {
           </p>
         </div>
 
-        <p className="mt-2.5 text-10 leading-relaxed text-text-primary">
+        <p className="text-10 leading-relaxed text-text-primary">
           {description?.guide ?? addOn.subTitle}
         </p>
 
-        <p className="mt-3 text-10 font-medium text-action-primary">
+        <p className="text-10 font-medium text-action-primary">
           {formatMonthlyFee(addOn.baseMonthlyRate)}
         </p>
       </button>

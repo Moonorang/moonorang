@@ -28,7 +28,7 @@ export default function MembershipRow({ brand }: MembershipRowProps) {
       <button
         type="button"
         onClick={handleCardClick}
-        className="flex min-h-[120px] w-full cursor-pointer items-center gap-5 px-4 py-4 text-left"
+        className="flex w-full flex-1 cursor-pointer items-center gap-5 px-4 py-4 text-left"
       >
         <Image
           src={imageSrc}

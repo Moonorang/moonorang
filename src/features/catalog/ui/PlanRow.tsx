@@ -60,9 +60,9 @@ export default function PlanRow({ plan }: PlanRowProps) {
       <button
         type="button"
         onClick={handleCardClick}
-        className="flex w-full cursor-pointer flex-col text-left"
+        className="flex w-full flex-1 cursor-pointer flex-col text-left"
       >
-        <div className="flex w-full items-center gap-3 px-4 pt-5 pb-2">
+        <div className="flex w-full flex-1 items-center gap-3 px-4 pt-5 pb-2">
           <p className="w-14 shrink-0 pl-1 text-14 font-medium text-text-primary">
             {plan.name}
           </p>

@@ -27,7 +27,7 @@ export default function CatalogCard({
   const hasDetail = !!expandSummary && !!detail && !!onToggle;
 
   return (
-    <div className="overflow-hidden rounded-lg bg-background-default shadow-default">
+    <div className="flex min-h-[120px] flex-col overflow-hidden rounded-lg bg-background-default shadow-default">
       {children}
 
       {hasDetail && (
