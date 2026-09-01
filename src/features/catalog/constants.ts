@@ -48,3 +48,6 @@ export const ADD_ON_ICONS: Record<string, LucideIcon> = {
 
 // 표에 없는 키이거나 icon 값이 없을 때 쓰는 기본 아이콘
 export const ADD_ON_ICON_FALLBACK: LucideIcon = Sparkles;
+
+// 목록 카드 이미지가 놓인 public 경로 (DB 에는 파일명만 저장돼 있다)
+export const CATALOG_IMAGE_BASE_PATH = '/images/catalog';
