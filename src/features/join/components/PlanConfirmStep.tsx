@@ -1,5 +1,6 @@
+import PlanDetailCard from '@/entities/plan/ui/PlanDetailCard';
+
 import JoinStepLayout from '@/features/join/components/JoinStepLayout';
-import PlanDetailCard from '@/features/join/components/PlanDetailCard';
 
 import type { Plan } from '@/entities/plan/types';
 

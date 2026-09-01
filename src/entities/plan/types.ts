@@ -1,3 +1,5 @@
+import type { LucideIcon } from 'lucide-react';
+
 // 요금제 선택 옵션 (Supabase plans 테이블에서 필요한 최소 필드)
 export interface PlanOption {
   id: number;
@@ -23,4 +25,20 @@ export interface Plan {
   dataAllowance: string;
   voiceSms: string;
   benefits: PlanBenefits | null;
+}
+
+// 혜택 행 아이콘의 색 조합. globals.css 토큰 이름과 1:1로 맞춘다
+export type BenefitTone = 'secondary' | 'accent1' | 'accent2' | 'primary';
+
+// 요금제 상세의 혜택 한 줄 - 아이콘 + 제목(+ 부제)
+export interface PlanBenefitItem {
+  icon: LucideIcon;
+  tone: BenefitTone;
+  title: string;
+  subTitle?: string;
+}
+
+export interface PlanBenefitDetail {
+  mainBenefits: PlanBenefitItem[];
+  addOnServices: PlanBenefitItem[];
 }
