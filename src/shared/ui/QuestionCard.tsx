@@ -62,9 +62,7 @@ export default function QuestionCard({
       <div className="flex flex-col">
         <div className="flex items-center gap-1">
           <Image src={imageSrc} alt="" width={30} height={35} />
-          <span className="text-10 font-medium text-action-secondary">
-            {title}
-          </span>
+          <span className="text-text-main text-10">{title}</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-border-default">
           <div
@@ -140,7 +138,9 @@ export default function QuestionCard({
                   >
                     {index + 1}
                   </span>
-                  <span className="text-10 text-text-primary">{option.label}</span>
+                  <span className="text-10 text-text-primary">
+                    {option.label}
+                  </span>
                 </button>
                 <div className="h-px w-full bg-border-default" />
               </div>
