@@ -43,7 +43,7 @@ export const JOIN_STEPS = [
   {
     id: 'confirm',
     title: '결제 정보',
-    submitLabel: '완료',
+    submitLabel: '결제하기',
     hasScreen: true,
     hasProgress: true,
   },
