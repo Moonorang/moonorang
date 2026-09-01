@@ -19,19 +19,12 @@ const CARD_WIDTH = 'w-[80%]';
 // 스크롤이 멎었다고 보는 시간
 const SCROLL_SETTLE_MS = 100;
 
-/**
- * 프로그램으로 카드를 옮긴다.
- *
- * mandatory 스냅이 걸린 채로 smooth 스크롤을 걸면 브라우저가 이동 도중에 곧바로
- * 스냅 지점으로 붙여버려서, 스르륵 넘어가지 않고 툭 바뀐다. 그래서 옮기는 동안만
- * 스냅을 꺼둔다 - 멎은 뒤 restoreSnap 으로 되돌린다.
- */
-function slideTo(element: HTMLDivElement, index: number): void {
-  element.style.scrollSnapType = 'none';
-  element.scrollTo({
-    left: index * element.clientWidth,
-    behavior: 'smooth',
-  });
+/** 화살표·인디케이터로 한 장 옮기는 데 걸리는 시간 */
+const SLIDE_DURATION_MS = 320;
+
+/** 손을 뗀 스와이프처럼 끝에서 감속한다 */
+function easeOutCubic(progress: number): number {
+  return 1 - (1 - progress) ** 3;
 }
 
 /** 손으로 미는 스와이프는 다시 스냅이 걸려야 한 장씩 딱 붙는다 */
@@ -61,15 +54,66 @@ export default function PlanCardCarousel({
   // 렌더와 무관하게 최신 위치를 읽어야 해서 ref 로도 들고 있는다
   const activeIndexRef = useRef(0);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slideFrameRef = useRef<number | null>(null);
 
   // 2. 부수 효과
   useEffect(() => {
     return () => {
       if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+      if (slideFrameRef.current) cancelAnimationFrame(slideFrameRef.current);
     };
   }, []);
 
   // 3. 이벤트 핸들러
+  const cancelSlide = () => {
+    if (!slideFrameRef.current) return;
+
+    cancelAnimationFrame(slideFrameRef.current);
+    slideFrameRef.current = null;
+  };
+
+  /**
+   * 프로그램으로 카드를 옮긴다.
+   *
+   * scrollTo 의 behavior: 'smooth' 를 쓰지 않고 프레임마다 scrollLeft 를 직접
+   * 움직인다. mandatory 스냅이 걸려 있으면 브라우저가 이동 도중에 곧바로 스냅
+   * 지점으로 붙여 애니메이션을 씹고, 기기의 "동작 줄이기" 설정도 smooth 를
+   * 무시하기 때문이다. 이렇게 하면 어느 환경에서든 스와이프처럼 미끄러진다.
+   *
+   * 옮기는 동안은 스냅을 꺼둔다 - 켜져 있으면 매 프레임 스냅 지점으로 끌려간다.
+   * 다시 켜는 건 스크롤이 멎은 뒤 handleScroll 이 맡는다.
+   */
+  const slideTo = (index: number) => {
+    const element = scrollAreaRef.current;
+    if (!element) return;
+
+    cancelSlide();
+
+    const startLeft = element.scrollLeft;
+    const distance = index * element.clientWidth - startLeft;
+
+    if (distance === 0) return;
+
+    element.style.scrollSnapType = 'none';
+
+    const startedAt = performance.now();
+
+    const step = (now: number) => {
+      const progress = Math.min((now - startedAt) / SLIDE_DURATION_MS, 1);
+
+      element.scrollLeft = startLeft + distance * easeOutCubic(progress);
+
+      if (progress < 1) {
+        slideFrameRef.current = requestAnimationFrame(step);
+        return;
+      }
+
+      slideFrameRef.current = null;
+    };
+
+    slideFrameRef.current = requestAnimationFrame(step);
+  };
+
   const handleScroll = () => {
     const element = scrollAreaRef.current;
     if (!element) return;
@@ -97,7 +141,7 @@ export default function PlanCardCarousel({
 
       if (landed !== nextIndex) {
         // 되돌리는 이동도 스냅을 끈 채로 - 이 스크롤이 멎으면 여기로 다시 들어온다
-        slideTo(element, nextIndex);
+        slideTo(nextIndex);
         return;
       }
 
@@ -111,25 +155,19 @@ export default function PlanCardCarousel({
    * 카드가 미끄러지는 동안 인디케이터와 화살표가 먼저 바뀌지 않는다.
    */
   const handleStep = (delta: number) => {
-    const element = scrollAreaRef.current;
-    if (!element) return;
-
     const nextIndex = Math.min(
       Math.max(activeIndex + delta, 0),
       recommendations.length - 1,
     );
 
-    slideTo(element, nextIndex);
+    slideTo(nextIndex);
   };
 
   // 인디케이터 점을 누르면 해당 순번의 카드로 스크롤한다.
   // 한 번에 여러 장을 건너뛸 수 있어서, 이쪽은 순번을 먼저 정해 둔다
   // (handleScroll 이 한 장씩만 움직이도록 잡아두기 때문).
   const handleSelectIndex = (index: number) => {
-    const element = scrollAreaRef.current;
-    if (!element) return;
-
-    slideTo(element, index);
+    slideTo(index);
     activeIndexRef.current = index;
     setActiveIndex(index);
   };
@@ -149,6 +187,7 @@ export default function PlanCardCarousel({
         <div
           ref={scrollAreaRef}
           onScroll={handleScroll}
+          onPointerDown={cancelSlide}
           className="flex w-full snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto [&::-webkit-scrollbar]:hidden"
         >
           {recommendations.map((item) => (
