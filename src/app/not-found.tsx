@@ -51,6 +51,7 @@ const usageAnalysisDemo: UsageAnalysisResult = {
   },
   savings: {
     type: 'downgrade',
+    reason: '최근 3개월 평균 데이터 사용량이 약 10GB로, 지금보다 저렴한 요금제로도 충분히 커버돼요.',
     recommendedPlan: {
       plan: {
         id: 1,
@@ -61,7 +62,6 @@ const usageAnalysisDemo: UsageAnalysisResult = {
         voiceSms: '기본제공 / 기본제공 / 300분 무료',
         benefits: null,
       },
-      reason: '최근 3개월 평균 데이터 사용량이 약 10GB로 현재 요금제 제공량보다 여유가 있어요.',
       annualSavings: (49000 - 26000) * 12,
     },
   },

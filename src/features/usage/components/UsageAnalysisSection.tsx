@@ -1,4 +1,4 @@
-import { CheckCircle2, TrendingUp } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 
 import PlanCard from '@/entities/plan/ui/PlanCard';
 
@@ -72,12 +72,8 @@ export default function UsageAnalysisSection({
         />
       </div>
 
-      {savings?.type === 'keep' && (
-        <div className="flex w-[80%] items-center gap-2 rounded-md bg-background-default p-4 text-text-primary shadow-default">
-          <CheckCircle2 size={16} className="shrink-0 text-status-success" aria-hidden />
-          <p className="text-12">지금 이용 중인 요금제가 이미 사용 패턴에 가장 적합해요.</p>
-        </div>
-      )}
+      {/* keep일 땐 대안 요금제도, 별도 박스도 없다 - 왜 지금이 최적인지는 챗봇 답변
+          텍스트가 savings.reason을 인용해서 말해준다(systemPrompt 참고). */}
 
       {recommendedPlan && (
         <div className="flex flex-col gap-2">
@@ -87,6 +83,7 @@ export default function UsageAnalysisSection({
           <PlanCard
             plan={recommendedPlan.plan}
             annualSavings={recommendedPlan.annualSavings}
+            reason={savings?.reason}
             onViewDetail={() => onViewDetail?.(recommendedPlan.plan)}
             onJoin={() => onJoin?.(recommendedPlan.plan)}
           />
