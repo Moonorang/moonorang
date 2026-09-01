@@ -50,6 +50,9 @@ export function useChat() {
   const lastUserTextRef = useRef<string | null>(null);
   const lastAiMessageIdRef = useRef<string | null>(null);
 
+  // CHAT-008: 응답 생성 중단용. 진행 중인 요청이 있을 때만 값이 있다.
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // CHAT-011: 지금까지 파악된 조건. 서버는 DB에 저장하지 않고, 매 요청마다
   // 이 값을 실어 보내고 응답의 keywords 이벤트로 갱신받는 왕복 방식으로 기억한다.
   const [keywords, setKeywords] = useState<ChatKeywords>({});
@@ -204,6 +207,10 @@ export function useChat() {
         );
       };
 
+      // CHAT-008: 이 요청 전용 컨트롤러. stopGeneration이 이걸 abort한다.
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
       try {
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -219,6 +226,7 @@ export function useChat() {
               summarizedTurnCountRef.current,
             ),
           }),
+          signal: abortController.signal,
         });
 
         if (!response.body) {
@@ -266,7 +274,14 @@ export function useChat() {
         persist();
         // 응답을 다 보여준 뒤 비동기로 - await 하지 않는다(§2.6)
         void summarizeIfNeeded();
-      } catch {
+      } catch (error) {
+        // CHAT-008: stopGeneration이 abort한 경우 - 사용자가 직접 멈춘 것이지 실패가
+        // 아니므로 에러로 보여주지 않는다. 그때까지 쌓인 내용은 그대로 두고 저장만 한다.
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          persist();
+          return;
+        }
+
         // 네트워크 단절 등 - LLM 자체 오류(runtime_unavailable)와 구분해서 보여줄 이유가
         // 없어서 같은 사유로 묶음
         setError({
@@ -274,11 +289,17 @@ export function useChat() {
           message: '요청을 보내지 못했습니다. 네트워크 상태를 확인해주세요.',
         });
       } finally {
+        abortControllerRef.current = null;
         setIsStreaming(false);
       }
     },
     [updateMessages, persist, summarizeIfNeeded],
   );
+
+  /** CHAT-008: 응답 생성 중, 사용자가 직접 중단한다. */
+  const stopGeneration = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -380,5 +401,6 @@ export function useChat() {
     reset,
     setKeywordValue,
     pruneVisibleMessages,
+    stopGeneration,
   };
 }

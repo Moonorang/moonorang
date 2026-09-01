@@ -85,6 +85,7 @@ export default function ChatRoom({
     reset,
     setKeywordValue,
     pruneVisibleMessages,
+    stopGeneration,
   } = useChat();
   const conditionQuestions = useConditionQuestions();
 
@@ -389,6 +390,7 @@ export default function ChatRoom({
         onPlusClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
         isPlusOpen={isPlusMenuOpen}
         disabled={isStreaming}
+        onStop={stopGeneration}
       />
     </div>
   );
