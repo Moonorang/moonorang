@@ -104,16 +104,27 @@ export async function persistMemberAiTurn(
   keywords: ChatKeywords,
   cards: ChatCardPayload[] = [],
 ): Promise<void> {
-  const cardRows = cards.map((card) => ({
-    role: 'ai' as const,
-    content: serializeCardPayload(card),
-  }));
+  // 텍스트 행이 카드 마커 행보다 반드시 먼저 저장돼야 한다 - 복구 시 "마커 바로 앞
+  // AI 텍스트 메시지에 붙인다"는 규칙이 삽입 순서(id 오름차순)에 의존하기 때문이다.
+  // 이 둘을 Promise.all로 동시에 실행하면 네트워크 타이밍에 따라 카드 마커가 먼저
+  // 커밋돼버릴 수 있어(그러면 복구 시 마커 앞에 텍스트가 없어 조용히 버려진다),
+  // 반드시 순차 실행한다. keywords 갱신은 메시지 순서와 무관해 병렬로 둔다.
+  const insertOrderedMessages = async () => {
+    if (aiText.trim()) {
+      await insertMessage(chatId, 'ai', aiText);
+    }
+    if (cards.length > 0) {
+      await insertMessages(
+        chatId,
+        cards.map((card) => ({
+          role: 'ai' as const,
+          content: serializeCardPayload(card),
+        })),
+      );
+    }
+  };
 
-  await Promise.all([
-    aiText.trim() ? insertMessage(chatId, 'ai', aiText) : Promise.resolve(),
-    insertMessages(chatId, cardRows),
-    updateChatKeywords(chatId, keywords),
-  ]);
+  await Promise.all([insertOrderedMessages(), updateChatKeywords(chatId, keywords)]);
 
   void summarizeMemberChatIfNeeded(chatId).catch((error: unknown) => {
     console.error('[chat] 회원 대화 요약 실패:', error);
