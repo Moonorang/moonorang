@@ -81,7 +81,29 @@ export default function PlanCardCarousel({
     }, SCROLL_SETTLE_MS);
   };
 
+  /**
+   * 화살표로 한 장 옮긴다. 스크롤만 시작하고 순번은 건드리지 않는다 -
+   * 스와이프와 똑같이 스크롤이 멎은 뒤 handleScroll 이 정하게 두어야,
+   * 카드가 미끄러지는 동안 인디케이터와 화살표가 먼저 바뀌지 않는다.
+   */
+  const handleStep = (delta: number) => {
+    const element = scrollAreaRef.current;
+    if (!element) return;
+
+    const nextIndex = Math.min(
+      Math.max(activeIndex + delta, 0),
+      recommendations.length - 1,
+    );
+
+    element.scrollTo({
+      left: nextIndex * element.clientWidth,
+      behavior: 'smooth',
+    });
+  };
+
   // 인디케이터 점을 누르면 해당 순번의 카드로 스크롤한다.
+  // 한 번에 여러 장을 건너뛸 수 있어서, 이쪽은 순번을 먼저 정해 둔다
+  // (handleScroll 이 한 장씩만 움직이도록 잡아두기 때문).
   const handleSelectIndex = (index: number) => {
     const element = scrollAreaRef.current;
     if (!element) return;
@@ -130,7 +152,7 @@ export default function PlanCardCarousel({
         {/* right-full: 칸 왼쪽 바깥(아바타 아래 빈 자리)에 세운다 */}
         <button
           type="button"
-          onClick={() => handleSelectIndex(activeIndex - 1)}
+          onClick={() => handleStep(-1)}
           disabled={activeIndex === 0}
           aria-label="이전 요금제 보기"
           className={cn(
@@ -144,7 +166,7 @@ export default function PlanCardCarousel({
         {/* left-[80%]: 카드가 끝나는 자리 - CARD_WIDTH 와 같은 값이다 */}
         <button
           type="button"
-          onClick={() => handleSelectIndex(activeIndex + 1)}
+          onClick={() => handleStep(1)}
           disabled={activeIndex === lastIndex}
           aria-label="다음 요금제 보기"
           className={cn(
