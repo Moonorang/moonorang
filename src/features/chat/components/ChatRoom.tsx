@@ -96,7 +96,8 @@ export default function ChatRoom({
   // 입력창도 같이 열어 두면 두 군데에 동시에 타이핑하는 것처럼 보여 혼란스럽다 -
   // 열려 있는 동안은 채팅 입력창을 막는다. setState 함수는 항상 같은 참조라
   // ConditionQuestionCard에 그대로 넘겨도 매 렌더마다 새 함수가 되지 않는다.
-  const [isConditionFreeTextEditing, setIsConditionFreeTextEditing] = useState(false);
+  const [isConditionFreeTextEditing, setIsConditionFreeTextEditing] =
+    useState(false);
 
   // 바닥에 있는지 여부 - 자동 스크롤 여부와 버튼 노출을 함께 결정한다
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -174,7 +175,9 @@ export default function ChatRoom({
     setConditionAnswers([]);
 
     if (finalAnswers.length > 0) {
-      sendMessage(`${finalAnswers.join('\n')}\n\n이 조건으로 요금제 추천해주세요.`);
+      sendMessage(
+        `${finalAnswers.join('\n')}\n\n이 조건으로 요금제 추천해주세요.`,
+      );
     }
   };
 
@@ -279,7 +282,7 @@ export default function ChatRoom({
         className="flex flex-1 flex-col overflow-y-auto pt-(--height-header) pb-(--height-chat-input)"
       >
         {/* 채팅 내역 영역 */}
-        <div className="flex flex-col gap-6 px-4 py-6">
+        <div className="flex flex-col gap-3 px-4 py-6">
           <AiMessage content={WELCOME_MESSAGE} />
 
           {/*
@@ -343,7 +346,10 @@ export default function ChatRoom({
             사용자의 다음 답을 handleSend가 감지해 선택형 카드를 열지 판단한다. */}
         {messages.length === 0 && !resolvedOverlay && (
           <div className="mt-auto">
-            <SuggestionChips onSuggest={handleSuggest} onPlanTest={onPlanTest} />
+            <SuggestionChips
+              onSuggest={handleSuggest}
+              onPlanTest={onPlanTest}
+            />
           </div>
         )}
 
