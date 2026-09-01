@@ -16,29 +16,29 @@ export default function ExpandToggle({
 }: ExpandToggleProps) {
   return (
     <>
-      <hr className="mx-4 border-border-gray" />
+      <hr className="mx-4 border-border-default" />
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isExpanded}
         className="flex w-full cursor-pointer items-center justify-between gap-2 px-4 pt-2 pb-5 text-left"
       >
-        {/* text-primary-yellow - 색상 변경 팔요 */}
-        <span className="flex min-w-0 items-center gap-1.5 text-10 font-medium text-primary-yellow">
+        {/* text-action-secondary - 색상 변경 팔요 */}
+        <span className="flex min-w-0 items-center gap-1.5 text-10 font-medium text-action-secondary">
           <Lightbulb
             size={14}
-            className="shrink-0 text-primary-yellow"
+            className="shrink-0 text-action-secondary"
             aria-hidden
           />
           <span className="truncate">{summary}</span>
         </span>
-        <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-border-light-gray">
+        <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-border-light">
           <ChevronDown
             size={12}
             aria-hidden
 
             className={cn(
-              'text-text-main transition-transform',
+              'text-text-primary transition-transform',
               isExpanded && 'rotate-180',
             )}
           />

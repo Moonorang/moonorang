@@ -70,13 +70,13 @@ export default function MembershipRow({
       }
     >
       <div className="flex items-center gap-3 px-4 py-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary-light-yellow text-primary-yellow">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-action-secondary-light text-action-secondary">
           <CategoryIcon size={20} aria-hidden />
         </span>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate text-14 font-semibold text-text-main">
+            <p className="truncate text-14 font-semibold text-text-primary">
               {brand.name}
             </p>
             <Tag>{brand.category}</Tag>

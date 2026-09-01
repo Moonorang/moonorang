@@ -1,4 +1,8 @@
-import type { ChatRequestBody } from '@/features/chat/types';
+import type {
+  ChatRequestBody,
+  ChatSummarizeRequestBody,
+  SummarizeTurnMessage,
+} from '@/features/chat/types';
 
 type ParseResult =
   { ok: true; data: ChatRequestBody } | { ok: false; message: string };
@@ -22,5 +26,39 @@ export function parseChatRequest(body: unknown): ParseResult {
       ? parsed.keywords
       : {};
 
-  return { ok: true, data: { message, keywords } };
+  // summary도 keywords와 같은 이유로, 형식이 안 맞으면 그냥 없는 것으로 취급한다.
+  const summary = typeof parsed?.summary === 'string' ? parsed.summary : undefined;
+
+  return { ok: true, data: { message, keywords, summary } };
+}
+
+type SummarizeParseResult =
+  | { ok: true; data: ChatSummarizeRequestBody }
+  | { ok: false; message: string };
+
+function isSummarizeTurnMessage(value: unknown): value is SummarizeTurnMessage {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<SummarizeTurnMessage>;
+
+  return (
+    (candidate.role === 'user' || candidate.role === 'ai') &&
+    typeof candidate.content === 'string'
+  );
+}
+
+/** /api/chat/summarize 요청 바디 검증 */
+export function parseChatSummarizeRequest(body: unknown): SummarizeParseResult {
+  const parsed = body as Partial<ChatSummarizeRequestBody> | null;
+
+  if (!Array.isArray(parsed?.messages) || parsed.messages.length === 0) {
+    return { ok: false, message: '요약할 대화가 없습니다.' };
+  }
+  if (!parsed.messages.every(isSummarizeTurnMessage)) {
+    return { ok: false, message: '요약할 대화 형식이 올바르지 않습니다.' };
+  }
+
+  const existingSummary =
+    typeof parsed.existingSummary === 'string' ? parsed.existingSummary : undefined;
+
+  return { ok: true, data: { messages: parsed.messages, existingSummary } };
 }

@@ -49,22 +49,22 @@ export default function PlanRow({ plan, isExpanded, onToggle }: PlanRowProps) {
       }
     >
       <div className="flex items-center gap-3 px-4 pt-5 pb-2">
-        <p className="w-14 shrink-0 pl-1 text-14 font-medium text-text-main">
+        <p className="w-14 shrink-0 pl-1 text-14 font-medium text-text-primary">
           {plan.name}
         </p>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-12 font-medium text-text-main">
+          <p className="truncate text-12 font-medium text-text-primary">
             데이터 {amount}
           </p>
           {tetheringSharing && (
-            <p className="truncate text-10 text-text-main">
+            <p className="truncate text-10 text-text-primary">
               테더링 + 쉐어링 {tetheringSharing}
             </p>
           )}
         </div>
 
-        <p className="shrink-0 text-14 font-semibold text-primary-red">
+        <p className="shrink-0 text-14 font-semibold text-action-primary">
           월 {formatWon(plan.monthlyFee)} 원
         </p>
       </div>

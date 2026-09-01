@@ -12,18 +12,23 @@ export const EXTRACT_CONDITIONS_TOOL: ChatCompletionTool = {
   function: {
     name: 'extract_conditions',
     description:
-      '사용자 발화에서 요금제 조건(예산, 데이터/테더링 사용량)을 새로 언급했거나 정정했을 때만 호출한다. 언급 안 된 필드는 아예 넣지 않는다. 조건이 전혀 없는 발화면 호출하지 않는다.',
+      '사용자 발화에서 요금제 조건(예산, 데이터/테더링 사용량)을 새로 언급했거나 정정했을 때만 호출한다. 언급 안 된 필드는 아예 넣지 않는다. 조건이 전혀 없는 발화면 호출하지 않는다. 숫자(GB, 원)로 직접 말하지 않고 "밖에서 유튜브 보는 정도"처럼 생활 패턴으로만 말해도, 아래 기준을 참고해서 상식적으로 추정한 숫자를 채운다 - 정확한 숫자를 다시 묻지 않는다.',
     parameters: {
       type: 'object',
       properties: {
         budget: { type: 'integer', description: '한 달 예산 상한 (원)' },
         dataUsageGb: {
           type: 'number',
-          description: '한 달 예상 데이터 사용량 (GB)',
+          description:
+            '한 달 예상 데이터 사용량(GB). 생활 패턴 표현을 이 기준으로 추정: ' +
+            '문자·전화 위주(SNS도 거의 안 함)=3, SNS·카톡 정도=10, ' +
+            '밖에서 유튜브·영상·OTT 자주 봄=25, 하루종일 스트리밍·거의 무제한급=100',
         },
         tetheringGb: {
           type: 'number',
-          description: '한 달 예상 테더링/쉐어링 사용량 (GB)',
+          description:
+            '한 달 예상 테더링/쉐어링 사용량(GB). 생활 패턴 표현을 이 기준으로 추정: ' +
+            '거의 안 함=0, 노트북 가끔 잠깐=10, 자주 씀=30, 거의 매일 씀=60',
         },
       },
       additionalProperties: false,
@@ -50,9 +55,42 @@ export const RECOMMEND_PLANS_TOOL: ChatCompletionTool = {
   },
 };
 
+/**
+ * CARD-022~026: 로그인 사용자가 "절약해줘"처럼 현재 요금제 기준 절약 상담을 원할 때.
+ * 사용량 분석 카드 + 3개월 추세를 함께 보낸다. 인자는 없다 - 실제 판단은 서버 계산.
+ */
+export const ANALYZE_SAVINGS_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'analyze_savings',
+    description:
+      '사용자가 로그인 상태에서 "내 요금제 절약해줘", "돈 아낄 수 있는 방법 알려줘"처럼 ' +
+      '현재 요금제 기준 절약(또는 데이터 부족 시 상향) 상담을 원할 때 호출한다. 실제 판단은 ' +
+      '서버가 계산하므로 인자는 없다.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+  },
+};
+
+/**
+ * CARD-024/028: "내 데이터 사용량 추세 알려줘"처럼 절약 판단 없이 추세만 보고 싶을 때.
+ * analyze_savings와 달리 대안 요금제 판단은 하지 않고 3개월 추세 차트만 보낸다.
+ */
+export const SHOW_USAGE_TREND_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'show_usage_trend',
+    description:
+      '사용자가 절약 여부 판단 없이 "내 데이터 사용량 추세 알려줘"처럼 최근 3개월 사용량 ' +
+      '자체만 보고 싶어할 때 호출한다. analyze_savings와 달리 대안 요금제는 추천하지 않는다.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+  },
+};
+
 export const CHAT_TOOLS: ChatCompletionTool[] = [
   EXTRACT_CONDITIONS_TOOL,
   RECOMMEND_PLANS_TOOL,
+  ANALYZE_SAVINGS_TOOL,
+  SHOW_USAGE_TREND_TOOL,
 ];
 
 // extract_conditions tool call의 JSON 문자열을 파싱한다.

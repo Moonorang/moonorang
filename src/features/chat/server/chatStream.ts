@@ -9,12 +9,55 @@ import type { Stream } from 'openai/core/streaming';
 import { getAllPlans } from '@/entities/plan/server/planRepository';
 import { mergeKeywords } from '@/features/chat/lib/mergeKeywords';
 import { createSSESender, type SSESend } from '@/features/chat/lib/sse';
+import { runSavingsAnalysis } from '@/features/chat/server/analyzeSavings';
 import { extractConditions } from '@/features/chat/server/extractConditions';
-import { streamCompletion } from '@/features/chat/server/openaiStream';
+import { streamCompletion, type ToolCallBuilder } from '@/features/chat/server/openaiStream';
 import { runPlanRecommendation } from '@/features/chat/server/recommendPlans';
 import { buildSystemPrompt } from '@/features/chat/server/systemPrompt';
-import { RECOMMEND_PLANS_TOOL } from '@/features/chat/server/tools';
+import {
+  ANALYZE_SAVINGS_TOOL,
+  RECOMMEND_PLANS_TOOL,
+  SHOW_USAGE_TREND_TOOL,
+} from '@/features/chat/server/tools';
 import type { ChatKeywords, PlanRecommendation } from '@/features/chat/types';
+
+import type { Plan } from '@/entities/plan/types';
+
+interface ToolResultContext {
+  plans: Plan[];
+  mergedKeywords: ChatKeywords;
+  userId: string | null;
+  send: SSESend;
+}
+
+// 호출된 tool 이름별로 실제 계산/조회를 수행하고, 다음 턴의 tool 결과 메시지 content로
+// 쓸 값을 돌려준다. recommend_plans/analyze_savings/show_usage_trend는 여기서 SSE
+// 이벤트도 같이 내보낸다(카드 데이터를 텍스트보다 먼저 화면에 꽂아 넣기 위함).
+async function getToolResultContent(
+  call: ToolCallBuilder,
+  { plans, mergedKeywords, userId, send }: ToolResultContext,
+): Promise<unknown> {
+  switch (call.name) {
+    case 'recommend_plans':
+      return runPlanRecommendation(plans, mergedKeywords, send);
+    case 'analyze_savings':
+      return runSavingsAnalysis({
+        userId,
+        allPlans: plans,
+        send,
+        includeSavingsDecision: true,
+      });
+    case 'show_usage_trend':
+      return runSavingsAnalysis({
+        userId,
+        allPlans: plans,
+        send,
+        includeSavingsDecision: false,
+      });
+    default:
+      return { ok: true, keywords: mergedKeywords };
+  }
+}
 
 /**
  * 한 번의 상담 요청을 SSE 스트림으로 만든다.
@@ -22,11 +65,11 @@ import type { ChatKeywords, PlanRecommendation } from '@/features/chat/types';
  * 0단계: 이번 발화의 조건을 전용 호출로 먼저 추출한다(extractConditions).
  *        대화 호출에 얹지 않는 이유는 그 함수 주석에 적어뒀다.
  * 1턴: 시스템 프롬프트(+ 방금 추출한 조건까지 반영) + 사용자 메시지로 호출.
- *      텍스트는 곧바로 token 이벤트로 흘려보내고, 추천 의도는
- *      recommend_plans(트리거)로 받는다.
+ *      텍스트는 곧바로 token 이벤트로 흘려보내고, 추천·절약·사용량 의도는
+ *      각각의 트리거 tool 로 받는다.
  * 2턴: tool 이 하나라도 호출됐으면 - 그 결과를 tool 메시지로 넣어 다시 호출해
- *      자연어 마무리 응답을 스트리밍한다.
- *      tool 이 하나도 없었으면(텍스트로만 답한 턴) 1턴으로 끝난다.
+ *      자연어 마무리 응답을 스트리밍한다. tool 이 하나도 없었으면
+ *      (텍스트로만 답한 턴) 1턴으로 끝난다.
  *
  * 이벤트 순서는 token(설명) -> recommendation(카드) -> keywords -> done 이다.
  * 추천 순위는 2턴의 tool 결과로 필요해서 미리 계산하지만, 카드가 설명보다 먼저
@@ -35,6 +78,9 @@ import type { ChatKeywords, PlanRecommendation } from '@/features/chat/types';
 export function createChatStream(
   message: string,
   incomingKeywords: ChatKeywords,
+  summary?: string,
+  /** CARD-023: 절약 상담은 로그인 사용자 전용 - route.ts가 미리 확인해서 넘겨준다 */
+  userId: string | null = null,
 ): ReadableStream {
   // 클라이언트가 연결을 끊었을 때(페이지 이동 등) cancel() 에서 진행 중인 스트림을 정리
   let activeStream: Stream<ChatCompletionChunk> | null = null;
@@ -61,33 +107,34 @@ export function createChatStream(
         const messages: ChatCompletionMessageParam[] = [
           {
             role: 'system',
-            content: buildSystemPrompt(plans, mergedKeywords),
+            content: buildSystemPrompt(plans, mergedKeywords, summary),
           },
           { role: 'user', content: message },
         ];
 
-        // 조건 추출은 위에서 끝냈으므로 대화 호출에는 추천 tool 만 준다.
-        // tool 을 둘 다 주면 모델이 extract_conditions 하나만 부르고
+        // 조건 추출은 위에서 끝냈으므로 대화 호출에는 트리거 tool 만 준다.
+        // extract_conditions 까지 같이 주면 모델이 그것만 부르고
         // recommend_plans 를 빠뜨리는 일이 잦다.
         const toolCalls = await streamCompletion({
           messages,
-          tools: [RECOMMEND_PLANS_TOOL],
+          tools: [
+            RECOMMEND_PLANS_TOOL,
+            ANALYZE_SAVINGS_TOOL,
+            SHOW_USAGE_TREND_TOOL,
+          ],
           send,
           onStreamCreated: rememberStream,
         });
 
         // tool 을 부른 응답은 finish_reason 이 tool_calls 라 텍스트가 한 글자도 없다.
-        // recommend_plans 가 있을 때만 2턴을 돌면, "30기가"처럼 조건만 말해
-        // extract_conditions 만 불린 턴은 화면에 아무것도 남지 않는다.
-        // 그래서 tool 이 하나라도 불렸으면 항상 2턴을 돌려 자연어 응답을 만든다.
+        // 여기 남은 tool 은 전부 확정된 결과를 설명할 2턴이 필요한 것들이라,
+        // 하나라도 불렸으면 2턴을 돌려 자연어 응답을 만든다.
         if (toolCalls.length > 0) {
           // 이번 턴에 실제로 호출된 tool들을 하나의 assistant 메시지로 재구성하고,
           // 각각에 대응하는 tool 결과 메시지를 붙인다 - OpenAI는 한 응답의 tool_calls
           // 전부에 대해 결과가 있어야 다음 턴을 받아준다.
-          const calledTools = toolCalls;
-
           const assistantToolCalls: ChatCompletionMessageToolCall[] =
-            calledTools.map((call) => ({
+            toolCalls.map((call) => ({
               id: call.id,
               type: 'function',
               function: { name: call.name, arguments: call.argsBuffer },
@@ -108,22 +155,20 @@ export function createChatStream(
           };
 
           const toolResultMessages: ChatCompletionMessageParam[] =
-            calledTools.map((call) => {
-              const content =
-                call.name === 'recommend_plans'
-                  ? runPlanRecommendation(
-                      plans,
-                      mergedKeywords,
-                      holdRecommendation,
-                    )
-                  : { ok: true, keywords: mergedKeywords };
-
-              return {
+            await Promise.all(
+              toolCalls.map(async (call) => ({
                 role: 'tool' as const,
                 tool_call_id: call.id,
-                content: JSON.stringify(content),
-              };
-            });
+                content: JSON.stringify(
+                  await getToolResultContent(call, {
+                    plans,
+                    mergedKeywords,
+                    userId,
+                    send: holdRecommendation,
+                  }),
+                ),
+              })),
+            );
 
           await streamCompletion({
             messages: [
