@@ -20,7 +20,7 @@ export default function CarouselIndicator({
     <div
       role="tablist"
       className={cn(
-        'flex w-fit items-center justify-center gap-1.5 rounded-full bg-text-primary/50 px-3 py-1',
+        'flex w-fit items-center justify-center gap-1.5 rounded-full bg-text-primary/20 px-2 py-1.5',
         appendClassName,
       )}
     >
@@ -37,7 +37,7 @@ export default function CarouselIndicator({
             onClick={() => onSelect?.(index)}
             className={cn(
               'h-2 w-2 cursor-pointer rounded-full transition-all duration-300',
-              isActive ? 'bg-background-default' : 'bg-border-default',
+              isActive ? 'bg-background-default' : 'bg-text-secondary',
             )}
           />
         );
