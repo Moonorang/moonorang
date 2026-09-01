@@ -15,8 +15,8 @@ import {
   OPENAI_SEED,
 } from '@/shared/lib/openai';
 
-// NFR-002: 응답 대기는 최대 60초로 제한
-const REQUEST_TIMEOUT_MS = 60_000;
+// NFR-002: 응답 대기는 최대 30초로 제한
+const REQUEST_TIMEOUT_MS = 30_000;
 
 /** 스트리밍 중 조각으로 오는 tool_calls 델타를 index 기준으로 누적한 것 */
 export interface ToolCallBuilder {
