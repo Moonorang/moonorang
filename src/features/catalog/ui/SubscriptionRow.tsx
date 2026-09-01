@@ -4,7 +4,6 @@ import CatalogCard from '@/features/catalog/ui/CatalogCard';
 
 import { CATALOG_IMAGE_BASE_PATH } from '@/features/catalog/constants';
 import { getDiscountedFee } from '@/features/catalog/lib/getDiscountedFee';
-import { cn } from '@/shared/utils/cn';
 import { formatWon } from '@/shared/utils/formatCurrency';
 import type { Subscription } from '@/entities/subscription/types';
 
@@ -34,7 +33,9 @@ export default function SubscriptionRow({
         onClick={handleCardClick}
         className="flex w-full cursor-pointer items-center gap-4 px-4 py-3 text-left"
       >
-        <div className="flex min-w-0 flex-1 flex-col gap-2.75">
+        {/* 이미지 높이만큼 늘려, 상품명은 위 끝 · 요금은 아래 끝에 붙인다.
+            할인 배지는 그 사이에 놓여서, 있든 없든 요금 위치가 그대로다. */}
+        <div className="flex min-w-0 flex-1 flex-col justify-between self-stretch py-2">
           <p className="truncate text-12 font-medium text-text-primary">
             {name}
           </p>
@@ -50,10 +51,7 @@ export default function SubscriptionRow({
                 </span>
               </p>
             )}
-            {/* 할인 배지 줄이 없으면 그 줄 높이만큼 위 여백으로 채운다. */}
-            <p className={cn(!hasDiscount && 'pt-3.75')}>
-              {formatWon(fee)}원 / 1개월
-            </p>
+            <p>{formatWon(fee)}원 / 1개월</p>
           </div>
         </div>
 
