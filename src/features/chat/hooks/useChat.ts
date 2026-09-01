@@ -9,7 +9,11 @@ import {
 } from '@/features/chat/constants';
 import { loadChatState, saveChatState, clearChatState } from '@/features/chat/lib/chatStorage';
 import { parseSSEEvent } from '@/features/chat/lib/sse';
-import { pruneSummarizedMessages, selectTurnsToSummarize } from '@/features/chat/lib/turns';
+import {
+  pruneSummarizedMessages,
+  selectTurnsToSummarize,
+  selectUnsummarizedHistory,
+} from '@/features/chat/lib/turns';
 import type {
   ChatErrorReason,
   ChatKeywords,
@@ -208,6 +212,12 @@ export function useChat() {
             message: userText,
             keywords: keywordsRef.current,
             summary: summaryRef.current || undefined,
+            // §2.4: summary가 아직 못 따라잡은 구간(최근 최대 7턴)을 원문으로 같이 보내서,
+            // 요약 갱신 전이라도 직전 대화를 기억하게 한다.
+            recentMessages: selectUnsummarizedHistory(
+              messagesRef.current,
+              summarizedTurnCountRef.current,
+            ),
           }),
         });
 

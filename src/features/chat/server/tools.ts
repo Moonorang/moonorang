@@ -93,6 +93,15 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
   SHOW_USAGE_TREND_TOOL,
 ];
 
+// extract_conditions를 뺀 "실행" 도구만. 1턴에서 extract_conditions만 부르고 실행 도구를
+// 빠뜨린 채 텍스트로 예고만 하는 경우의 보정 턴에서 쓴다(chatStream.ts) - extract_conditions는
+// 이미 끝났으니 다시 후보로 줄 필요가 없다.
+export const ACTION_TOOLS: ChatCompletionTool[] = [
+  RECOMMEND_PLANS_TOOL,
+  ANALYZE_SAVINGS_TOOL,
+  SHOW_USAGE_TREND_TOOL,
+];
+
 // extract_conditions tool call의 JSON 문자열을 파싱한다.
 // 모델이 스키마를 안 지킨 값(잘못된 타입 등)을 보낼 수도 있어서 필드별로 타입을 검증하고,
 // 통과 못 한 필드는 조용히 제외한다(CARD-014) - 그 필드만 이번 턴에 안 갱신될 뿐,
