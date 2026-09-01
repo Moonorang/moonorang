@@ -29,7 +29,15 @@ export function createSSESender(
 ): SSESend {
   const encoder = new TextEncoder();
 
-  return (event) => controller.enqueue(encoder.encode(formatSSEEvent(event)));
+  return (event) => {
+    try {
+      controller.enqueue(encoder.encode(formatSSEEvent(event)));
+    } catch {
+      // CHAT-008: 사용자가 생성을 중단하면 클라이언트가 연결을 끊고, 그 직후
+      // 남은 이벤트(예: catch 블록의 error 이벤트)를 보내려 하면 컨트롤러가
+      // 이미 닫혀 있어 enqueue가 던진다. 받을 상대가 없으니 조용히 무시한다.
+    }
+  };
 }
 
 // SSE 이벤트 블록 하나를 파싱
