@@ -7,6 +7,7 @@ import { ChevronLeft } from 'lucide-react';
 import StepProgress from '@/shared/ui/StepProgress';
 
 import CardStep from '@/features/join/components/CardStep';
+import ConfirmStep from '@/features/join/components/ConfirmStep';
 import IdentityStep from '@/features/join/components/IdentityStep';
 import PlanConfirmStep from '@/features/join/components/PlanConfirmStep';
 import TermsStep from '@/features/join/components/TermsStep';
@@ -105,8 +106,7 @@ export default function JoinFlowCard({ plan }: JoinFlowCardProps) {
   };
 
   // 4. 렌더링
-  // 입력값은 최종 확인 단계(CARD-042)가 붙는 시점에 여기서 모아 넘긴다
-  const submitLabel = nextStepIndex === -1 ? '완료' : '다음';
+  const submitLabel = step.submitLabel;
 
   // 폭·여백은 대화에 나란히 서는 PlanCard 와 같은 값으로 맞춘다.
   // scroll-mt 는 고정 헤더 높이만큼 - 없으면 단계 이동 때 카드 머리가 헤더에 가린다
@@ -175,6 +175,15 @@ export default function JoinFlowCard({ plan }: JoinFlowCardProps) {
           defaultValues={card}
           onPrev={handlePrev}
           onNext={handleCardNext}
+        />
+      )}
+
+      {step.id === 'confirm' && (
+        <ConfirmStep
+          plan={plan}
+          submitLabel={submitLabel}
+          onPrev={handlePrev}
+          onNext={handleNext}
         />
       )}
     </div>
