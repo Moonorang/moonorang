@@ -110,11 +110,14 @@ export default function ChatRoom({
   // 토큰마다 호출되므로 smooth 대신 즉시 이동 - smooth는 매 토큰마다
   // 애니메이션이 새로 시작돼 화면이 덜컹거린다.
   // 단, 사용자가 위로 올려 이전 대화를 읽는 중이면 끌어내리지 않는다.
+  // isStreaming도 의존성에 둔다 - 생성이 끝나면 말풍선에 읽어주기 버튼이 뒤늦게
+  // 붙어 그 높이만큼 아래 내용(추천 카드 등)이 밀리는데, messages는 그대로라
+  // 이게 없으면 딱 그만큼 덜 내려간 채로 멈춘다.
   useEffect(() => {
     if (!isAtBottom) return;
 
     scrollToBottom();
-  }, [messages, joinBlocks, error, isAtBottom, scrollToBottom]);
+  }, [messages, joinBlocks, error, isStreaming, isAtBottom, scrollToBottom]);
 
   // 화면 유지 상한을 넘긴 오래된(이미 요약된) 턴은, 사용자가 맨 아래를 보고 있을 때만
   // 걷어낸다 - 과거 대화를 스크롤해서 보는 도중에 눈앞에서 사라지는 걸 막기 위함.
@@ -276,44 +279,54 @@ export default function ChatRoom({
             </div>
           )}
 
-          {messages.map((message) => (
-            <Fragment key={message.id}>
-              {message.role === 'user' ? (
-                <UserMessage content={message.content} />
-              ) : (
-                <AiMessage
-                  content={message.content}
-                  isStreaming={isStreaming && message.id === lastMessageId}
-                >
-                  {message.recommendations &&
-                    message.recommendations.length > 0 && (
-                      <PlanCardCarousel
-                        recommendations={message.recommendations}
-                        onJoin={(plan) => handleJoin(plan, message.id)}
-                      />
-                    )}
-                  {message.usageAnalysis &&
-                    renderUsageAnalysis?.(message.usageAnalysis, {
-                      onJoin: (plan) => handleJoin(plan, message.id),
-                    })}
-                </AiMessage>
-              )}
+          {messages.map((message) => {
+            // 이 메시지가 아직 생성 중인지. 카드를 이 값으로 잠가둔다 - 서버는 카드
+            // 데이터를 마무리 텍스트보다 먼저 내보내는데(chatStream.ts 2턴), 그대로
+            // 그리면 말풍선이 빈 채로 카드가 먼저 떠서 순서가 뒤집혀 보인다.
+            const isMessageStreaming =
+              isStreaming && message.id === lastMessageId;
 
-              {/* 이 메시지 뒤에 띄운 가입 카드 - 대화 순서를 그대로 지킨다 */}
-              {joinBlocks
-                .filter((block) => block.afterMessageId === message.id)
-                .map((block) => (
-                  <Fragment key={block.plan.id}>
-                    <UserMessage
-                      content={`${block.plan.name} 요금제 가입할래`}
-                    />
-                    <AiMessage content={PLAN_JOIN_GUIDE}>
-                      {renderJoinFlow?.(block.plan)}
-                    </AiMessage>
-                  </Fragment>
-                ))}
-            </Fragment>
-          ))}
+            return (
+              <Fragment key={message.id}>
+                {message.role === 'user' ? (
+                  <UserMessage content={message.content} />
+                ) : (
+                  <AiMessage
+                    content={message.content}
+                    isStreaming={isMessageStreaming}
+                  >
+                    {/* 말이 끝난 뒤에 붙인다 - 설명보다 카드가 먼저 나오지 않도록 */}
+                    {!isMessageStreaming &&
+                      message.recommendations &&
+                      message.recommendations.length > 0 && (
+                        <PlanCardCarousel
+                          recommendations={message.recommendations}
+                          onJoin={(plan) => handleJoin(plan, message.id)}
+                        />
+                      )}
+                    {message.usageAnalysis &&
+                      renderUsageAnalysis?.(message.usageAnalysis, {
+                        onJoin: (plan) => handleJoin(plan, message.id),
+                      })}
+                  </AiMessage>
+                )}
+
+                {/* 이 메시지 뒤에 띄운 가입 카드 - 대화 순서를 그대로 지킨다 */}
+                {joinBlocks
+                  .filter((block) => block.afterMessageId === message.id)
+                  .map((block) => (
+                    <Fragment key={block.plan.id}>
+                      <UserMessage
+                        content={`${block.plan.name} 요금제 가입할래`}
+                      />
+                      <AiMessage content={PLAN_JOIN_GUIDE}>
+                        {renderJoinFlow?.(block.plan)}
+                      </AiMessage>
+                    </Fragment>
+                  ))}
+              </Fragment>
+            );
+          })}
 
           {error && <ChatErrorNotice reason={error.reason} onRetry={retry} />}
         </div>
