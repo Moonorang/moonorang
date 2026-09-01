@@ -346,11 +346,11 @@ export default function ChatRoom({
         {/*
           대화가 짧아도 카드가 위로 밀려 올라가지 않도록 입력창 바로 위에 둔다.
           mt-auto 로 남는 공간을 흡수하고, sticky 로 스크롤해도 자리를 지킨다.
-          scrollport 는 패딩 박스라 bottom-0 이면 고정된 입력창에 가린다 -
-          입력창 높이만큼 띄운다.
+          스크롤 영역이 이미 pb-(--height-chat-input) 로 입력창 자리를 비워두므로
+          여기서 또 띄우면 간격이 두 배가 된다 - bottom-0 으로 그 여백에 붙인다.
         */}
         {resolvedOverlay && (
-          <div className="sticky bottom-(--height-chat-input) z-10 mt-auto px-4 pb-4">
+          <div className="sticky bottom-0 z-10 mt-auto px-4 pb-1">
             {resolvedOverlay}
           </div>
         )}
