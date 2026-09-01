@@ -90,3 +90,14 @@ export interface ChatMessage {
   // usageAnalysis 이벤트가 오면 채워짐 (AI 메시지에만 해당)
   usageAnalysis?: UsageAnalysisResult;
 }
+
+/**
+ * CARD-029: 신청하기로 띄운 가입 카드 한 장.
+ * 대화 이력(messages)과는 별도로 쌓이지만 같이 저장·복구돼야 해서,
+ * useChat(상태·저장)과 ChatRoom(렌더)이 같이 쓰는 이 자리에 둔다.
+ */
+export interface PlanJoinBlock {
+  plan: Plan;
+  /** 이 메시지 바로 뒤에 끼워 넣는다 - 대화 순서를 지키기 위한 것 */
+  afterMessageId: string;
+}

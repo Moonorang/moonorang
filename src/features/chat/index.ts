@@ -21,7 +21,7 @@ export {
   CONDITION_QUESTIONS,
   type ConditionQuestion,
 } from './data/conditionQuestions';
-export { WELCOME_MESSAGE, WELCOME_CREATED_AT } from './constants';
+export { WELCOME_MESSAGE } from './constants';
 export { parseChatRequest } from './lib/schema';
 export { formatSSEEvent, parseSSEEvent, SSE_HEADERS } from './lib/sse';
 export { selectRecommendedPlans } from './lib/selectPlans';

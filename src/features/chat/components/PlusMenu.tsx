@@ -63,12 +63,12 @@ export default function PlusMenu({
               height={20}
             />
           </div>
-          <span className="text-12 font-medium text-text-primary">
+          <span className="text-left text-12 font-medium text-text-primary">
             대화 초기화
           </span>
         </Button>
 
-        <div className="mx-2 h-px bg-border-light" />
+        <div className="h-px w-full bg-border-light" />
 
         <Button
           variant="ghost"
@@ -87,7 +87,7 @@ export default function PlusMenu({
               height={20}
             />
           </div>
-          <span className="text-12 font-medium text-text-primary">
+          <span className="text-left text-12 font-medium text-text-primary">
             요금제 성향 검사
           </span>
         </Button>
@@ -111,7 +111,7 @@ export default function PlusMenu({
               height={20}
             />
           </div>
-          <span className="text-12 font-medium text-text-primary">
+          <span className="text-left text-12 font-medium text-text-primary">
             상담 결과 PDF 출력
           </span>
         </Button>

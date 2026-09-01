@@ -4,12 +4,13 @@ import type {
   MembershipDiscountRules,
 } from '@/entities/membershipBrand/types';
 
-const MEMBERSHIP_BRAND_COLUMNS = 'id, name, category, discount_rules';
+const MEMBERSHIP_BRAND_COLUMNS = 'id, name, category, icon, discount_rules';
 
 interface MembershipBrandRow {
   id: string;
   name: string;
   category: string;
+  icon: string | null;
   discount_rules: MembershipDiscountRules | null;
 }
 
@@ -18,6 +19,7 @@ function mapMembershipBrandRow(row: MembershipBrandRow): MembershipBrand {
     id: row.id,
     name: row.name,
     category: row.category,
+    icon: row.icon,
     discountRules: row.discount_rules ?? null,
   };
 }

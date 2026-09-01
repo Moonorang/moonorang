@@ -9,9 +9,6 @@ export const WELCOME_MESSAGE = `안녕하세요! 😊
 
 궁금한 점이 있으시면 언제든지 물어보세요!`;
 
-// 실제 발화 시각이 없는 고정 인사말이라 표시용 시각을 고정해 둔다
-export const WELCOME_CREATED_AT = new Date('2024-01-01T14:00:00');
-
 // CHAT-011: 비회원 대화를 브라우저에만 저장할 때 쓰는 localStorage 키.
 // 저장 구조가 바뀌면(마이그레이션 없이) 버전을 올려서 예전 값을 무시하게 한다.
 export const CHAT_STORAGE_KEY = 'moonorang:chat:v1';

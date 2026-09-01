@@ -19,7 +19,12 @@ import type {
   ChatKeywords,
   ChatMessage,
   ChatSummarizeResponseBody,
+  PlanJoinBlock,
 } from '@/features/chat/types';
+
+import type { Plan } from '@/entities/plan/types';
+
+import { createId } from '@/shared/utils/createId';
 
 export interface ChatError {
   reason: ChatErrorReason;
@@ -58,6 +63,11 @@ export function useChat() {
   const [keywords, setKeywords] = useState<ChatKeywords>({});
   const keywordsRef = useRef<ChatKeywords>({});
 
+  // CARD-029: 신청하기로 띄운 가입 카드들. 대화 이력과 섞지 않고 따로 들고 있지만,
+  // 화면을 벗어났다 돌아왔을 때 같이 복구돼야 해서 저장은 messages와 함께 한다.
+  const [joinBlocks, setJoinBlocks] = useState<PlanJoinBlock[]>([]);
+  const joinBlocksRef = useRef<PlanJoinBlock[]>([]);
+
   // §2.3 "대화 요약" 계층 - 화면엔 안 보이고 시스템 프롬프트에만 실어 보낸다.
   const [summary, setSummary] = useState('');
   const summaryRef = useRef('');
@@ -78,6 +88,7 @@ export function useChat() {
     keywordsRef.current = stored.keywords;
     summaryRef.current = stored.summary;
     summarizedTurnCountRef.current = stored.summarizedTurnCount;
+    joinBlocksRef.current = stored.joinBlocks;
 
     /* eslint-disable react-hooks/set-state-in-effect --
        마운트 후 localStorage를 딱 한 번(deps: []) 읽어와 동기화하는 것으로, 이 규칙이
@@ -85,6 +96,7 @@ export function useChat() {
     setMessages(stored.messages);
     setKeywords(stored.keywords);
     setSummary(stored.summary);
+    setJoinBlocks(stored.joinBlocks);
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
@@ -94,16 +106,19 @@ export function useChat() {
       summary: summaryRef.current,
       summarizedTurnCount: summarizedTurnCountRef.current,
       keywords: keywordsRef.current,
+      joinBlocks: joinBlocksRef.current,
     });
   }, []);
 
+  // ref를 setState 업데이터 안에서 갱신하면 안 된다 - 업데이터는 호출 즉시가 아니라
+  // React가 렌더할 때 실행돼서, 바로 뒤에 persist()를 부르면 이전 값이 저장된다
+  // (스트림 마지막에 온 recommendation이 저장에서 빠지던 원인). ref를 먼저 동기로
+  // 갱신하고 그 값으로 setState 한다 - keywords/summary 가 이미 쓰는 방식과 같다.
   const updateMessages = useCallback(
     (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
-      setMessages((prev) => {
-        const next = updater(prev);
-        messagesRef.current = next;
-        return next;
-      });
+      const next = updater(messagesRef.current);
+      messagesRef.current = next;
+      setMessages(next);
     },
     [],
   );
@@ -162,6 +177,18 @@ export function useChat() {
     messagesRef.current = result.messages;
     summarizedTurnCountRef.current -= result.removedTurns;
     setMessages(result.messages);
+
+    // 걷어낸 메시지에 붙어있던 가입 카드는 그릴 자리가 없어졌으므로 같이 버린다 -
+    // 안 그러면 화면에 안 보이는 채로 저장분에만 계속 쌓인다.
+    const visibleIds = new Set(result.messages.map((message) => message.id));
+    const nextJoinBlocks = joinBlocksRef.current.filter((block) =>
+      visibleIds.has(block.afterMessageId),
+    );
+    if (nextJoinBlocks.length !== joinBlocksRef.current.length) {
+      joinBlocksRef.current = nextJoinBlocks;
+      setJoinBlocks(nextJoinBlocks);
+    }
+
     persist();
   }, [persist]);
 
@@ -309,12 +336,12 @@ export function useChat() {
 
       const now = new Date().toISOString();
       const userMessage: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: createId(),
         role: 'user',
         content: trimmed,
         createdAt: now,
       };
-      const aiMessageId = crypto.randomUUID();
+      const aiMessageId = createId();
 
       lastUserTextRef.current = trimmed;
       lastAiMessageIdRef.current = aiMessageId;
@@ -357,17 +384,37 @@ export function useChat() {
     void runChatRequest(userText, aiMessageId);
   }, [isStreaming, runChatRequest, updateMessages]);
 
+  /**
+   * CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다.
+   * 같은 요금제를 또 눌러도 카드가 여러 장 쌓이지 않게 무시한다.
+   */
+  const addJoinBlock = useCallback(
+    (plan: Plan, afterMessageId: string) => {
+      if (joinBlocksRef.current.some((block) => block.plan.id === plan.id)) {
+        return;
+      }
+
+      const next = [...joinBlocksRef.current, { plan, afterMessageId }];
+      joinBlocksRef.current = next;
+      setJoinBlocks(next);
+      persist();
+    },
+    [persist],
+  );
+
   /** CHAT-014: 전체 대화 내역을 비운다. 파악해둔 조건·요약·로컬 저장분도 같이 지운다. */
   const reset = useCallback(() => {
     messagesRef.current = [];
     keywordsRef.current = {};
     summaryRef.current = '';
     summarizedTurnCountRef.current = 0;
+    joinBlocksRef.current = [];
 
     setMessages([]);
     setError(null);
     setKeywords({});
     setSummary('');
+    setJoinBlocks([]);
     lastUserTextRef.current = null;
     lastAiMessageIdRef.current = null;
 
@@ -396,9 +443,11 @@ export function useChat() {
     error,
     keywords,
     summary,
+    joinBlocks,
     sendMessage,
     retry,
     reset,
+    addJoinBlock,
     setKeywordValue,
     pruneVisibleMessages,
     stopGeneration,
