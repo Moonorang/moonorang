@@ -11,6 +11,8 @@ import PlanCard from '@/entities/plan/ui/PlanCard';
 import type { Plan } from '@/entities/plan/types';
 import type { PlanRecommendation } from '@/features/chat/types';
 
+import { cn } from '@/shared/utils/cn';
+
 // PlanCard 가 가진 자기 폭. 인디케이터를 카드 가운데에 맞추는 데 쓴다
 const CARD_WIDTH = 'w-[80%]';
 
@@ -121,29 +123,37 @@ export default function PlanCardCarousel({
           ))}
         </div>
 
-        {/* 첫 장에는 다음만, 마지막 장에는 이전만 나온다 */}
+        {/*
+          첫 장에는 다음만, 마지막 장에는 이전만 보인다. 다만 안 보이는 쪽도 자리는
+          그대로 두어야(invisible) 남은 화살표가 옆으로 밀려나지 않는다 - 카드를
+          넘길 때마다 화살표가 움직이면 누르던 자리가 계속 바뀐다.
+        */}
         <div className="absolute top-1/2 right-0 flex -translate-y-1/2 items-center gap-1">
-          {activeIndex > 0 && (
-            <button
-              type="button"
-              onClick={() => handleSelectIndex(activeIndex - 1)}
-              aria-label="이전 요금제 보기"
-              className="cursor-pointer text-text-secondary transition-colors hover:text-text-primary"
-            >
-              <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => handleSelectIndex(activeIndex - 1)}
+            disabled={activeIndex === 0}
+            aria-label="이전 요금제 보기"
+            className={cn(
+              'cursor-pointer text-text-secondary transition-colors hover:text-text-primary',
+              activeIndex === 0 && 'invisible',
+            )}
+          >
+            <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
+          </button>
 
-          {activeIndex < lastIndex && (
-            <button
-              type="button"
-              onClick={() => handleSelectIndex(activeIndex + 1)}
-              aria-label="다음 요금제 보기"
-              className="cursor-pointer text-text-secondary transition-colors hover:text-text-primary"
-            >
-              <ChevronRight size={20} strokeWidth={1.5} aria-hidden />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => handleSelectIndex(activeIndex + 1)}
+            disabled={activeIndex === lastIndex}
+            aria-label="다음 요금제 보기"
+            className={cn(
+              'cursor-pointer text-text-secondary transition-colors hover:text-text-primary',
+              activeIndex === lastIndex && 'invisible',
+            )}
+          >
+            <ChevronRight size={20} strokeWidth={1.5} aria-hidden />
+          </button>
         </div>
       </div>
 
