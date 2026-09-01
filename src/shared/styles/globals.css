@@ -89,3 +89,12 @@ body {
   font-family: var(--font-sans), sans-serif;
   letter-spacing: -0.04em;
 }
+
+/* 가로 스크롤 영역(추천 질문 칩, 요금제 캐러셀 등)에서 스크롤바만 숨긴다 */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

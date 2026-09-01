@@ -28,8 +28,7 @@ const VARIANT_STYLES: Record<ButtonVariant, string> = {
   answer: 'bg-action-secondary-light text-text-primary shadow-default',
   filter:
     'bg-background-default text-text-secondary border border-border-default',
-  outline:
-    'border border-border-default bg-background-default text-text-secondary',
+  outline: 'border border-border-default bg-background-default text-text-primary',
   ghost: 'bg-transparent text-text-primary',
   gradient:
     'bg-linear-to-br from-gradient-from to-gradient-to text-background-default',

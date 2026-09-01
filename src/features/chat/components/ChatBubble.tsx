@@ -1,25 +1,24 @@
 import type { ReactNode } from 'react';
 
 import { cn } from '@/shared/utils/cn';
-import { formatMessageTime, type DateInput } from '@/shared/utils/formatTime';
 
 type ChatBubbleVariant = 'ai' | 'user';
 
 interface ChatBubbleProps {
   children: ReactNode;
   variant?: ChatBubbleVariant;
-  createdAt?: DateInput;
+  /** 말풍선 우측 하단에 붙는 요소 (읽어주기 버튼 등). 없으면 그리지 않는다 */
+  footer?: ReactNode;
   appendClassName?: string;
 }
 
 export default function ChatBubble({
   children,
   variant = 'ai',
-  createdAt,
+  footer,
   appendClassName,
 }: ChatBubbleProps) {
   const isAi = variant === 'ai';
-  const time = createdAt === undefined ? null : formatMessageTime(createdAt);
 
   return (
     <div
@@ -33,14 +32,7 @@ export default function ChatBubble({
     >
       <div className="wrap-break-word whitespace-pre-wrap">{children}</div>
 
-      {time && (
-        <time
-          dateTime={time.dateTime}
-          className="self-end text-10 text-text-secondary"
-        >
-          {time.label}
-        </time>
-      )}
+      {footer && <div className="self-end">{footer}</div>}
     </div>
   );
 }

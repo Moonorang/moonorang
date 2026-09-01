@@ -6,15 +6,20 @@ import type { ReactNode } from 'react';
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
+import ConditionEntryChips from '@/features/chat/components/ConditionEntryChips';
+import ConditionQuestionCard from '@/features/chat/components/ConditionQuestionCard';
 import PlanCardCarousel from '@/features/chat/components/PlanCardCarousel';
 import PlusMenu from '@/features/chat/components/PlusMenu';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import SuggestionChips from '@/features/chat/components/SuggestionChips';
 import UserMessage from '@/features/chat/components/UserMessage';
-import { WELCOME_CREATED_AT, WELCOME_MESSAGE } from '@/features/chat/constants';
+import { WELCOME_MESSAGE } from '@/features/chat/constants';
 import { useChat } from '@/features/chat/hooks/useChat';
+import { useConditionQuestions } from '@/features/chat/hooks/useConditionQuestions';
+import type { ChatKeywords } from '@/features/chat/types';
 
 import type { Plan } from '@/entities/plan/types';
+import type { UsageAnalysisResult } from '@/entities/usage/types';
 
 /** 최하단에서 이 거리(px) 이내면 바닥에 있는 것으로 본다 */
 const BOTTOM_THRESHOLD_PX = 24;
@@ -25,14 +30,6 @@ const BOTTOM_THRESHOLD_PX = 24;
  */
 const PLAN_JOIN_GUIDE = `선택하신 요금제의 상세 내용을 확인해주세요!
 선택하신 요금제가 맞으신가요?`;
-
-/** 신청하기로 띄운 가입 카드 한 장 */
-interface PlanJoinBlock {
-  plan: Plan;
-  /** 이 메시지 바로 뒤에 끼워 넣는다 - 대화 순서를 지키기 위한 것 */
-  afterMessageId: string;
-  createdAt: string;
-}
 
 interface ChatRoomProps {
   /**
@@ -48,6 +45,15 @@ interface ChatRoomProps {
    * (features 끼리 직접 참조하지 않기 위한 슬롯).
    */
   renderJoinFlow?: (plan: Plan) => ReactNode;
+  /**
+   * CARD-022~028: usageAnalysis 이벤트가 온 메시지에 끼워 넣는 사용량 분석/절약 카드.
+   * features/usage도 다른 feature라 직접 참조 못 해 슬롯으로 받는다. onJoin은 이 화면이
+   * 이미 갖고 있는 가입 카드 흐름(joinBlocks)에 그대로 연결해준다.
+   */
+  renderUsageAnalysis?: (
+    data: UsageAnalysisResult,
+    handlers: { onJoin: (plan: Plan) => void },
+  ) => ReactNode;
 }
 
 /** 채팅 화면 본체 - 대화 내역, 추천 질문 칩, 입력창, 추가 기능 메뉴 */
@@ -55,15 +61,40 @@ export default function ChatRoom({
   overlay,
   onPlanTest,
   renderJoinFlow,
+  renderUsageAnalysis,
 }: ChatRoomProps) {
   // 1. 상태 및 훅
   const [value, setValue] = useState('');
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
+  const {
+    messages,
+    isStreaming,
+    error,
+    keywords,
+    summary,
+    joinBlocks,
+    sendMessage,
+    retry,
+    reset,
+    addJoinBlock,
+    setKeywordValue,
+    pruneVisibleMessages,
+    stopGeneration,
+  } = useChat();
+  const conditionQuestions = useConditionQuestions();
+
+  // 조건 수집 카드에서 선택한 답변을 문항이 끝날 때까지 모아뒀다가 한 번에 보낸다
+  // (CARD-012: 요약을 하나의 말풍선으로 남김 - 문항마다 따로 쪼개지 않는다)
+  const [conditionAnswers, setConditionAnswers] = useState<string[]>([]);
+
+  // "텍스트로 답할게요"를 누르면, 그 시점의 마지막 AI 메시지에 한해서만 칩을 숨긴다.
+  // 다음 AI 메시지가 오면 lastMessageId가 바뀌므로 자동으로 다시 평가된다.
+  const [dismissedEntryChipsFor, setDismissedEntryChipsFor] = useState<
+    string | null
+  >(null);
+
   // 바닥에 있는지 여부 - 자동 스크롤 여부와 버튼 노출을 함께 결정한다
   const [isAtBottom, setIsAtBottom] = useState(true);
-  // 신청하기로 띄운 가입 카드들. 대화 이력(messages)과 섞지 않고 따로 들고 있는다
-  const [joinBlocks, setJoinBlocks] = useState<PlanJoinBlock[]>([]);
-  const { messages, isStreaming, error, sendMessage, retry, reset } = useChat();
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -84,6 +115,12 @@ export default function ChatRoom({
 
     scrollToBottom();
   }, [messages, joinBlocks, error, isAtBottom, scrollToBottom]);
+
+  // 화면 유지 상한을 넘긴 오래된(이미 요약된) 턴은, 사용자가 맨 아래를 보고 있을 때만
+  // 걷어낸다 - 과거 대화를 스크롤해서 보는 도중에 눈앞에서 사라지는 걸 막기 위함.
+  useEffect(() => {
+    if (isAtBottom) pruneVisibleMessages();
+  }, [isAtBottom, messages.length, pruneVisibleMessages]);
 
   // 3. 이벤트 핸들러
   const handleScroll = () => {
@@ -108,25 +145,110 @@ export default function ChatRoom({
     sendMessage(text);
   };
 
-  // CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다
-  const handleJoin = (plan: Plan, afterMessageId: string) => {
-    // 같은 요금제를 또 누르면 무시한다 - 같은 카드가 여러 장 쌓이지 않게
-    if (joinBlocks.some((block) => block.plan.id === plan.id)) return;
-
-    setIsAtBottom(true);
-    setJoinBlocks((prev) => [
-      ...prev,
-      { plan, afterMessageId, createdAt: new Date().toISOString() },
-    ]);
+  const handleOpenConditionQuestions = () => {
+    setConditionAnswers([]);
+    conditionQuestions.open();
   };
 
-  // CHAT-014: 대화를 비울 때 가입 카드도 같이 걷어낸다
+  // 카드를 닫는 시점(마지막 문항 응답/건너뛰기, 또는 X)에 모아둔 답변을 한 번에 보낸다.
+  // 답변이 하나도 없으면(바로 닫기만 한 경우) 아무것도 안 보낸다.
+  const finishConditionQuestions = (finalAnswers: string[]) => {
+    conditionQuestions.close();
+    setConditionAnswers([]);
+
+    if (finalAnswers.length > 0) {
+      sendMessage(`${finalAnswers.join('\n')}\n\n이 조건으로 요금제 추천해주세요.`);
+    }
+  };
+
+  // CARD-008~009: 선택지를 고르면 keywords에 즉시 반영하고, 답변은 버퍼에 모아둔다.
+  // 마지막 문항이면 여기서 바로 마무리(전송)까지 한다.
+  const handleConditionSelect = (
+    field: keyof ChatKeywords,
+    value: number,
+    summaryText: string,
+  ) => {
+    setKeywordValue(field, value);
+    const nextAnswers = [...conditionAnswers, summaryText];
+
+    if (conditionQuestions.isLastQuestion) {
+      finishConditionQuestions(nextAnswers);
+    } else {
+      setConditionAnswers(nextAnswers);
+      conditionQuestions.goToNext();
+    }
+  };
+
+  const handleConditionSkip = () => {
+    if (conditionQuestions.isLastQuestion) {
+      finishConditionQuestions(conditionAnswers);
+    } else {
+      conditionQuestions.goToNext();
+    }
+  };
+
+  // CARD-011: 직접 입력은 그 자체로 하나의 메시지라 곧바로 보낸다 - 버퍼에 안 쌓는다.
+  const handleConditionFreeText = (text: string) => {
+    sendMessage(text);
+
+    if (conditionQuestions.isLastQuestion) {
+      conditionQuestions.close();
+      setConditionAnswers([]);
+    } else {
+      conditionQuestions.goToNext();
+    }
+  };
+
+  // CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다.
+  // 카드 목록은 useChat이 들고 있다 - 대화 내역과 같이 저장·복구돼야 하기 때문.
+  const handleJoin = (plan: Plan, afterMessageId: string) => {
+    setIsAtBottom(true);
+    addJoinBlock(plan, afterMessageId);
+  };
+
+  // CHAT-014: 대화를 비울 때 가입 카드도, 조건 수집 진행 상태도 같이 걷어낸다
+  // (가입 카드는 reset이 같이 비운다)
   const handleReset = () => {
     reset();
-    setJoinBlocks([]);
+    setConditionAnswers([]);
+    setDismissedEntryChipsFor(null);
   };
 
-  const lastMessageId = messages[messages.length - 1]?.id;
+  const lastMessage = messages[messages.length - 1];
+  const lastMessageId = lastMessage?.id;
+
+  // features/test 오버레이(부모가 넘김)와 조건 수집 카드(이 컴포넌트가 직접 엶)를
+  // 같은 슬롯에서 다룬다 - 둘 다 "대화 영역 아래에 뜨는 카드"라 위치·스타일이 같다.
+  const resolvedOverlay =
+    overlay ??
+    (conditionQuestions.isOpen ? (
+      <ConditionQuestionCard
+        currentIndex={conditionQuestions.currentIndex}
+        keywords={keywords}
+        onSelect={handleConditionSelect}
+        onFreeText={handleConditionFreeText}
+        onPrev={conditionQuestions.goToPrev}
+        onNext={conditionQuestions.goToNext}
+        onSkip={handleConditionSkip}
+        onClose={() => finishConditionQuestions(conditionAnswers)}
+      />
+    ) : undefined);
+
+  // AI가 방금 조건을 물어본 것으로 보이는 시점에만 진입 칩을 보여준다:
+  // 대화가 시작됐고(환영 메시지 제외), 마지막 메시지가 텍스트만 있는 AI 응답이고,
+  // 예산·데이터 사용량이 아직 둘 다 없을 때. systemPrompt의 "조건이 둘 다 없으면
+  // 먼저 물어보라"는 지침과 같은 조건이라 실제로 되묻는 순간과 맞아떨어진다.
+  // usageAnalysis(절약 상담/사용량 추세) 응답은 조건을 되묻는 상황이 아니라서 제외한다.
+  const shouldShowConditionEntryChips =
+    !isStreaming &&
+    !resolvedOverlay &&
+    !!lastMessage &&
+    lastMessage.role === 'ai' &&
+    !lastMessage.recommendations?.length &&
+    !lastMessage.usageAnalysis &&
+    !keywords.budget &&
+    !keywords.dataUsageGb &&
+    dismissedEntryChipsFor !== lastMessageId;
 
   // 4. 렌더링
   return (
@@ -139,19 +261,28 @@ export default function ChatRoom({
       >
         {/* 채팅 내역 영역 */}
         <div className="flex flex-col gap-6 px-4 py-6">
-          <AiMessage content={WELCOME_MESSAGE} createdAt={WELCOME_CREATED_AT} />
+          <AiMessage content={WELCOME_MESSAGE} />
+
+          {/*
+            CHAT-011/012: 오래된 대화가 요약돼서 화면에서는 걷어내진 상태임을 알려주는
+            안내선. summary가 있다는 건 지금 안 보이는 이전 대화가 있다는 뜻이라, 갑자기
+            대화가 끊긴 것처럼 보이지 않도록 경계를 표시한다.
+          */}
+          {summary && (
+            <div className="flex items-center gap-2 text-10 text-text-secondary">
+              <span className="h-px flex-1 bg-border-light" />
+              이전 대화 내용이 요약되었어요
+              <span className="h-px flex-1 bg-border-light" />
+            </div>
+          )}
 
           {messages.map((message) => (
             <Fragment key={message.id}>
               {message.role === 'user' ? (
-                <UserMessage
-                  content={message.content}
-                  createdAt={message.createdAt}
-                />
+                <UserMessage content={message.content} />
               ) : (
                 <AiMessage
                   content={message.content}
-                  createdAt={message.createdAt}
                   isStreaming={isStreaming && message.id === lastMessageId}
                 >
                   {message.recommendations &&
@@ -161,6 +292,10 @@ export default function ChatRoom({
                         onJoin={(plan) => handleJoin(plan, message.id)}
                       />
                     )}
+                  {message.usageAnalysis &&
+                    renderUsageAnalysis?.(message.usageAnalysis, {
+                      onJoin: (plan) => handleJoin(plan, message.id),
+                    })}
                 </AiMessage>
               )}
 
@@ -171,12 +306,8 @@ export default function ChatRoom({
                   <Fragment key={block.plan.id}>
                     <UserMessage
                       content={`${block.plan.name} 요금제 가입할래`}
-                      createdAt={block.createdAt}
                     />
-                    <AiMessage
-                      content={PLAN_JOIN_GUIDE}
-                      createdAt={block.createdAt}
-                    >
+                    <AiMessage content={PLAN_JOIN_GUIDE}>
                       {renderJoinFlow?.(block.plan)}
                     </AiMessage>
                   </Fragment>
@@ -188,23 +319,31 @@ export default function ChatRoom({
         </div>
 
         {/* 메시지 리스트 하단에 칩 버튼 배치 (입력창 위로 떠 있는 듯한 위치) */}
-        {/* 최초 진입 시에만 노출하고, 사용자가 메시지를 보내거나 */}
-        {/* 오버레이 카드가 떠 있는 동안에는 감춘다 */}
-        {messages.length === 0 && !overlay && (
+        {/* 최초 진입 시엔 추천 질문 칩을, AI가 조건을 물어본 시점엔 답변 방식 선택 칩을,
+            오버레이 카드가 떠 있는 동안엔 아무 칩도 안 보여준다. */}
+        {messages.length === 0 && !resolvedOverlay && (
           <div className="mt-auto">
             <SuggestionChips onSuggest={handleSuggest} />
+          </div>
+        )}
+        {shouldShowConditionEntryChips && (
+          <div className="mt-auto">
+            <ConditionEntryChips
+              onChooseText={() => setDismissedEntryChipsFor(lastMessageId ?? null)}
+              onChooseCard={handleOpenConditionQuestions}
+            />
           </div>
         )}
 
         {/*
           대화가 짧아도 카드가 위로 밀려 올라가지 않도록 입력창 바로 위에 둔다.
           mt-auto 로 남는 공간을 흡수하고, sticky 로 스크롤해도 자리를 지킨다.
-          scrollport 는 패딩 박스라 bottom-0 이면 고정된 입력창에 가린다 -
-          입력창 높이만큼 띄운다.
+          스크롤 영역이 이미 pb-(--height-chat-input) 로 입력창 자리를 비워두므로
+          여기서 또 띄우면 간격이 두 배가 된다 - bottom-0 으로 그 여백에 붙인다.
         */}
-        {overlay && (
-          <div className="sticky bottom-(--height-chat-input) z-10 mt-auto px-4 pb-4">
-            {overlay}
+        {resolvedOverlay && (
+          <div className="sticky bottom-0 z-10 mt-auto px-4 pb-1">
+            {resolvedOverlay}
           </div>
         )}
       </div>
@@ -233,6 +372,7 @@ export default function ChatRoom({
         onPlusClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
         isPlusOpen={isPlusMenuOpen}
         disabled={isStreaming}
+        onStop={stopGeneration}
       />
     </div>
   );

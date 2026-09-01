@@ -15,6 +15,11 @@ export function formatRrnBack(value: string): string {
   return value.replace(/\D/g, '').slice(0, 7);
 }
 
+/** 휴대폰 번호 - 숫자 11개 (OCTOMO 가 하이픈 없는 형태만 받는다) */
+export function formatMobileNum(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 11);
+}
+
 /** 발급일자 - 숫자만 남겨 2001.11.11 형태로 */
 export function formatIssuedDate(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 8);

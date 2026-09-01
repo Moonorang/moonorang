@@ -5,6 +5,7 @@ import JoinFlowCard from '@/features/join/components/JoinFlowCard';
 import TestLoadingModal from '@/features/test/components/TestLoadingModal';
 import TestQuestionCard from '@/features/test/components/TestQuestionCard';
 import { useTestFlow } from '@/features/test/hooks/useTestFlow';
+import UsageAnalysisSection from '@/features/usage/components/UsageAnalysisSection';
 
 /**
  * 채팅 화면. 상담(features/chat), 성향 검사(features/test),
@@ -22,6 +23,9 @@ export default function ChatPage() {
       <ChatRoom
         onPlanTest={test.openTest}
         renderJoinFlow={(plan) => <JoinFlowCard plan={plan} />}
+        renderUsageAnalysis={(data, { onJoin }) => (
+          <UsageAnalysisSection data={data} onJoin={onJoin} />
+        )}
         overlay={
           test.isTestOpen ? (
             <TestQuestionCard

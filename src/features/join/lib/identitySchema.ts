@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { mobileNumSchema } from '@/features/join/lib/moSchema';
+
 const ISSUED_DATE_PATTERN = /^\d{4}\.\d{2}\.\d{2}$/;
 // 주민등록증 제도가 시작된 해. 이보다 앞선 발급일자는 오타로 본다
 const MIN_ISSUED_YEAR = 1968;
@@ -34,6 +36,8 @@ export const identitySchema = z.object({
     .string()
     .regex(ISSUED_DATE_PATTERN, '발급일자를 2001.11.11 형식으로 입력해 주세요')
     .refine(isRealIssuedDate, '올바른 발급일자를 입력해 주세요'),
+  // CARD-037: MO 인증 문자를 보낸 번호와 대조할 값
+  mobileNum: mobileNumSchema,
 });
 
 export type IdentityValues = z.infer<typeof identitySchema>;

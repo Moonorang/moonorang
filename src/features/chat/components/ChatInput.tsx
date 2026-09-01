@@ -2,7 +2,7 @@
 
 import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react';
 
-import { Mic, Plus, Send } from 'lucide-react';
+import { Mic, Plus, Send, Square } from 'lucide-react';
 
 import Button from '@/shared/ui/Button';
 import { cn } from '@/shared/utils/cn';
@@ -18,6 +18,8 @@ interface ChatInputProps {
   onMicClick?: () => void;
   // 응답 생성 중일 때 입력과 전송을 막음
   disabled?: boolean;
+  // CHAT-008: 응답 생성 중 중단 버튼 클릭. disabled(생성 중)일 때만 전송 버튼 자리에 뜬다.
+  onStop?: () => void;
   placeholder?: string;
   appendClassName?: string;
 }
@@ -30,6 +32,7 @@ export default function ChatInput({
   onPlusClick,
   onMicClick,
   disabled = false,
+  onStop,
   placeholder = '무너에게 무엇이든 물어보세요!',
   appendClassName,
 }: ChatInputProps) {
@@ -72,7 +75,7 @@ export default function ChatInput({
         <Plus size={20} aria-hidden />
       </Button>
 
-      <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-background-subtle px-4 py-2.5 focus-within:ring-1 focus-within:ring-border-default">
+      <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-background-subtle px-4 py-2.5 focus-within:ring-1 focus-within:ring-action-secondary">
         <input
           type="text"
           value={value}
@@ -96,17 +99,33 @@ export default function ChatInput({
         </button>
       </div>
 
-      <Button
-        type="submit"
-        variant="secondary"
-        radius="sm"
-        size="none"
-        disabled={!canSend}
-        aria-label="메시지 보내기"
-        appendClassName="h-10 w-10 shrink-0"
-      >
-        <Send size={18} aria-hidden />
-      </Button>
+      {disabled ? (
+        // CHAT-008: 응답 생성 중엔 전송 버튼 자리를 중단 버튼으로 바꾼다.
+        // 입력창 자체는 계속 disabled여도, 이 버튼만은 항상 눌러 멈출 수 있어야 한다.
+        <Button
+          type="button"
+          variant="secondary"
+          radius="sm"
+          size="none"
+          onClick={onStop}
+          aria-label="응답 생성 중단"
+          appendClassName="h-10 w-10 shrink-0"
+        >
+          <Square size={16} fill="currentColor" aria-hidden />
+        </Button>
+      ) : (
+        <Button
+          type="submit"
+          variant="secondary"
+          radius="sm"
+          size="none"
+          disabled={!canSend}
+          aria-label="메시지 보내기"
+          appendClassName="h-10 w-10 shrink-0"
+        >
+          <Send size={18} aria-hidden />
+        </Button>
+      )}
     </form>
   );
 }
