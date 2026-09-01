@@ -13,6 +13,9 @@ import type { PlanRecommendation } from '@/features/chat/types';
 
 import { cn } from '@/shared/utils/cn';
 
+// PlanCard 가 가진 자기 폭. 인디케이터와 오른쪽 화살표를 카드 끝에 맞추는 데 쓴다
+const CARD_WIDTH = 'w-[80%]';
+
 // 스크롤이 멎었다고 보는 시간
 const SCROLL_SETTLE_MS = 100;
 
@@ -94,9 +97,9 @@ export default function PlanCardCarousel({
   return (
     <div className="flex w-full flex-col gap-1">
       {/*
-        카드를 칸 가운데에 두고 화살표를 양옆에 세운다. PlanCard 는 자기 폭이 80% 라
-        좌우에 10% 씩 빈 자리가 생기고, 화살표가 그 자리에 들어가 카드를 가리지 않는다.
-        카드 폭은 그대로다.
+        카드는 원래 자리(말풍선 왼쪽 끝)와 원래 폭 그대로 두고, 화살표만 절대 위치로
+        카드 양옆에 띄운다. 절대 위치라 칸 크기에 영향을 주지 않아 카드가 밀리지 않는다.
+        왼쪽 화살표가 놓이는 자리는 아바타 아래의 빈 공간이다.
       */}
       <div className="relative w-full">
         {/* 가로 스크롤 + 스냅. 스크롤바는 가리고 스와이프만 남긴다 */}
@@ -108,7 +111,7 @@ export default function PlanCardCarousel({
           {recommendations.map((item) => (
             <div
               key={item.plan.id}
-              className="flex w-full shrink-0 snap-start snap-always justify-center"
+              className="flex w-full shrink-0 snap-start snap-always"
             >
               <PlanCard
                 plan={item.plan}
@@ -124,26 +127,28 @@ export default function PlanCardCarousel({
           첫 장에는 다음만, 마지막 장에는 이전만 보인다. 안 보이는 쪽도 자리는 그대로
           두어(invisible) 카드를 넘겨도 화살표 자리가 움직이지 않게 한다.
         */}
+        {/* right-full: 칸 왼쪽 바깥(아바타 아래 빈 자리)에 세운다 */}
         <button
           type="button"
           onClick={() => handleSelectIndex(activeIndex - 1)}
           disabled={activeIndex === 0}
           aria-label="이전 요금제 보기"
           className={cn(
-            'absolute top-1/2 left-0 -translate-y-1/2 cursor-pointer text-text-secondary transition-colors hover:text-text-primary',
+            'absolute top-1/2 right-full mr-1 -translate-y-1/2 cursor-pointer text-text-secondary transition-colors hover:text-text-primary',
             activeIndex === 0 && 'invisible',
           )}
         >
           <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
         </button>
 
+        {/* left-[80%]: 카드가 끝나는 자리 - CARD_WIDTH 와 같은 값이다 */}
         <button
           type="button"
           onClick={() => handleSelectIndex(activeIndex + 1)}
           disabled={activeIndex === lastIndex}
           aria-label="다음 요금제 보기"
           className={cn(
-            'absolute top-1/2 right-0 -translate-y-1/2 cursor-pointer text-text-secondary transition-colors hover:text-text-primary',
+            'absolute top-1/2 left-[80%] ml-1 -translate-y-1/2 cursor-pointer text-text-secondary transition-colors hover:text-text-primary',
             activeIndex === lastIndex && 'invisible',
           )}
         >
@@ -151,8 +156,8 @@ export default function PlanCardCarousel({
         </button>
       </div>
 
-      {/* 카드가 칸 가운데에 있으므로 인디케이터도 전체 폭 기준으로 가운데 */}
-      <div className="flex w-full justify-center">
+      {/* 카드가 왼쪽에 붙어 있으므로, 카드와 같은 폭 안에서 가운데로 맞춘다 */}
+      <div className={`flex ${CARD_WIDTH} justify-center`}>
         <CarouselIndicator
           total={recommendations.length}
           activeIndex={activeIndex}
