@@ -4,6 +4,7 @@ import CatalogCard from '@/features/catalog/ui/CatalogCard';
 
 import { CATALOG_IMAGE_BASE_PATH } from '@/features/catalog/constants';
 import { getDiscountedFee } from '@/features/catalog/lib/getDiscountedFee';
+import { cn } from '@/shared/utils/cn';
 import { formatWon } from '@/shared/utils/formatCurrency';
 import type { Subscription } from '@/entities/subscription/types';
 
@@ -38,21 +39,22 @@ export default function SubscriptionRow({
             {name}
           </p>
 
-          <p className="text-12 font-medium text-text-primary">
+          <div className="text-12 font-medium text-text-primary">
             {hasDiscount && (
-              <div className="flex items-center gap-1.5 text-10">
+              <p className="flex items-center gap-1.5 text-10">
                 <span className="shrink-0 text-action-primary">
                   {discount}%
                 </span>
                 <span className="truncate text-10 font-normal text-text-secondary line-through">
                   월 {formatWon(baseMonthlyFee)}원
                 </span>
-              </div>
+              </p>
             )}
-            <div className={`${hasDiscount ? `` : `mt-3.75`}`}>
+            {/* 할인 배지 줄이 없으면 그 줄 높이만큼 위 여백으로 채운다. */}
+            <p className={cn(!hasDiscount && 'pt-3.75')}>
               {formatWon(fee)}원 / 1개월
-            </div>
-          </p>
+            </p>
+          </div>
         </div>
 
         <Image
