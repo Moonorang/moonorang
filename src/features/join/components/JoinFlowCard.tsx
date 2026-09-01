@@ -24,6 +24,7 @@ const EMPTY_IDENTITY: IdentityValues = {
   rrnFront: '',
   rrnBack: '',
   issuedDate: '',
+  mobileNum: '',
 };
 
 interface JoinFlowCardProps {
