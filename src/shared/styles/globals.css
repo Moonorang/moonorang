@@ -53,7 +53,7 @@
   --text-32: 32px;
 
   /* Line-height */
-  --leading-fixed: 18px;
+  --leading-fixed: 16px;
 
   /* 기본 그림자 */
   --shadow-default: 0px 4px 10px 0px rgba(181, 181, 181, 0.25);

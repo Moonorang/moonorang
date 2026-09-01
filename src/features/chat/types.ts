@@ -101,3 +101,16 @@ export interface PlanJoinBlock {
   /** 이 메시지 바로 뒤에 끼워 넣는다 - 대화 순서를 지키기 위한 것 */
   afterMessageId: string;
 }
+
+/**
+ * 회원의 chat_messages.content에 카드를 저장할 때 쓰는 JSON 모양. text 컬럼 하나뿐이라
+ * 일반 대화 텍스트와 구분하려고 이 모양(type 판별자)으로 직렬화해서 별도 행에 넣는다.
+ * - join_flow: 그 자리에 가입 폼을 끼워 넣으라는 마커 (plan은 복구 시 id로 다시 조회)
+ * - recommendation/usage_analysis: 그 시점에 실제로 보여준 카드 스냅샷을 그대로 저장
+ *   (요금제 가격 등이 나중에 바뀌어도, 그때 상담받은 내용 그대로 복구돼야 하므로
+ *   id 참조가 아니라 전체 값을 통째로 저장한다)
+ */
+export type ChatCardPayload =
+  | { type: 'join_flow'; planId: number }
+  | { type: 'recommendation'; plans: PlanRecommendation[] }
+  | { type: 'usage_analysis'; data: UsageAnalysisResult };
