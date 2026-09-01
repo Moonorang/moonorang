@@ -1,12 +1,7 @@
-'use client';
-
-import { useState } from 'react';
-
-import { Check, QrCode } from 'lucide-react';
+import { Check, RotateCcw } from 'lucide-react';
 
 import Button from '@/shared/ui/Button';
 
-import MoQrModal from '@/features/join/components/MoQrModal';
 import { OCTOMO_RECEIVER_NUMBER } from '@/features/join/data/mo';
 import type { MoStatus } from '@/features/join/hooks/useMoVerification';
 
@@ -32,10 +27,11 @@ function formatSecondsLeft(seconds: number): string {
 }
 
 /**
- * CARD-037: MO 본인 인증.
+ * CARD-037: MO 본인 인증 화면.
  *
- * QR 은 모달로 띄운다 - 카드 안에 넣으면 QR 높이만큼 카드가 늘어 대화가 튄다.
- * 카드에는 버튼 한 줄만 두어 어느 상태에서도 높이가 변하지 않는다.
+ * 인증 코드가 담긴 QR 을 띄우면 사용자가 폰으로 스캔해 옥토모 대표번호로 문자를
+ * 보내고, 그 수신 여부를 서버가 확인해 인증을 판정한다. 화면에서 통과시킬 수 있는
+ * 자리가 없어서 실제로 문자를 보내야만 다음 단계로 넘어간다.
  *
  * 진행 상태는 useMoVerification 이 들고 있다 - 다음 버튼을 잠그는 판단이
  * 부모(IdentityStep)에도 필요해서 훅을 그쪽에 두었다.
@@ -50,51 +46,15 @@ export default function MoVerification({
   isMobileNumValid,
   onStart,
 }: MoVerificationProps) {
-  // 1. 상태 및 훅
-  const [isModalRequested, setIsModalRequested] = useState(false);
-
-  // 인증이 끝났거나 시간이 지났으면 QR 을 띄워둘 이유가 없다.
-  // 상태를 지우는 대신 이렇게 파생시켜야 렌더 도중에 상태를 바꾸지 않는다.
-  const isModalOpen =
-    isModalRequested &&
-    status === 'waiting' &&
-    qrCode !== null &&
-    code !== null;
-
-  // 2. 이벤트 핸들러
-  const handleStart = () => {
-    setIsModalRequested(true);
-    onStart();
-  };
-
-  // 3. 렌더링
   const isIssuing = status === 'issuing';
-  const isWaiting = status === 'waiting';
-
-  const buttonLabel = isIssuing
-    ? 'QR 코드 준비 중'
-    : isWaiting
-      ? `QR 코드 다시 보기 · ${formatSecondsLeft(secondsLeft)}`
-      : status === 'idle'
-        ? 'QR 코드 확인하기'
-        : 'QR 코드 다시 받기';
-
-  const handleButtonClick = () => {
-    // 대기 중이면 이미 받아둔 QR 을 다시 띄우기만 한다 - 코드를 새로 받으면
-    // 사용자가 방금 보낸 문자가 헛것이 된다
-    if (isWaiting) {
-      setIsModalRequested(true);
-      return;
-    }
-
-    handleStart();
-  };
+  const isWaiting = status === 'waiting' && qrCode !== null;
+  const startLabel = status === 'idle' ? 'QR 코드 확인하기' : '다시 받기';
 
   return (
     <div className="flex flex-col gap-2 rounded-md bg-background-subtle p-3">
       <p className="text-10 text-text-secondary">
-        QR 을 휴대폰으로 찍어 {OCTOMO_RECEIVER_NUMBER} 로 문자를 보내면 인증이
-        완료됩니다.
+        휴대폰으로 QR 을 찍으면 문자 앱이 열립니다. 내용을 고치지 말고 그대로
+        보내주세요. (받는 번호 {OCTOMO_RECEIVER_NUMBER})
       </p>
 
       {isVerified ? (
@@ -104,9 +64,38 @@ export default function MoVerification({
         </p>
       ) : (
         <>
+          {isWaiting && (
+            /*
+              QR 을 글자 옆에 두면 안 된다 - 카드가 대화 폭의 80%라 QR(120)을 빼고
+              나면 글자에 45px 밖에 안 남아 한두 자씩 끊긴다. 위아래로 쌓는다.
+            */
+            <div className="flex flex-col items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element --
+                  OCTOMO 가 돌려주는 PNG data URL 이라 next/image 가 최적화할 대상이
+                  아니고, 문서가 지원한다고 밝힌 src 형태도 아니다. */}
+              <img
+                src={qrCode}
+                alt={`인증 문자용 QR 코드. 문자 내용은 ${code} 입니다`}
+                width={160}
+                height={160}
+                className="rounded-sm bg-background-default"
+              />
+
+              <div className="flex flex-col items-center gap-1">
+                <p className="text-12 font-medium text-text-primary">
+                  문자 수신을 기다리는 중
+                </p>
+                <p className="text-10 text-text-secondary">인증 내용 {code}</p>
+                <p className="text-10 font-medium text-action-primary">
+                  {formatSecondsLeft(secondsLeft)} 남음
+                </p>
+              </div>
+            </div>
+          )}
+
           {status === 'expired' && (
             <p className="text-10 text-status-error">
-              시간이 지났습니다. QR 코드를 다시 받아주세요.
+              시간이 지났습니다. 인증 문자를 다시 받아주세요.
             </p>
           )}
 
@@ -122,21 +111,12 @@ export default function MoVerification({
             gap="sm"
             isFullWidth
             disabled={!isMobileNumValid || isIssuing}
-            onClick={handleButtonClick}
+            onClick={onStart}
           >
-            <QrCode size={14} strokeWidth={1.5} aria-hidden />
-            {buttonLabel}
+            <RotateCcw size={14} strokeWidth={1.5} aria-hidden />
+            {isIssuing ? '인증 문자 준비 중' : startLabel}
           </Button>
         </>
-      )}
-
-      {isModalOpen && (
-        <MoQrModal
-          qrCode={qrCode}
-          code={code}
-          secondsLeftLabel={formatSecondsLeft(secondsLeft)}
-          onClose={() => setIsModalRequested(false)}
-        />
       )}
     </div>
   );
