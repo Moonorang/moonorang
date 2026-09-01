@@ -37,7 +37,7 @@ export default function CarouselIndicator({
             onClick={() => onSelect?.(index)}
             className={cn(
               'h-2 w-2 cursor-pointer rounded-full transition-all duration-300',
-              isActive ? 'bg-background-default' : 'bg-text-secondary',
+              isActive ? 'w-5 bg-action-primary' : 'bg-background-default',
             )}
           />
         );
