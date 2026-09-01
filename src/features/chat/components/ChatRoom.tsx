@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import AiMessage from '@/features/chat/components/AiMessage';
+import ChatConflictModal from '@/features/chat/components/ChatConflictModal';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
 import ConditionQuestionCard from '@/features/chat/components/ConditionQuestionCard';
@@ -85,6 +86,7 @@ export default function ChatRoom({
     keywords,
     summary,
     joinBlocks,
+    chatConflict,
     sendMessage,
     retry,
     reset,
@@ -92,6 +94,8 @@ export default function ChatRoom({
     setKeywordValue,
     pruneVisibleMessages,
     stopGeneration,
+    keepBothConversations,
+    discardGuestConversation,
   } = useChat(isLoggedIn);
   const conditionQuestions = useConditionQuestions();
 
@@ -399,6 +403,14 @@ export default function ChatRoom({
         onStop={stopGeneration}
         isLocked={isConditionFreeTextEditing}
       />
+
+      {chatConflict && (
+        <ChatConflictModal
+          guestMessageCount={chatConflict.guestMessageCount}
+          onKeepBoth={keepBothConversations}
+          onDiscardGuest={discardGuestConversation}
+        />
+      )}
     </div>
   );
 }

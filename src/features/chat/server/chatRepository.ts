@@ -98,26 +98,33 @@ export async function insertMessage(
   return mapMessageRow(data);
 }
 
-/** 여러 메시지를 한 번에 저장한다(카드 마커처럼 여러 행이 한 세트로 붙는 경우) -
- * 배열 순서 그대로 저장돼서, chat_messages의 id/created_at 순서도 그 순서를 따른다. */
+/** 여러 메시지를 한 번에 저장한다(카드 마커처럼 여러 행이 한 세트로 붙는 경우, 또는
+ * 비회원 대화 승계처럼 한 세션 전체를 한 번에 넣는 경우) - 배열 순서 그대로 저장돼서,
+ * chat_messages의 id/created_at 순서도 그 순서를 따른다(한 INSERT 문이라 여러 요청을
+ * 동시에 보낼 때처럼 순서가 뒤바뀔 위험이 없다). */
 export async function insertMessages(
   chatId: string,
   rows: { role: 'user' | 'ai'; content: string }[],
-): Promise<void> {
-  if (rows.length === 0) return;
+): Promise<DbChatMessage[]> {
+  if (rows.length === 0) return [];
 
   const supabase = await createClient();
-  const { error } = await supabase.from('chat_messages').insert(
-    rows.map((row) => ({
-      chat_id: chatId,
-      sender_type: row.role === 'user' ? 'USER' : 'AI',
-      content: row.content,
-    })),
-  );
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .insert(
+      rows.map((row) => ({
+        chat_id: chatId,
+        sender_type: row.role === 'user' ? 'USER' : 'AI',
+        content: row.content,
+      })),
+    )
+    .select('id, sender_type, content, created_at')
+    .returns<ChatMessageRow[]>();
 
   if (error) {
     throw new Error(`메시지 저장 실패: ${error.message}`);
   }
+  return (data ?? []).map(mapMessageRow);
 }
 
 /**

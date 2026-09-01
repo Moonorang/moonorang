@@ -7,7 +7,12 @@ import {
   SUMMARIZE_KEEP_RECENT_TURNS,
   SUMMARIZE_TURN_THRESHOLD,
 } from '@/features/chat/constants';
-import { loadChatState, saveChatState, clearChatState } from '@/features/chat/lib/chatStorage';
+import {
+  loadChatState,
+  saveChatState,
+  clearChatState,
+  type StoredChatState,
+} from '@/features/chat/lib/chatStorage';
 import { parseSSEEvent } from '@/features/chat/lib/sse';
 import {
   pruneSummarizedMessages,
@@ -35,6 +40,16 @@ interface MemberChatHistoryResponse {
   messages: ChatMessage[];
   joinBlocks: PlanJoinBlock[];
   keywords: ChatKeywords;
+}
+
+/**
+ * 로그인 직후, 회원 DB에도 이미 대화가 있고 로그인 전 게스트로 나눈 대화도 남아있는
+ * "진짜 충돌" 상태. 서로 다른 두 대화라 자동으로 합치지 않고 사용자에게 물어본다 -
+ * keepBothConversations(이어서 보기) / discardGuestConversation(게스트 대화 버리기).
+ */
+export interface ChatConflict {
+  /** 로그인 전 게스트로 나눈 메시지 개수 - 모달 문구에 사용 */
+  guestMessageCount: number;
 }
 
 /**
@@ -88,6 +103,51 @@ export function useChat(isLoggedIn: boolean | undefined) {
   // messages 중 앞에서부터 몇 턴이 summary에 이미 반영됐는지
   const summarizedTurnCountRef = useRef(0);
 
+  // 로그인 직후 회원 DB 대화와 게스트 대화가 둘 다 있어서 사용자에게 물어봐야 할 때
+  // (아래 하이드레이션 effect) 잠깐 들고 있는 자리 - 모달에서 고른 답이 나오기 전까지는
+  // 화면을 어느 쪽으로도 확정하지 않는다.
+  const [chatConflict, setChatConflict] = useState<ChatConflict | null>(null);
+  const pendingGuestRef = useRef<StoredChatState | null>(null);
+  const pendingMemberRef = useRef<MemberChatHistoryResponse | null>(null);
+
+  const applyMemberHistory = useCallback((data: MemberChatHistoryResponse) => {
+    messagesRef.current = data.messages;
+    keywordsRef.current = data.keywords;
+    joinBlocksRef.current = data.joinBlocks;
+    summaryRef.current = '';
+    summarizedTurnCountRef.current = 0;
+
+    setMessages(data.messages);
+    setKeywords(data.keywords);
+    setJoinBlocks(data.joinBlocks);
+    setSummary('');
+  }, []);
+
+  /** 게스트 대화를 서버로 승계한 뒤, 승계가 반영된 최신 기록을 다시 받아와 화면에 반영한다. */
+  const migrateGuestToMember = useCallback(
+    (guestStored: StoredChatState) =>
+      fetch('/api/chat/migrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: guestStored.messages,
+          joinBlocks: guestStored.joinBlocks,
+          keywords: guestStored.keywords,
+          summary: guestStored.summary || undefined,
+        }),
+      })
+        .then(() => fetch('/api/chat/history'))
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data: MemberChatHistoryResponse | null) => {
+          if (data) applyMemberHistory(data);
+
+          // 이제 이 대화의 진짜 주인은 DB다 - 로컬에 남겨두면 다음에 이 브라우저로
+          // 로그아웃 후 다시 게스트로 쓸 때 지난 대화가 엉뚱하게 다시 나타난다.
+          clearChatState();
+        }),
+    [applyMemberHistory],
+  );
+
   // 로그인 여부가 확인되면 딱 한 번만 복구한다(hasHydratedRef) - 회원이면 서버에서,
   // 아니면 localStorage에서. 초기값을 lazy useState로 곧바로 채우면 서버가 그린 빈
   // 화면과 달라져 하이드레이션이 어긋나므로, 반드시 effect에서 복구해야 한다 - 리스트
@@ -103,18 +163,35 @@ export function useChat(isLoggedIn: boolean | undefined) {
     hasHydratedRef.current = true;
 
     if (isLoggedIn) {
+      // 카카오 로그인(useAuth.ts의 signInWithOAuth)은 실제 페이지 리다이렉트를
+      // 거쳤다 돌아오므로, "게스트로 대화하다 로그인"도 이 컴포넌트 입장에서는
+      // 매번 새 마운트다 - isLoggedIn이 처음부터 true라 로그인 "전환"을 메모리
+      // 안에서 감지할 수 없다. 그래서 회원으로 확인될 때마다 localStorage에 아직
+      // 안 옮겨진 게스트 대화가 남아있는지를 직접 확인한다.
+      const guestStored = loadChatState();
+      const hasGuestConversation = Boolean(guestStored && guestStored.messages.length > 0);
+
       fetch('/api/chat/history')
         .then((response) => (response.ok ? response.json() : null))
         .then((data: MemberChatHistoryResponse | null) => {
           if (!data) return;
 
-          messagesRef.current = data.messages;
-          keywordsRef.current = data.keywords;
-          joinBlocksRef.current = data.joinBlocks;
+          if (hasGuestConversation && guestStored && data.messages.length > 0) {
+            // 회원 DB에도 이미 대화가 있고, 로그인 전 게스트로 나눈 대화도 있다 -
+            // 서로 다른 두 대화라 자동으로 합치지 않고 사용자에게 물어본다.
+            pendingGuestRef.current = guestStored;
+            pendingMemberRef.current = data;
+            setChatConflict({ guestMessageCount: guestStored.messages.length });
+            return;
+          }
 
-          setMessages(data.messages);
-          setKeywords(data.keywords);
-          setJoinBlocks(data.joinBlocks);
+          if (hasGuestConversation && guestStored) {
+            // 회원 DB가 비어있으면(첫 대화) 충돌이 아니므로 그냥 이어붙인다.
+            void migrateGuestToMember(guestStored);
+            return;
+          }
+
+          applyMemberHistory(data);
         })
         .catch(() => {
           // 복구 실패해도 빈 대화로 시작 - 채팅 자체는 막지 않는다(NFR-006과 같은 취지)
@@ -139,7 +216,58 @@ export function useChat(isLoggedIn: boolean | undefined) {
     setSummary(stored.summary);
     setJoinBlocks(stored.joinBlocks);
     /* eslint-enable react-hooks/set-state-in-effect */
+  }, [isLoggedIn, applyMemberHistory, migrateGuestToMember]);
+
+  // 로그아웃(회원 -> 비회원) 전환을 감지해서 화면 상태를 비운다. 위 하이드레이션
+  // effect와 별개로 두는 이유: 하이드레이션은 "이번에 로그인 상태가 뭐였는지"를 딱
+  // 한 번만 보고 끝나는데, 이건 "로그인 상태가 도중에 바뀌었는지"라는 다른 질문이라
+  // isLoggedIn의 이전 값과 비교해야 한다.
+  //
+  // 로그인(비회원 -> 회원) 쪽은 여기서 다루지 않는다 - 카카오 로그인은 항상 페이지
+  // 리다이렉트를 거쳐 돌아오므로, 그 전환이 이 컴포넌트 안에서 관찰된 적이 없다
+  // (항상 새로 마운트되며 isLoggedIn이 처음부터 true로 확인된다). 그 경로는 위
+  // 하이드레이션 effect가 맡는다.
+  const prevIsLoggedInRef = useRef<boolean | undefined>(undefined);
+
+  useEffect(() => {
+    const previous = prevIsLoggedInRef.current;
+    prevIsLoggedInRef.current = isLoggedIn;
+
+    if (previous !== true || isLoggedIn !== false) return;
+
+    // 방금까지 보던 회원 대화가 이어지는 게스트 대화에 섞여 들어가면 안 되므로
+    // 화면 상태를 비운다. 서버 쪽 데이터는 그대로 그 계정에 남아있다가, 다시
+    // 로그인하면(페이지가 다시 마운트되며) 위 하이드레이션 effect가 복구한다.
+    messagesRef.current = [];
+    keywordsRef.current = {};
+    summaryRef.current = '';
+    summarizedTurnCountRef.current = 0;
+    joinBlocksRef.current = [];
+
+    setMessages([]);
+    setKeywords({});
+    setSummary('');
+    setJoinBlocks([]);
   }, [isLoggedIn]);
+
+  /** 충돌 모달에서 "이어서 보기"를 선택 - 게스트 대화를 회원 DB 대화 뒤에 이어붙인다. */
+  const keepBothConversations = useCallback(() => {
+    const guestStored = pendingGuestRef.current;
+    setChatConflict(null);
+    pendingGuestRef.current = null;
+    pendingMemberRef.current = null;
+    if (guestStored) void migrateGuestToMember(guestStored);
+  }, [migrateGuestToMember]);
+
+  /** 충돌 모달에서 "게스트 대화 버리기"를 선택 - 회원 DB 대화만 남긴다. */
+  const discardGuestConversation = useCallback(() => {
+    const memberData = pendingMemberRef.current;
+    setChatConflict(null);
+    pendingGuestRef.current = null;
+    pendingMemberRef.current = null;
+    clearChatState();
+    if (memberData) applyMemberHistory(memberData);
+  }, [applyMemberHistory]);
 
   const persist = useCallback(() => {
     // 회원은 서버(chatStream.ts/join/reset 엔드포인트)가 이미 DB에 저장해줘서
@@ -524,6 +652,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     keywords,
     summary,
     joinBlocks,
+    chatConflict,
     sendMessage,
     retry,
     reset,
@@ -531,5 +660,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     setKeywordValue,
     pruneVisibleMessages,
     stopGeneration,
+    keepBothConversations,
+    discardGuestConversation,
   };
 }
