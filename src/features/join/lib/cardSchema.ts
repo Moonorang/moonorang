@@ -25,32 +25,6 @@ export function isAmexNumber(digits: string): boolean {
   return digits.startsWith('34') || digits.startsWith('37');
 }
 
-/**
- * 카드번호 체크섬(Luhn). 실제 카드사가 오타를 거를 때 쓰는 것과 같은 방식이라,
- * 자릿수만 맞고 아무렇게나 찍은 번호는 여기서 걸린다.
- *
- * 오른쪽부터 한 자리 건너 두 배로 만들고, 두 자리가 되면 9를 빼서 모두 더한다.
- * 합이 10의 배수면 통과다.
- */
-export function isLuhnValid(digits: string): boolean {
-  let sum = 0;
-  let isDoubling = false;
-
-  for (let index = digits.length - 1; index >= 0; index -= 1) {
-    let value = Number(digits[index]);
-
-    if (isDoubling) {
-      value *= 2;
-      if (value > 9) value -= 9;
-    }
-
-    sum += value;
-    isDoubling = !isDoubling;
-  }
-
-  return sum % 10 === 0;
-}
-
 /** 카드는 표기된 달의 말일까지 쓸 수 있다 - 이번 달이면 아직 유효하다 */
 function isUsableExpiry(digits: string): boolean {
   const month = Number(digits.slice(0, 2));
@@ -65,22 +39,21 @@ function isUsableExpiry(digits: string): boolean {
   );
 }
 
-/** CARD-038 / CARD-039: 카드 등록 입력값과 항목별 오류 문구 */
+/**
+ * CARD-038 / CARD-039: 카드 등록 입력값과 항목별 오류 문구.
+ *
+ * 더미 처리라 카드번호는 자릿수만 본다 - 실제 카드사가 쓰는 체크섬(Luhn)까지
+ * 걸면 시연할 때 아무 번호나 못 넣게 되고, 얻는 것도 없다.
+ */
 export const cardSchema = z.object({
   issuer: z.string().refine(isCardIssuer, '카드사를 선택해 주세요'),
-  cardNumber: z
-    .string()
-    .refine((value) => {
-      const digits = toDigits(value);
+  cardNumber: z.string().refine((value) => {
+    const digits = toDigits(value);
 
-      return (
-        digits.length === (isAmexNumber(digits) ? AMEX_LENGTH : DEFAULT_LENGTH)
-      );
-    }, '카드 번호를 정확히 입력해 주세요')
-    .refine(
-      (value) => isLuhnValid(toDigits(value)),
-      '카드 번호를 다시 확인해 주세요',
-    ),
+    return (
+      digits.length === (isAmexNumber(digits) ? AMEX_LENGTH : DEFAULT_LENGTH)
+    );
+  }, '카드 번호를 정확히 입력해 주세요'),
   expiry: z
     .string()
     .refine(
