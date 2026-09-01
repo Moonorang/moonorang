@@ -3,7 +3,6 @@ export { default as AiMessage } from './components/AiMessage';
 export { default as ChatRoom } from './components/ChatRoom';
 export { default as ChatAvatar } from './components/ChatAvatar';
 export { default as ChatBubble } from './components/ChatBubble';
-export { default as ConditionEntryChips } from './components/ConditionEntryChips';
 export { default as ConditionQuestionCard } from './components/ConditionQuestionCard';
 export { default as ChatErrorNotice } from './components/ChatErrorNotice';
 export { default as ChatInput } from './components/ChatInput';

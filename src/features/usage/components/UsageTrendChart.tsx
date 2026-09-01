@@ -26,12 +26,13 @@ const PADDING_RIGHT = 12;
 const PADDING_TOP = 22;
 const PADDING_BOTTOM = 24;
 const MAX_BAR_WIDTH = 32;
-// y축 그리드라인을 (사용량 구간) 스케일 대비 몇 % 지점에 그릴지
+// y축 그리드라인을 스케일 대비 몇 % 지점에 그릴지 - 맨 아래(0)는 항상 0,
+// 맨 위(1)는 usageScaleTop, 중간(0.5)은 그 정중앙이다.
 const GRID_STEPS = [0, 0.5, 1];
-// 요금제 제공량이 실사용량보다 이 배수 넘게 크면, 축을 위쪽에서 압축한다(아래 설명).
-const BREAK_RATIO = 1.3;
-// 압축 구간이 전체 높이에서 차지하는 비율 - 나머지 아래쪽은 사용량 구간에 온전히 쓴다.
-const COMPRESSED_ZONE_RATIO = 0.22;
+// 평균선과 한계선의 y좌표가 이보다 가까우면(=사용량이 제공량에 거의 다 찬 상황) 따로
+// 안 그리고 하나로 합쳐서 그린다 - 두 선 다 같은 점선 패턴이라 겹치면 나중에 그려지는
+// 한계선이 평균선을 완전히 가리기 때문. 이 값보다 멀면 원래 위치에 각자 그린다.
+const LINE_MERGE_THRESHOLD = 6;
 const BAR_GRADIENT_ID = 'usage-trend-bar-gradient';
 
 function formatMonthLabel(billingMonth: string): string {
@@ -63,35 +64,26 @@ export default function UsageTrendChart({
   const plotHeight = VIEW_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
   const baselineY = PADDING_TOP + plotHeight;
 
-  // 사용량(막대·평균)은 항상 아래쪽 구간에서 자기들끼리 온전한 해상도로 그린다 - 3개월
-  // 값 차이가 작아도 실제 오르내림이 그대로 보이도록. 요금제 제공량이 사용량보다 훨씬
-  // 크면(=절약 여지가 큰 상황) 그 값을 같은 선형 축에 넣지 않는다 - 그러면 사용량 막대가
-  // 전부 바닥에 눌려붙어 서로 구별이 안 되기 때문이다. 대신 위쪽 일부 구간(22%)을
-  // "압축 구간"으로 떼어, 한계선은 그 구간 안 어딘가에(스케일과 무관하게) 항상 그린다 -
-  // 실제 값은 라벨이 그대로 보여주므로 위치가 정확히 비례하지 않아도 정보 손실은 없다.
-  const usageMax = Math.max(...points.map((point) => point.dataUsedMb), averageMb, 1);
-  const usageScaleTop = usageMax * BREAK_RATIO;
-  const needsScaleBreak = planLimitMb !== null && planLimitMb > usageScaleTop;
+  // y축 상한 - 3개월 사용량 중 최댓값과 요금제 제공량을 비교해서 더 큰 쪽으로 정한다.
+  // 사용량이 제공량보다 크면(이미 넘어섰거나 근접) 사용량 기준, 사용량이 제공량보다
+  // 작으면(여유 있음) 제공량 기준. 이러면 막대·평균선·한계선이 전부 하나의 선형 축
+  // 안에서 실제 비율 그대로 그려져서, 별도의 "압축 구간" 같은 예외 처리가 필요 없다.
+  const usagePointsMax = Math.max(...points.map((point) => point.dataUsedMb));
+  const usageScaleTop = Math.max(usagePointsMax, planLimitMb ?? 0, 1);
 
-  const compressedZoneHeight = needsScaleBreak ? plotHeight * COMPRESSED_ZONE_RATIO : 0;
-  const usageZoneHeight = plotHeight - compressedZoneHeight;
-  const usageZoneTopY = baselineY - usageZoneHeight;
-
-  const valueToY = (mb: number) => {
-    if (!needsScaleBreak || mb <= usageScaleTop) {
-      return baselineY - (mb / usageScaleTop) * usageZoneHeight;
-    }
-    // 압축 구간: [usageScaleTop, planLimitMb] -> [usageZoneTopY, PADDING_TOP]
-    const span = (planLimitMb as number) - usageScaleTop;
-    const fraction = span > 0 ? (mb - usageScaleTop) / span : 1;
-    return usageZoneTopY - fraction * compressedZoneHeight;
-  };
+  const valueToY = (mb: number) => baselineY - (mb / usageScaleTop) * plotHeight;
 
   const slotWidth = plotWidth / points.length;
   const barWidth = Math.min(MAX_BAR_WIDTH, slotWidth * 0.6);
 
   const averageY = valueToY(averageMb);
   const limitY = planLimitMb !== null ? valueToY(planLimitMb) : null;
+
+  // 평균선과 한계선의 y좌표가 너무 가까우면(=사용량이 제공량에 거의 다 찬 상황) 따로
+  // 안 그리고, 두 색을 섞은 굵은 선 하나로 합쳐서 그린다 - "둘이 사실상 같다"는 걸
+  // 위치가 아니라 색 자체로 보여주는 게 억지로 갈라놓는 것보다 더 정확한 표현이다.
+  const isMerged = limitY !== null && Math.abs(limitY - averageY) < LINE_MERGE_THRESHOLD;
+  const mergedY = isMerged && limitY !== null ? (averageY + limitY) / 2 : null;
 
   // 막대 위치/크기는 SVG 도형과 HTML 라벨 양쪽에서 똑같이 써야 해서 한 번만 계산해둔다.
   const bars = points.map((point, index) => {
@@ -138,14 +130,14 @@ export default function UsageTrendChart({
             </linearGradient>
           </defs>
 
-          {/* y축 그리드라인 - 사용량 구간(막대가 실제로 그려지는 범위) 기준 */}
+          {/* y축 그리드라인 - 0(맨 아래) / usageScaleTop(맨 위) / 그 중간 */}
           {GRID_STEPS.map((step) => (
             <line
               key={step}
               x1={PADDING_LEFT}
               x2={VIEW_WIDTH - PADDING_RIGHT}
-              y1={baselineY - step * usageZoneHeight}
-              y2={baselineY - step * usageZoneHeight}
+              y1={baselineY - step * plotHeight}
+              y2={baselineY - step * plotHeight}
               className="stroke-border-default"
               strokeWidth={1}
             />
@@ -164,30 +156,50 @@ export default function UsageTrendChart({
             />
           ))}
 
-          {/* 평균선 - action-primary로 눈에 띄게 */}
-          <line
-            x1={PADDING_LEFT}
-            x2={VIEW_WIDTH - PADDING_RIGHT}
-            y1={averageY}
-            y2={averageY}
-            className="stroke-action-primary"
-            strokeWidth={2}
-            strokeDasharray="1 4"
-            strokeLinecap="round"
-          />
-
-          {/* 요금제 한계선 - 무제한이면 생략 */}
-          {limitY !== null && (
+          {mergedY !== null ? (
+            // 평균 사용량과 요금제 제공량이 사실상 같은 위치라, 두 색을 섞은 굵은
+            // 선 하나로 합쳐서 그린다(강조 목적으로 일반 선보다 굵게).
             <line
               x1={PADDING_LEFT}
               x2={VIEW_WIDTH - PADDING_RIGHT}
-              y1={limitY}
-              y2={limitY}
-              className="stroke-status-warning"
-              strokeWidth={2}
+              y1={mergedY}
+              y2={mergedY}
+              style={{
+                stroke:
+                  'color-mix(in srgb, var(--color-action-primary) 50%, var(--color-status-warning) 50%)',
+              }}
+              strokeWidth={4}
               strokeDasharray="1 4"
               strokeLinecap="round"
             />
+          ) : (
+            <>
+              {/* 평균선 - action-primary로 눈에 띄게 */}
+              <line
+                x1={PADDING_LEFT}
+                x2={VIEW_WIDTH - PADDING_RIGHT}
+                y1={averageY}
+                y2={averageY}
+                className="stroke-action-primary"
+                strokeWidth={2}
+                strokeDasharray="1 4"
+                strokeLinecap="round"
+              />
+
+              {/* 요금제 한계선 - 무제한이면 생략 */}
+              {limitY !== null && (
+                <line
+                  x1={PADDING_LEFT}
+                  x2={VIEW_WIDTH - PADDING_RIGHT}
+                  y1={limitY}
+                  y2={limitY}
+                  className="stroke-status-warning"
+                  strokeWidth={2}
+                  strokeDasharray="1 4"
+                  strokeLinecap="round"
+                />
+              )}
+            </>
           )}
         </svg>
 
@@ -198,7 +210,7 @@ export default function UsageTrendChart({
             <span
               key={step}
               className="absolute -translate-x-full -translate-y-1/2 text-10 whitespace-nowrap text-text-secondary"
-              style={{ left: xPct(PADDING_LEFT - 6), top: yPct(baselineY - step * usageZoneHeight) }}
+              style={{ left: xPct(PADDING_LEFT - 6), top: yPct(baselineY - step * plotHeight) }}
             >
               {formatMbLabel(usageScaleTop * step)}
             </span>
@@ -224,16 +236,17 @@ export default function UsageTrendChart({
         </div>
       </div>
 
-      {/* 범례 - 평균선/한계선은 색만으로 구분하지 않도록 글자로 이름을 붙인다 */}
-      <div className="flex items-center gap-4 px-1 text-10 text-text-secondary">
+      {/* 범례 - 선이 겹쳐서 하나로 합쳐 그려진 경우에도, 평균/제공량 자체는 서로 다른
+          값이므로 항상 각자 따로 표시한다(색만으로 구분하지 않도록 글자도 붙임). */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-10 text-text-secondary">
         <span className="flex items-center gap-1.5">
           <span className="h-0 w-3 border-t-2 border-dotted border-action-primary" />
-          평균 사용량
+          평균 사용량 {formatMbLabel(averageMb)}
         </span>
         {planLimitMb !== null && (
           <span className="flex items-center gap-1.5">
             <span className="h-0 w-3 border-t-2 border-dotted border-status-warning" />
-            요금제 제공량
+            요금제 제공량 {formatMbLabel(planLimitMb)}
           </span>
         )}
       </div>

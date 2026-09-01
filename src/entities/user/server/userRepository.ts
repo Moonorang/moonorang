@@ -60,8 +60,11 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   };
 }
 
+const MB_PER_GB = 1024;
+
 interface MonthlyUsageRow {
   billing_month: string;
+  /** 컬럼명과 달리(users.remaining_data/data_limit과 같은 함정) 실제 저장 단위는 GB다. */
   data_used_mb: number;
 }
 
@@ -89,7 +92,10 @@ export async function getRecentMonthlyUsage(
   return (data ?? [])
     .map((row) => ({
       billingMonth: row.billing_month,
-      dataUsedMb: row.data_used_mb,
+      // GB로 저장된 값을 실제 MB로 변환한다 - MonthlyUsage.dataUsedMb는 이후
+      // buildUsageTrend/UsageTrendChart가 전부 진짜 MB로 취급하므로 여기서 맞춰둬야
+      // 나머지 파이프라인을 안 건드리고 이 함정 하나만 흡수할 수 있다.
+      dataUsedMb: row.data_used_mb * MB_PER_GB,
     }))
     .reverse();
 }

@@ -26,18 +26,10 @@ interface QuestionCardProps {
   onNext: () => void;
   onSkip: () => void;
   onClose: () => void;
-  /** 선택지 아래 추가 영역. 조건 수집의 기타(직접 입력)가 여기 들어간다 */
   children?: ReactNode;
+  hideSkip?: boolean;
 }
 
-/**
- * CARD-008~011: 대화 안에 카드로 뜨는 선택형 질문 카드.
- * 성향 검사와 추천 조건 수집이 같은 디자인을 쓰므로 도메인 타입을 모르게 두고,
- * 문항·선택지를 그대로 받는다.
- *
- * 모양은 전부 이 안에서 결정한다 - 바깥에서 className 으로 덮어쓰지 않는다.
- * 배치가 필요하면 호출부에서 감싸는 요소에 준다.
- */
 export default function QuestionCard({
   title,
   imageSrc,
@@ -52,6 +44,7 @@ export default function QuestionCard({
   onSkip,
   onClose,
   children,
+  hideSkip = false,
 }: QuestionCardProps) {
   // TEST-004 / CARD-010: 현재 문항 기준 진행률
   const progressPercent = ((currentIndex + 1) / total) * 100;
@@ -62,9 +55,7 @@ export default function QuestionCard({
       <div className="flex flex-col">
         <div className="flex items-center gap-1">
           <Image src={imageSrc} alt="" width={30} height={35} />
-          <span className="text-10 font-medium text-action-secondary">
-            {title}
-          </span>
+          <span className="text-text-main text-10">{title}</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-border-default">
           <div
@@ -140,22 +131,26 @@ export default function QuestionCard({
                   >
                     {index + 1}
                   </span>
-                  <span className="text-10 text-text-primary">{option.label}</span>
+                  <span className="text-10 text-text-primary">
+                    {option.label}
+                  </span>
                 </button>
                 <div className="h-px w-full bg-border-default" />
               </div>
             );
           })}
 
-          {/* 기타(직접 입력) 등 호출부가 덧붙이는 영역 (CARD-011) */}
+          {/* 기타(직접 입력) 등 호출부가 덧붙이는 영역 (CARD-011) - 선택지와 같은 줄 모양 */}
           {children}
 
-          {/* 건너뛰기 (CARD-011) */}
-          <div className="flex h-6 items-center justify-end px-1">
-            <Button variant="outline" radius="sm" size="sm" onClick={onSkip}>
-              건너뛰기
-            </Button>
-          </div>
+          {/* 건너뛰기 (CARD-011) - hideSkip이면 children 쪽에서 직접 그린다 */}
+          {!hideSkip && (
+            <div className="flex h-6 items-center justify-end px-1">
+              <Button variant="outline" radius="sm" size="sm" onClick={onSkip}>
+                건너뛰기
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
