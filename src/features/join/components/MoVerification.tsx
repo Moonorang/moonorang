@@ -48,7 +48,7 @@ export default function MoVerification({
 }: MoVerificationProps) {
   const isIssuing = status === 'issuing';
   const isWaiting = status === 'waiting' && qrCode !== null;
-  const startLabel = status === 'idle' ? '인증 문자 보내기' : '다시 받기';
+  const startLabel = status === 'idle' ? 'QR 코드 확인하기' : '다시 받기';
 
   return (
     <div className="flex flex-col gap-2 rounded-md bg-background-subtle p-3">
@@ -65,19 +65,23 @@ export default function MoVerification({
       ) : (
         <>
           {isWaiting && (
-            <div className="flex items-center gap-3">
+            /*
+              QR 을 글자 옆에 두면 안 된다 - 카드가 대화 폭의 80%라 QR(120)을 빼고
+              나면 글자에 45px 밖에 안 남아 한두 자씩 끊긴다. 위아래로 쌓는다.
+            */
+            <div className="flex flex-col items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element --
                   OCTOMO 가 돌려주는 PNG data URL 이라 next/image 가 최적화할 대상이
                   아니고, 문서가 지원한다고 밝힌 src 형태도 아니다. */}
               <img
                 src={qrCode}
                 alt={`인증 문자용 QR 코드. 문자 내용은 ${code} 입니다`}
-                width={120}
-                height={120}
+                width={160}
+                height={160}
                 className="rounded-sm bg-background-default"
               />
 
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col items-center gap-1">
                 <p className="text-12 font-medium text-text-primary">
                   문자 수신을 기다리는 중
                 </p>
