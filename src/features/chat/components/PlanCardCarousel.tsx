@@ -19,6 +19,26 @@ const CARD_WIDTH = 'w-[80%]';
 // 스크롤이 멎었다고 보는 시간
 const SCROLL_SETTLE_MS = 100;
 
+/**
+ * 프로그램으로 카드를 옮긴다.
+ *
+ * mandatory 스냅이 걸린 채로 smooth 스크롤을 걸면 브라우저가 이동 도중에 곧바로
+ * 스냅 지점으로 붙여버려서, 스르륵 넘어가지 않고 툭 바뀐다. 그래서 옮기는 동안만
+ * 스냅을 꺼둔다 - 멎은 뒤 restoreSnap 으로 되돌린다.
+ */
+function slideTo(element: HTMLDivElement, index: number): void {
+  element.style.scrollSnapType = 'none';
+  element.scrollTo({
+    left: index * element.clientWidth,
+    behavior: 'smooth',
+  });
+}
+
+/** 손으로 미는 스와이프는 다시 스냅이 걸려야 한 장씩 딱 붙는다 */
+function restoreSnap(element: HTMLDivElement): void {
+  element.style.scrollSnapType = '';
+}
+
 interface PlanCardCarouselProps {
   recommendations: PlanRecommendation[];
   // 신청하기 - 누른 카드의 요금제를 그대로 넘긴다
@@ -76,8 +96,12 @@ export default function PlanCardCarousel({
       setActiveIndex(nextIndex);
 
       if (landed !== nextIndex) {
-        element.scrollTo({ left: nextIndex * step, behavior: 'smooth' });
+        // 되돌리는 이동도 스냅을 끈 채로 - 이 스크롤이 멎으면 여기로 다시 들어온다
+        slideTo(element, nextIndex);
+        return;
       }
+
+      restoreSnap(element);
     }, SCROLL_SETTLE_MS);
   };
 
@@ -95,10 +119,7 @@ export default function PlanCardCarousel({
       recommendations.length - 1,
     );
 
-    element.scrollTo({
-      left: nextIndex * element.clientWidth,
-      behavior: 'smooth',
-    });
+    slideTo(element, nextIndex);
   };
 
   // 인디케이터 점을 누르면 해당 순번의 카드로 스크롤한다.
@@ -108,7 +129,7 @@ export default function PlanCardCarousel({
     const element = scrollAreaRef.current;
     if (!element) return;
 
-    element.scrollTo({ left: index * element.clientWidth, behavior: 'smooth' });
+    slideTo(element, index);
     activeIndexRef.current = index;
     setActiveIndex(index);
   };
