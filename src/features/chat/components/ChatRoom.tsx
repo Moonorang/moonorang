@@ -13,7 +13,7 @@ import PlusMenu from '@/features/chat/components/PlusMenu';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import SuggestionChips from '@/features/chat/components/SuggestionChips';
 import UserMessage from '@/features/chat/components/UserMessage';
-import { WELCOME_CREATED_AT, WELCOME_MESSAGE } from '@/features/chat/constants';
+import { WELCOME_MESSAGE } from '@/features/chat/constants';
 import { useChat } from '@/features/chat/hooks/useChat';
 import { useConditionQuestions } from '@/features/chat/hooks/useConditionQuestions';
 import type { ChatKeywords } from '@/features/chat/types';
@@ -30,14 +30,6 @@ const BOTTOM_THRESHOLD_PX = 24;
  */
 const PLAN_JOIN_GUIDE = `선택하신 요금제의 상세 내용을 확인해주세요!
 선택하신 요금제가 맞으신가요?`;
-
-/** 신청하기로 띄운 가입 카드 한 장 */
-interface PlanJoinBlock {
-  plan: Plan;
-  /** 이 메시지 바로 뒤에 끼워 넣는다 - 대화 순서를 지키기 위한 것 */
-  afterMessageId: string;
-  createdAt: string;
-}
 
 interface ChatRoomProps {
   /**
@@ -80,9 +72,11 @@ export default function ChatRoom({
     error,
     keywords,
     summary,
+    joinBlocks,
     sendMessage,
     retry,
     reset,
+    addJoinBlock,
     setKeywordValue,
     pruneVisibleMessages,
     stopGeneration,
@@ -101,8 +95,6 @@ export default function ChatRoom({
 
   // 바닥에 있는지 여부 - 자동 스크롤 여부와 버튼 노출을 함께 결정한다
   const [isAtBottom, setIsAtBottom] = useState(true);
-  // 신청하기로 띄운 가입 카드들. 대화 이력(messages)과 섞지 않고 따로 들고 있는다
-  const [joinBlocks, setJoinBlocks] = useState<PlanJoinBlock[]>([]);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -207,22 +199,17 @@ export default function ChatRoom({
     }
   };
 
-  // CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다
+  // CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다.
+  // 카드 목록은 useChat이 들고 있다 - 대화 내역과 같이 저장·복구돼야 하기 때문.
   const handleJoin = (plan: Plan, afterMessageId: string) => {
-    // 같은 요금제를 또 누르면 무시한다 - 같은 카드가 여러 장 쌓이지 않게
-    if (joinBlocks.some((block) => block.plan.id === plan.id)) return;
-
     setIsAtBottom(true);
-    setJoinBlocks((prev) => [
-      ...prev,
-      { plan, afterMessageId, createdAt: new Date().toISOString() },
-    ]);
+    addJoinBlock(plan, afterMessageId);
   };
 
   // CHAT-014: 대화를 비울 때 가입 카드도, 조건 수집 진행 상태도 같이 걷어낸다
+  // (가입 카드는 reset이 같이 비운다)
   const handleReset = () => {
     reset();
-    setJoinBlocks([]);
     setConditionAnswers([]);
     setDismissedEntryChipsFor(null);
   };
@@ -274,7 +261,7 @@ export default function ChatRoom({
       >
         {/* 채팅 내역 영역 */}
         <div className="flex flex-col gap-6 px-4 py-6">
-          <AiMessage content={WELCOME_MESSAGE} createdAt={WELCOME_CREATED_AT} />
+          <AiMessage content={WELCOME_MESSAGE} />
 
           {/*
             CHAT-011/012: 오래된 대화가 요약돼서 화면에서는 걷어내진 상태임을 알려주는
@@ -292,14 +279,10 @@ export default function ChatRoom({
           {messages.map((message) => (
             <Fragment key={message.id}>
               {message.role === 'user' ? (
-                <UserMessage
-                  content={message.content}
-                  createdAt={message.createdAt}
-                />
+                <UserMessage content={message.content} />
               ) : (
                 <AiMessage
                   content={message.content}
-                  createdAt={message.createdAt}
                   isStreaming={isStreaming && message.id === lastMessageId}
                 >
                   {message.recommendations &&
@@ -323,9 +306,8 @@ export default function ChatRoom({
                   <Fragment key={block.plan.id}>
                     <UserMessage
                       content={`${block.plan.name} 요금제 가입할래`}
-                      createdAt={block.createdAt}
                     />
-                    <AiMessage content={PLAN_JOIN_GUIDE} createdAt={block.createdAt}>
+                    <AiMessage content={PLAN_JOIN_GUIDE}>
                       {renderJoinFlow?.(block.plan)}
                     </AiMessage>
                   </Fragment>
@@ -356,11 +338,11 @@ export default function ChatRoom({
         {/*
           대화가 짧아도 카드가 위로 밀려 올라가지 않도록 입력창 바로 위에 둔다.
           mt-auto 로 남는 공간을 흡수하고, sticky 로 스크롤해도 자리를 지킨다.
-          scrollport 는 패딩 박스라 bottom-0 이면 고정된 입력창에 가린다 -
-          입력창 높이만큼 띄운다.
+          스크롤 영역이 이미 pb-(--height-chat-input) 로 입력창 자리를 비워두므로
+          여기서 또 띄우면 간격이 두 배가 된다 - bottom-0 으로 그 여백에 붙인다.
         */}
         {resolvedOverlay && (
-          <div className="sticky bottom-(--height-chat-input) z-10 mt-auto px-4 pb-4">
+          <div className="sticky bottom-0 z-10 mt-auto px-4 pb-1">
             {resolvedOverlay}
           </div>
         )}

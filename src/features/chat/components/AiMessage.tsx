@@ -7,11 +7,9 @@ import ReadAloudButton from '@/features/chat/components/ReadAloudButton';
 import TypingIndicator from '@/features/chat/components/TypingIndicator';
 
 import { cn } from '@/shared/utils/cn';
-import type { DateInput } from '@/shared/utils/formatTime';
 
 interface AiMessageProps {
   content: string;
-  createdAt?: DateInput;
   isStreaming?: boolean;
   appendClassName?: string;
   // 말풍선 아래에 붙는 추가 콘텐츠
@@ -20,7 +18,6 @@ interface AiMessageProps {
 
 export default function AiMessage({
   content,
-  createdAt,
   isStreaming = false,
   appendClassName,
   children,
@@ -33,15 +30,17 @@ export default function AiMessage({
       <ChatAvatar />
 
       <div className="flex w-full flex-col items-start gap-2">
-        <ChatBubble variant="ai" createdAt={createdAt}>
+        {/* 답변이 다 나온 뒤에만 읽어주기를 붙인다 - 말풍선 우측 하단 */}
+        <ChatBubble
+          variant="ai"
+          footer={!isStreaming && <ReadAloudButton text={content} />}
+        >
           {isWaitingForFirstToken ? (
             <TypingIndicator />
           ) : (
             <FormattedMessage text={content} />
           )}
         </ChatBubble>
-
-        {!isStreaming && <ReadAloudButton text={content} />}
 
         {children}
       </div>
