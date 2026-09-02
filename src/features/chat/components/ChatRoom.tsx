@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import AddOnRecommendationCard from '@/features/chat/components/AddOnRecommendationCard';
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatConflictModal from '@/features/chat/components/ChatConflictModal';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
@@ -322,6 +323,12 @@ export default function ChatRoom({
                       <PlanCardCarousel
                         recommendations={message.recommendations}
                         onJoin={(plan) => handleJoin(plan, message.id)}
+                      />
+                    )}
+                  {message.addOnRecommendations &&
+                    message.addOnRecommendations.length > 0 && (
+                      <AddOnRecommendationCard
+                        recommendations={message.addOnRecommendations}
                       />
                     )}
                   {message.usageAnalysis &&

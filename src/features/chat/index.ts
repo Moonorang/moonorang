@@ -1,4 +1,5 @@
 // features/chat Public API (클라이언트)
+export { default as AddOnRecommendationCard } from './components/AddOnRecommendationCard';
 export { default as AiMessage } from './components/AiMessage';
 export { default as ChatRoom } from './components/ChatRoom';
 export { default as ChatAvatar } from './components/ChatAvatar';
@@ -25,6 +26,7 @@ export { WELCOME_MESSAGE } from './constants';
 export { parseChatRequest } from './lib/schema';
 export { formatSSEEvent, parseSSEEvent, SSE_HEADERS } from './lib/sse';
 export { selectRecommendedPlans } from './lib/selectPlans';
+export { selectRecommendedAddOns } from './lib/selectAddOns';
 export { mergeKeywords } from './lib/mergeKeywords';
 export type {
   ChatMessage,
@@ -33,8 +35,10 @@ export type {
   ChatRequestBody,
   ChatKeywords,
   PlanRecommendation,
+  AddOnRecommendation,
   SummarizeTurnMessage,
   ChatSummarizeRequestBody,
   ChatSummarizeResponseBody,
 } from './types';
 export type { ScoredPlan, SelectRecommendedPlansResult } from './lib/selectPlans';
+export type { ScoredAddOn } from './lib/selectAddOns';

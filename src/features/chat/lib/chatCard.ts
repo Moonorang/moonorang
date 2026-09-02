@@ -3,6 +3,7 @@ import type { ChatCardPayload } from '@/features/chat/types';
 const CARD_TYPES: ChatCardPayload['type'][] = [
   'join_flow',
   'recommendation',
+  'add_on_recommendation',
   'usage_analysis',
 ];
 

@@ -45,6 +45,16 @@ export async function migrateGuestChat(
       });
     }
 
+    if (message.role === 'ai' && message.addOnRecommendations?.length) {
+      rows.push({
+        role: 'ai',
+        content: serializeCardPayload({
+          type: 'add_on_recommendation',
+          addOns: message.addOnRecommendations,
+        }),
+      });
+    }
+
     if (message.role === 'ai' && message.usageAnalysis) {
       rows.push({
         role: 'ai',

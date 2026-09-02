@@ -1,3 +1,4 @@
+import type { AddOn } from '@/entities/addOn/types';
 import type { Plan } from '@/entities/plan/types';
 import type { ChatKeywords } from '@/features/chat/types';
 
@@ -27,6 +28,18 @@ function formatPlanCatalog(plans: Plan[]): string {
       (plan) =>
         `- id ${plan.id} | ${plan.name} | 월 ${plan.monthlyFee}원 | ${plan.dataAllowance} | ${plan.voiceSms} | 혜택: ${formatBenefits(plan.benefits)}`,
     )
+    .join('\n');
+}
+
+// 부가서비스 목록을 모델이 마무리 응답에서 참조할 수 있는 간략한 카탈로그 문자열로 만듦.
+// plans와 같은 원칙 - 화면에 실제로 표시되는 값은 항상 서버가 DB에서 다시 조회한 값이다.
+function formatAddOnCatalog(addOns: AddOn[]): string {
+  return addOns
+    .map((addOn) => {
+      const fee = addOn.baseMonthlyRate === 0 ? '무료' : `월 ${addOn.baseMonthlyRate}원`;
+      const guide = addOn.description?.guide ?? addOn.subTitle;
+      return `- id ${addOn.id} | ${addOn.title} | ${fee} | ${guide}`;
+    })
     .join('\n');
 }
 
@@ -62,6 +75,7 @@ function formatSummarySection(summary?: string): string {
 
 export function buildSystemPrompt(
   plans: Plan[],
+  addOns: AddOn[],
   keywords: ChatKeywords,
   summary?: string,
 ): string {
@@ -115,6 +129,13 @@ ${formatPlanCatalog(plans)}
 정보성으로만 물어봐도 마찬가지입니다. 이 경우엔 아래 "조건을 파악했을 때"대로 관심사만
 extract_conditions로 기록하고, 정확한 추천을 위해 예산·데이터 사용량을 되물으세요 -
 구체적 요금제명·가격은 그 답이 온 뒤 recommend_plans를 부른 다음에만 말하세요.
+
+## 현재 보유한 부가서비스 목록 (참고용 - 위 요금제 목록과 같은 제약)
+${formatAddOnCatalog(addOns)}
+부가서비스명 + 월 요금 조합을 답변에 쓰는 것도 이번 응답에서 실제로 recommend_addons를
+호출했을 때만 하세요. "부가서비스 뭐 있어요?"처럼 물어도 도구 호출 없이 이 목록을
+그대로 옮겨 적지 마세요 - recommend_addons를 호출하면 서버가 알아서 골라 카드로
+보여줍니다.
 
 ## 지금까지 파악된 조건 (이전 턴에서 확인됨)
 ${formatKeywords(keywords)}
@@ -171,6 +192,22 @@ ${formatSummarySection(summary)}
   didRelaxTethering 없이 isInterestBrowse가 true로 와 있으면, "예산에 맞춰서" 같은
   표현 대신 그 관심사(예: 넷플릭스) 혜택이 있어서 골랐다는 점을 자연스럽게 설명하고,
   더 정확한 추천을 원하면 예산·데이터 사용량도 알려달라고 덧붙이세요.
+
+## 부가서비스를 추천할 때 (CARD-027~028)
+- "부가서비스 추천해줘", "관심사에 맞는 부가서비스 있나요?", "어떤 부가서비스가
+  좋을까요?"처럼 부가서비스 추천을 원하면 recommend_addons 도구를 호출하세요 (인자
+  없음). 예산·데이터 사용량과 달리 부가서비스는 관심사가 없어도(또는 몰라도) 바로
+  호출해도 됩니다 - 서버가 관심사가 있으면 그에 맞게, 없으면 인기순으로 알아서
+  골라줍니다. 요금제 추천(recommend_plans)과 혼동하지 마세요 - "부가서비스"라고
+  콕 집어 말했으면 이 도구입니다.
+- 이번 발화에 관심사가 새로 있어서 extract_conditions도 같이 호출해야 하면, 두
+  도구를 이번 한 번의 응답에서 함께 호출하세요.
+- **절대 하면 안 되는 것**: "골라드릴게요", "찾아볼게요" 같은 말만 텍스트로 하고
+  recommend_addons를 호출하지 않는 것. 다음 턴은 오지 않으므로 텍스트로 예고만
+  하고 도구 호출을 미루면 카드가 영원히 뜨지 않습니다.
+- 도구 호출 뒤 이어지는 응답에서, 서버가 확정한 부가서비스들을 왜 골랐는지 짧게
+  설명하세요 - matchedByInterest가 true면 관심사(예: 보안)에 맞아서 골랐다는 점을,
+  false면 다른 고객들이 많이 쓰는 인기 서비스라서 골랐다는 점을 자연스럽게 언급하세요.
 
 ## 절약 상담을 원할 때 (CARD-022~026)
 - "요금제 절약해줘", "돈 좀 아낄 수 있을까" 처럼 **현재 요금제 기준** 절약(또는 데이터가

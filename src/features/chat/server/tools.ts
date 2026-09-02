@@ -101,11 +101,31 @@ export const SHOW_USAGE_TREND_TOOL: ChatCompletionTool = {
   },
 };
 
+/**
+ * CARD-027~028: "부가서비스 추천해줘", "관심사에 맞는 부가서비스 있나요?"처럼 부가서비스
+ * 추천을 원할 때. 어떤 부가서비스를 몇 위로 보여줄지는 서버(selectAddOns.ts)가 관심사와
+ * 채택률(user_add_ons 실 데이터)로 계산하므로 인자는 없다.
+ */
+export const RECOMMEND_ADD_ONS_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'recommend_addons',
+    description:
+      '사용자가 "부가서비스 추천해줘", "관심사에 맞는 부가서비스 있나요?", ' +
+      '"어떤 부가서비스가 좋을까요?"처럼 부가서비스(요금제에 얹어 쓰는 서비스, 예: ' +
+      '번호도용 문자차단·스팸 안심 차단 등) 추천을 원할 때 호출한다. 이번 발화에 관심사가 ' +
+      '있으면 그 관심사에 맞는 부가서비스를, 없으면 다른 고객이 많이 쓰는 인기 부가서비스를 ' +
+      '서버가 찾아 보여준다. 요금제(recommend_plans) 추천과는 다른 도구다 - 혼동하지 말 것.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+  },
+};
+
 export const CHAT_TOOLS: ChatCompletionTool[] = [
   EXTRACT_CONDITIONS_TOOL,
   RECOMMEND_PLANS_TOOL,
   ANALYZE_SAVINGS_TOOL,
   SHOW_USAGE_TREND_TOOL,
+  RECOMMEND_ADD_ONS_TOOL,
 ];
 
 // extract_conditions를 뺀 "실행" 도구만. 1턴에서 extract_conditions만 부르고 실행 도구를
@@ -115,6 +135,7 @@ export const ACTION_TOOLS: ChatCompletionTool[] = [
   RECOMMEND_PLANS_TOOL,
   ANALYZE_SAVINGS_TOOL,
   SHOW_USAGE_TREND_TOOL,
+  RECOMMEND_ADD_ONS_TOOL,
 ];
 
 // extract_conditions tool call의 JSON 문자열을 파싱한다.

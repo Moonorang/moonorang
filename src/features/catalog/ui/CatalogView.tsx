@@ -9,20 +9,22 @@ import SubscriptionRow from '@/features/catalog/ui/SubscriptionRow';
 
 import { CATALOG_EMPTY_MESSAGES } from '@/features/catalog/constants';
 import { useCatalogTabs } from '@/features/catalog/hooks/useCatalogTabs';
-import type { CatalogData } from '@/features/catalog/types';
+import type { CatalogData, CatalogTab } from '@/features/catalog/types';
 
 interface CatalogViewProps {
   catalog: CatalogData;
+  /** 채팅 카드의 "둘러보기"처럼, 특정 탭을 미리 선택한 채로 들어올 때 쓴다 */
+  initialTab?: CatalogTab;
 }
 
 /**
  * 상품·혜택 목록 화면.
  * 데이터는 서버(page.tsx)에서 받아 props 로 내려오고, 여기서는 탭·아코디언 상태만 갖는다.
  */
-export default function CatalogView({ catalog }: CatalogViewProps) {
+export default function CatalogView({ catalog, initialTab }: CatalogViewProps) {
   // 1. 상태 및 훅
   const { activeTab, panelId, expandedKey, handleTabChange, handleToggle } =
-    useCatalogTabs();
+    useCatalogTabs(initialTab);
 
   // 2. 렌더링
   const items = catalog[activeTab];

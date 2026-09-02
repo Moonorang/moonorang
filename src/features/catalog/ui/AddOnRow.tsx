@@ -1,11 +1,8 @@
 import CatalogCard from '@/features/catalog/ui/CatalogCard';
 
-import {
-  ADD_ON_ICON_FALLBACK,
-  ADD_ON_ICONS,
-} from '@/features/catalog/constants';
-import { formatMonthlyFee } from '@/features/catalog/lib/formatMonthlyFee';
+import { ADD_ON_ICON_FALLBACK, ADD_ON_ICONS } from '@/entities/addOn';
 import type { AddOn } from '@/entities/addOn/types';
+import { formatMonthlyFee } from '@/shared/utils/formatMonthlyFee';
 
 interface AddOnRowProps {
   addOn: AddOn;

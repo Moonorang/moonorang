@@ -1,2 +1,2 @@
 // entities/addOn 서버 Public API — route handler / server action 에서만 import.
-export { getAllAddOns } from './addOnRepository';
+export { getAllAddOns, getAddOnAdoptionRates } from './addOnRepository';

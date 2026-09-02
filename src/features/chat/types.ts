@@ -1,3 +1,4 @@
+import type { AddOn } from '@/entities/addOn/types';
 import type { Plan } from '@/entities/plan/types';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
 
@@ -35,12 +36,22 @@ export interface PlanRecommendation {
   annualSavings?: number;
 }
 
+// CARD-027~028: 서버가 add_ons 테이블 조회 + user_add_ons 채택률 계산을 합쳐서 보내는 형태
+export interface AddOnRecommendation {
+  addOn: AddOn;
+  rank: number;
+  /** entities/addOn/server의 getAddOnAdoptionRates 실 데이터(0~100) - "N%의 고객님이 선택했어요" */
+  adoptionRate: number;
+}
+
 export type ChatErrorReason =
   'runtime_unavailable' | 'timeout' | 'invalid_format';
 
 export type ChatStreamEvent =
   | { event: 'token'; data: { delta: string } }
   | { event: 'recommendation'; data: { plans: PlanRecommendation[] } }
+  // CARD-027~028: 관심사 기반 부가서비스 추천 카드
+  | { event: 'addOnRecommendation'; data: { addOns: AddOnRecommendation[] } }
   // 이번 턴까지 반영된 최신 조건 - 클라이언트가 다음 요청에 그대로 실어 보낸다
   | { event: 'keywords'; data: { keywords: ChatKeywords } }
   // CARD-022~026/028 - entities/usage(features/usage와 공유하는 도메인 개념)를 그대로 실어 보낸다
@@ -96,6 +107,8 @@ export interface ChatMessage {
   createdAt: string;
   // recommendation 이벤트가 오면 채워짐 (AI 메시지에만 해당)
   recommendations?: PlanRecommendation[];
+  // addOnRecommendation 이벤트가 오면 채워짐 (AI 메시지에만 해당)
+  addOnRecommendations?: AddOnRecommendation[];
   // usageAnalysis 이벤트가 오면 채워짐 (AI 메시지에만 해당)
   usageAnalysis?: UsageAnalysisResult;
 }
@@ -122,4 +135,5 @@ export interface PlanJoinBlock {
 export type ChatCardPayload =
   | { type: 'join_flow'; planId: number }
   | { type: 'recommendation'; plans: PlanRecommendation[] }
+  | { type: 'add_on_recommendation'; addOns: AddOnRecommendation[] }
   | { type: 'usage_analysis'; data: UsageAnalysisResult };
