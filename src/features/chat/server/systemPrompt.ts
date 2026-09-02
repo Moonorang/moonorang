@@ -1,5 +1,6 @@
 import type { AddOn } from '@/entities/addOn/types';
 import type { Plan } from '@/entities/plan/types';
+import type { Subscription } from '@/entities/subscription/types';
 import type { ChatKeywords } from '@/features/chat/types';
 
 // benefits(jsonb)를 한 줄 요약으로 - 있는 필드만 이어붙인다.
@@ -43,6 +44,21 @@ function formatAddOnCatalog(addOns: AddOn[]): string {
     .join('\n');
 }
 
+// 구독 상품 목록을 모델이 마무리 응답에서 참조할 수 있는 간략한 카탈로그 문자열로 만듦.
+// plans/addOns와 같은 원칙.
+function formatSubscriptionCatalog(subscriptions: Subscription[]): string {
+  return subscriptions
+    .map((subscription) => {
+      const fee =
+        subscription.discount > 0
+          ? `월 ${subscription.baseMonthlyFee}원 (${subscription.discount}% 할인)`
+          : `월 ${subscription.baseMonthlyFee}원`;
+      const detail = subscription.highlight ?? subscription.description?.subTitle ?? '';
+      return `- id ${subscription.id} | ${subscription.name} | ${fee} | ${detail}`;
+    })
+    .join('\n');
+}
+
 const KEYWORD_LABELS: Record<keyof ChatKeywords, string> = {
   budget: '예산',
   dataUsageGb: '데이터 사용량(GB)',
@@ -76,6 +92,7 @@ function formatSummarySection(summary?: string): string {
 export function buildSystemPrompt(
   plans: Plan[],
   addOns: AddOn[],
+  subscriptions: Subscription[],
   keywords: ChatKeywords,
   summary?: string,
 ): string {
@@ -85,19 +102,23 @@ export function buildSystemPrompt(
 - 사용자의 데이터/통화 사용량, 예산, 부가서비스 선호를 파악해 적합한 요금제를 추천합니다.
 - 요금제 절약 상담, 가입 절차 안내, 서비스 이용 방법 안내를 돕습니다.
 
-## 관심사 체크 (매 응답 전, 예외 없이 제일 먼저)
-답을 텍스트로만 끝내든, recommend_plans를 부르든, 그냥 질문을 되묻든 - **무엇을 하기로
-정했든 상관없이**, 그 전에 이번 사용자 발화를 다시 한번 보고 자문하세요: "넷플릭스·
-유튜브·게임·여행·카페·육아처럼 관심사·취미·선호로 읽을 단어가 있었나?" 있었다면(아래
-"지금까지 파악된 조건"에 이미 있는 것은 제외) **다른 도구를 안 부르는 턴이어도
-extract_conditions를 반드시 호출**해서 interests 배열에 담으세요. 이걸 건너뛰고
-텍스트 답변만 하고 끝내는 게 이 서비스에서 실제로 자주 관측된 실수입니다.
-예: "넷플릭스 자주 봐요" -> interests: ["넷플릭스"]. 예산/데이터 사용량과 같은 발화에
-같이 나오면 그 필드들과 interests를 같은 한 번의 extract_conditions 호출에 함께
-채우세요. recommend_plans까지 같이 부를지는 아래 "요금제를 추천할 때" 규칙대로
-판단하세요 - 단순히 관심사를 밝히기만 했으면(예: "넷플릭스 자주 봐요") 아직 아니지만,
-"관련 상품/요금제 있나요?"처럼 그 관심사에 맞는 요금제를 찾아달라는 뜻이면 예산/데이터
-없이도 recommend_plans를 같이 호출해야 합니다.
+## 관심사 체크 (매 응답 전, 다른 무엇을 하기로 정했든 추가로 확인)
+이번 사용자 발화에 넷플릭스·유튜브·게임·여행·카페·육아처럼 관심사·취미·선호로 읽을
+단어가 있으면(위 "지금까지 파악된 조건"에 이미 있는 것은 제외), **다른 도구를 안
+부르는 턴이어도 extract_conditions를 반드시 같이 호출**해서 interests 배열에
+담으세요. "넷플릭스 자주 봐요"처럼 감정으로 표현하든, "넷플릭스 관련 부가서비스
+추천해줘"/"OTT 관련 구독 상품 있나요?"처럼 요청과 한 문장에 붙어 나오든 똑같이
+관심사로 보고 채우세요. **"OTT", "스트리밍", "음악", "게임"처럼 구체적인 브랜드명이
+아니라 카테고리·장르로만 말해도 마찬가지로 관심사입니다** - "구체적인 이름이
+아니라서 기록할 정보가 아니다"라고 판단해 건너뛰지 마세요. 예: "OTT에 관심이
+있는데 구독 상품 추천해줘" -> interests: ["OTT"]도 함께 채워서 extract_conditions와
+recommend_subscriptions를 같은 응답에서 호출하세요.
+**주의**: 이건 어디까지나 "관심사가 있으면 놓치지 말고 기록하라"는 뜻이지,
+"관심사부터 확인하고 나서 추천하라"는 뜻이 아닙니다. 관심사가 **아예 언급되지
+않은** 발화면 그냥 아무것도 안 채우고 넘어가세요 - 아래 각 추천 도구 규칙대로
+판단하되, 관심사가 없다고 recommend_addons/recommend_subscriptions 호출을
+미루거나 관심사부터 되묻지 마세요(그 둘은 관심사 없이도 항상 바로 부를 수
+있는 도구입니다).
 
 ## 추천 요청을 받으면 제일 먼저 이걸로 판단하세요 (중요)
 "추천해줘"라는 말도 근거가 완전히 다른 두 갈래로 나뉩니다 - 도구를 고르기 전에 반드시 구분하세요.
@@ -136,6 +157,12 @@ ${formatAddOnCatalog(addOns)}
 호출했을 때만 하세요. "부가서비스 뭐 있어요?"처럼 물어도 도구 호출 없이 이 목록을
 그대로 옮겨 적지 마세요 - recommend_addons를 호출하면 서버가 알아서 골라 카드로
 보여줍니다.
+
+## 현재 보유한 구독 상품 목록 (참고용 - 위 요금제 목록과 같은 제약)
+${formatSubscriptionCatalog(subscriptions)}
+구독 상품명 + 월 요금 조합을 답변에 쓰는 것도 이번 응답에서 실제로
+recommend_subscriptions를 호출했을 때만 하세요. 그 전에는 이 목록을 그대로 옮겨
+적지 마세요 - recommend_subscriptions를 호출하면 서버가 알아서 골라 카드로 보여줍니다.
 
 ## 지금까지 파악된 조건 (이전 턴에서 확인됨)
 ${formatKeywords(keywords)}
@@ -200,14 +227,34 @@ ${formatSummarySection(summary)}
   호출해도 됩니다 - 서버가 관심사가 있으면 그에 맞게, 없으면 인기순으로 알아서
   골라줍니다. 요금제 추천(recommend_plans)과 혼동하지 마세요 - "부가서비스"라고
   콕 집어 말했으면 이 도구입니다.
-- 이번 발화에 관심사가 새로 있어서 extract_conditions도 같이 호출해야 하면, 두
-  도구를 이번 한 번의 응답에서 함께 호출하세요.
+- **호출하기 직전에 한 번 더 확인하세요**: 이번 발화에 "넷플릭스", "보안"처럼
+  관심사로 읽을 단어가 있으면(예: "넷플릭스 관련 부가서비스 추천해줘"), 그 단어를
+  interests에 담아 extract_conditions를 recommend_addons와 **같은 응답에서 함께**
+  호출하세요 - 그래야 그 관심사에 맞는 부가서비스가 위로 올라옵니다. 이걸 빠뜨리면
+  관심사와 무관하게 인기순으로만 나갑니다.
 - **절대 하면 안 되는 것**: "골라드릴게요", "찾아볼게요" 같은 말만 텍스트로 하고
   recommend_addons를 호출하지 않는 것. 다음 턴은 오지 않으므로 텍스트로 예고만
   하고 도구 호출을 미루면 카드가 영원히 뜨지 않습니다.
 - 도구 호출 뒤 이어지는 응답에서, 서버가 확정한 부가서비스들을 왜 골랐는지 짧게
   설명하세요 - matchedByInterest가 true면 관심사(예: 보안)에 맞아서 골랐다는 점을,
   false면 다른 고객들이 많이 쓰는 인기 서비스라서 골랐다는 점을 자연스럽게 언급하세요.
+
+## 구독 상품을 추천할 때 (CARD-027~028)
+- "구독 상품 추천해줘", "OTT 구독권 있어요?", "관심사에 맞는 구독 상품 있나요?"처럼
+  구독 상품(넷플릭스·유튜브 프리미엄 묶음 등 매달 결제하는 상품) 추천을 원하면
+  **관심사를 알든 모르든 무조건 recommend_subscriptions 도구를 바로 호출하세요**
+  (인자 없음) - 관심사를 되묻느라 호출을 미루면 안 됩니다. 발화에 "넷플릭스", "OTT"
+  같은 관심사 단어가 있으면(예: "넷플릭스 관련 구독 상품 있나요?") interests에 담아
+  extract_conditions를 recommend_subscriptions와 같은 응답에서 함께 호출하세요 -
+  그러면 서버가 그 관심사에 맞게 골라주고, 없으면 인기순으로 골라줍니다. 어느
+  쪽이든 recommend_subscriptions는 반드시 이번 응답에서 호출합니다.
+  recommend_addons/recommend_plans와 혼동하지 마세요 - "구독"이라고 콕 집어
+  말했으면 이 도구입니다.
+- **절대 하면 안 되는 것**: "찾아볼게요", "어떤 콘텐츠 좋아하세요?"처럼 관심사를
+  되묻거나 예고만 하고 recommend_subscriptions를 호출하지 않는 것. 다음 턴은 오지
+  않으므로 텍스트로 예고만 하고 도구 호출을 미루면 카드가 영원히 뜨지 않습니다.
+- 도구 호출 뒤 이어지는 응답에서, matchedByInterest가 true면 관심사에 맞아서
+  골랐다는 점을, false면 인기 구독 상품이라서 골랐다는 점을 자연스럽게 언급하세요.
 
 ## 절약 상담을 원할 때 (CARD-022~026)
 - "요금제 절약해줘", "돈 좀 아낄 수 있을까" 처럼 **현재 요금제 기준** 절약(또는 데이터가

@@ -412,6 +412,18 @@ export function useChat(isLoggedIn: boolean | undefined) {
         );
       };
 
+      const setAiMessageSubscriptionRecommendations = (
+        subscriptionRecommendations: ChatMessage['subscriptionRecommendations'],
+      ) => {
+        updateMessages((prev) =>
+          prev.map((message) =>
+            message.id === aiMessageId
+              ? { ...message, subscriptionRecommendations }
+              : message,
+          ),
+        );
+      };
+
       const updateKeywords = (next: ChatKeywords) => {
         keywordsRef.current = next;
         setKeywords(next);
@@ -480,6 +492,8 @@ export function useChat(isLoggedIn: boolean | undefined) {
               setAiMessageRecommendations(parsed.data.plans);
             } else if (parsed?.event === 'addOnRecommendation') {
               setAiMessageAddOnRecommendations(parsed.data.addOns);
+            } else if (parsed?.event === 'subscriptionRecommendation') {
+              setAiMessageSubscriptionRecommendations(parsed.data.subscriptions);
             } else if (parsed?.event === 'keywords') {
               updateKeywords(parsed.data.keywords);
             } else if (parsed?.event === 'usageAnalysis') {
@@ -571,6 +585,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
               content: '',
               recommendations: undefined,
               addOnRecommendations: undefined,
+              subscriptionRecommendations: undefined,
               usageAnalysis: undefined,
             }
           : message,

@@ -1,5 +1,6 @@
 import type { AddOn } from '@/entities/addOn/types';
 import type { Plan } from '@/entities/plan/types';
+import type { Subscription } from '@/entities/subscription/types';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
 
 // 스펙
@@ -44,6 +45,14 @@ export interface AddOnRecommendation {
   adoptionRate: number;
 }
 
+// AddOnRecommendation과 같은 원칙 - subscriptions 테이블 + user_subscriptions 채택률
+export interface SubscriptionRecommendation {
+  subscription: Subscription;
+  rank: number;
+  /** entities/subscription/server의 getSubscriptionAdoptionRates 실 데이터(0~100) */
+  adoptionRate: number;
+}
+
 export type ChatErrorReason =
   'runtime_unavailable' | 'timeout' | 'invalid_format';
 
@@ -52,6 +61,11 @@ export type ChatStreamEvent =
   | { event: 'recommendation'; data: { plans: PlanRecommendation[] } }
   // CARD-027~028: 관심사 기반 부가서비스 추천 카드
   | { event: 'addOnRecommendation'; data: { addOns: AddOnRecommendation[] } }
+  // CARD-027~028: 관심사 기반 구독 상품 추천 카드
+  | {
+      event: 'subscriptionRecommendation';
+      data: { subscriptions: SubscriptionRecommendation[] };
+    }
   // 이번 턴까지 반영된 최신 조건 - 클라이언트가 다음 요청에 그대로 실어 보낸다
   | { event: 'keywords'; data: { keywords: ChatKeywords } }
   // CARD-022~026/028 - entities/usage(features/usage와 공유하는 도메인 개념)를 그대로 실어 보낸다
@@ -109,6 +123,8 @@ export interface ChatMessage {
   recommendations?: PlanRecommendation[];
   // addOnRecommendation 이벤트가 오면 채워짐 (AI 메시지에만 해당)
   addOnRecommendations?: AddOnRecommendation[];
+  // subscriptionRecommendation 이벤트가 오면 채워짐 (AI 메시지에만 해당)
+  subscriptionRecommendations?: SubscriptionRecommendation[];
   // usageAnalysis 이벤트가 오면 채워짐 (AI 메시지에만 해당)
   usageAnalysis?: UsageAnalysisResult;
 }
@@ -136,4 +152,5 @@ export type ChatCardPayload =
   | { type: 'join_flow'; planId: number }
   | { type: 'recommendation'; plans: PlanRecommendation[] }
   | { type: 'add_on_recommendation'; addOns: AddOnRecommendation[] }
+  | { type: 'subscription_recommendation'; subscriptions: SubscriptionRecommendation[] }
   | { type: 'usage_analysis'; data: UsageAnalysisResult };

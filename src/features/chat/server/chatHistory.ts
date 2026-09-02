@@ -56,6 +56,14 @@ function splitRows(rows: DbChatMessage[]): {
       continue;
     }
 
+    if (card?.type === 'subscription_recommendation') {
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'ai') {
+        last.subscriptionRecommendations = card.subscriptions;
+      }
+      continue;
+    }
+
     if (card?.type === 'usage_analysis') {
       const last = messages[messages.length - 1];
       if (last && last.role === 'ai') last.usageAnalysis = card.data;

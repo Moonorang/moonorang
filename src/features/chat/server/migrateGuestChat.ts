@@ -55,6 +55,16 @@ export async function migrateGuestChat(
       });
     }
 
+    if (message.role === 'ai' && message.subscriptionRecommendations?.length) {
+      rows.push({
+        role: 'ai',
+        content: serializeCardPayload({
+          type: 'subscription_recommendation',
+          subscriptions: message.subscriptionRecommendations,
+        }),
+      });
+    }
+
     if (message.role === 'ai' && message.usageAnalysis) {
       rows.push({
         role: 'ai',

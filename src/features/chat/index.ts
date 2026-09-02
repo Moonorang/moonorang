@@ -13,6 +13,7 @@ export { default as PlanCardCarousel } from './components/PlanCardCarousel';
 export { default as PlusMenu } from './components/PlusMenu';
 export { default as ReadAloudButton } from './components/ReadAloudButton';
 export { default as ScrollToBottomButton } from './components/ScrollToBottomButton';
+export { default as SubscriptionRecommendationCard } from './components/SubscriptionRecommendationCard';
 export { default as SuggestionChips } from './components/SuggestionChips';
 export { default as TypingIndicator } from './components/TypingIndicator';
 export { default as UserMessage } from './components/UserMessage';
@@ -27,6 +28,7 @@ export { parseChatRequest } from './lib/schema';
 export { formatSSEEvent, parseSSEEvent, SSE_HEADERS } from './lib/sse';
 export { selectRecommendedPlans } from './lib/selectPlans';
 export { selectRecommendedAddOns } from './lib/selectAddOns';
+export { selectRecommendedSubscriptions } from './lib/selectSubscriptions';
 export { mergeKeywords } from './lib/mergeKeywords';
 export type {
   ChatMessage,
@@ -36,9 +38,11 @@ export type {
   ChatKeywords,
   PlanRecommendation,
   AddOnRecommendation,
+  SubscriptionRecommendation,
   SummarizeTurnMessage,
   ChatSummarizeRequestBody,
   ChatSummarizeResponseBody,
 } from './types';
 export type { ScoredPlan, SelectRecommendedPlansResult } from './lib/selectPlans';
 export type { ScoredAddOn } from './lib/selectAddOns';
+export type { ScoredSubscription } from './lib/selectSubscriptions';

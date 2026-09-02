@@ -3,6 +3,7 @@ export { createChatStream } from './chatStream';
 export { buildSystemPrompt } from './systemPrompt';
 export { runPlanRecommendation } from './recommendPlans';
 export { runAddOnRecommendation } from './recommendAddOns';
+export { runSubscriptionRecommendation } from './recommendSubscriptions';
 export { runSavingsAnalysis } from './analyzeSavings';
 export {
   CHAT_TOOLS,
@@ -11,5 +12,6 @@ export {
   ANALYZE_SAVINGS_TOOL,
   SHOW_USAGE_TREND_TOOL,
   RECOMMEND_ADD_ONS_TOOL,
+  RECOMMEND_SUBSCRIPTIONS_TOOL,
   parseExtractConditionsArguments,
 } from './tools';

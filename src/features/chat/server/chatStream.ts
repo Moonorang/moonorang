@@ -8,6 +8,10 @@ import type { Stream } from 'openai/core/streaming';
 
 import { getAddOnAdoptionRates, getAllAddOns } from '@/entities/addOn/server';
 import { getAllPlans } from '@/entities/plan/server/planRepository';
+import {
+  getAllSubscriptions,
+  getSubscriptionAdoptionRates,
+} from '@/entities/subscription/server';
 import { mergeKeywords } from '@/features/chat/lib/mergeKeywords';
 import { createSSESender, type SSESend } from '@/features/chat/lib/sse';
 import { runSavingsAnalysis } from '@/features/chat/server/analyzeSavings';
@@ -19,28 +23,42 @@ import {
 import { streamCompletion, type ToolCallBuilder } from '@/features/chat/server/openaiStream';
 import { runAddOnRecommendation } from '@/features/chat/server/recommendAddOns';
 import { runPlanRecommendation } from '@/features/chat/server/recommendPlans';
+import { runSubscriptionRecommendation } from '@/features/chat/server/recommendSubscriptions';
 import { buildSystemPrompt } from '@/features/chat/server/systemPrompt';
 import { ACTION_TOOLS, parseExtractConditionsArguments } from '@/features/chat/server/tools';
 import type { ChatCardPayload, ChatKeywords, SummarizeTurnMessage } from '@/features/chat/types';
 
 import type { AddOn } from '@/entities/addOn/types';
 import type { Plan } from '@/entities/plan/types';
+import type { Subscription } from '@/entities/subscription/types';
 
 interface ToolResultContext {
   plans: Plan[];
   addOns: AddOn[];
   addOnAdoptionRates: Map<number, number>;
+  subscriptions: Subscription[];
+  subscriptionAdoptionRates: Map<number, number>;
   mergedKeywords: ChatKeywords;
   userId: string | null;
   send: SSESend;
 }
 
 // 호출된 tool 이름별로 실제 계산/조회를 수행하고, 다음 턴의 tool 결과 메시지 content로
-// 쓸 값을 돌려준다. recommend_plans/analyze_savings/show_usage_trend/recommend_addons는
-// 여기서 SSE 이벤트도 같이 내보낸다(카드 데이터를 텍스트보다 먼저 화면에 꽂아 넣기 위함).
+// 쓸 값을 돌려준다. recommend_plans/analyze_savings/show_usage_trend/recommend_addons/
+// recommend_subscriptions는 여기서 SSE 이벤트도 같이 내보낸다(카드 데이터를 텍스트보다
+// 먼저 화면에 꽂아 넣기 위함).
 async function getToolResultContent(
   call: ToolCallBuilder,
-  { plans, addOns, addOnAdoptionRates, mergedKeywords, userId, send }: ToolResultContext,
+  {
+    plans,
+    addOns,
+    addOnAdoptionRates,
+    subscriptions,
+    subscriptionAdoptionRates,
+    mergedKeywords,
+    userId,
+    send,
+  }: ToolResultContext,
 ): Promise<unknown> {
   switch (call.name) {
     case 'recommend_plans':
@@ -61,6 +79,13 @@ async function getToolResultContent(
       });
     case 'recommend_addons':
       return runAddOnRecommendation(addOns, addOnAdoptionRates, mergedKeywords, send);
+    case 'recommend_subscriptions':
+      return runSubscriptionRecommendation(
+        subscriptions,
+        subscriptionAdoptionRates,
+        mergedKeywords,
+        send,
+      );
     default:
       return { ok: true, keywords: mergedKeywords };
   }
@@ -103,10 +128,16 @@ async function appendToolRound(
 // 카탈로그에 있는 실제 요금제명·부가서비스명이 텍스트에 하나라도 등장하는지 -
 // 그걸 만든 tool(recommend_plans/recommend_addons)이 안 불렸는데 이게 참이면,
 // 그 텍스트는 모델이 지어낸 것이다(CARD-002/NFR-003~004 위반).
-function containsCatalogName(text: string, plans: Plan[], addOns: AddOn[]): boolean {
+function containsCatalogName(
+  text: string,
+  plans: Plan[],
+  addOns: AddOn[],
+  subscriptions: Subscription[],
+): boolean {
   return (
     plans.some((plan) => text.includes(plan.name)) ||
-    addOns.some((addOn) => text.includes(addOn.title))
+    addOns.some((addOn) => text.includes(addOn.title)) ||
+    subscriptions.some((subscription) => text.includes(subscription.name))
   );
 }
 
@@ -157,11 +188,14 @@ export function createChatStream(
       const send = createSSESender(controller);
 
       try {
-        const [plans, addOns, addOnAdoptionRates] = await Promise.all([
-          getAllPlans(),
-          getAllAddOns(),
-          getAddOnAdoptionRates(),
-        ]);
+        const [plans, addOns, addOnAdoptionRates, subscriptions, subscriptionAdoptionRates] =
+          await Promise.all([
+            getAllPlans(),
+            getAllAddOns(),
+            getAddOnAdoptionRates(),
+            getAllSubscriptions(),
+            getSubscriptionAdoptionRates(),
+          ]);
 
         // 회원이면 DB(chats/chat_messages/chat_summary)가 유일한 진짜 기록이라,
         // 클라이언트가 보낸 keywords/summary/recentMessages는 무시하고 여기서
@@ -178,7 +212,13 @@ export function createChatStream(
         const messages: ChatCompletionMessageParam[] = [
           {
             role: 'system',
-            content: buildSystemPrompt(plans, addOns, incomingKeywords, summary),
+            content: buildSystemPrompt(
+              plans,
+              addOns,
+              subscriptions,
+              incomingKeywords,
+              summary,
+            ),
           },
           // §2.4 "최근 채팅 메시지 N개" - summary가 아직 못 따라잡은 구간의 원문.
           // ChatMessage/SummarizeTurnMessage의 'ai' role을 OpenAI의 'assistant'로 바꿔준다.
@@ -217,6 +257,9 @@ export function createChatStream(
         let recommendAddOnsCall = turn1Calls.find(
           (call) => call.name === 'recommend_addons',
         );
+        let recommendSubscriptionsCall = turn1Calls.find(
+          (call) => call.name === 'recommend_subscriptions',
+        );
 
         const mergedKeywords = extractCall
           ? mergeKeywords(
@@ -226,8 +269,8 @@ export function createChatStream(
           : incomingKeywords;
 
         // 회원이면 이번 턴에 실제로 화면에 보낸 카드(recommendation/addOnRecommendation/
-        // usage_analysis)를 그대로 캡처해뒀다가, 나중에 DB에도 같은 스냅샷을 저장한다
-        // (CHAT-012 회원판).
+        // subscriptionRecommendation/usage_analysis)를 그대로 캡처해뒀다가, 나중에 DB에도
+        // 같은 스냅샷을 저장한다(CHAT-012 회원판).
         const capturedCards: ChatCardPayload[] = [];
         const trackingSend: SSESend = (event) => {
           if (event.event === 'recommendation') {
@@ -236,6 +279,11 @@ export function createChatStream(
             capturedCards.push({
               type: 'add_on_recommendation',
               addOns: event.data.addOns,
+            });
+          } else if (event.event === 'subscriptionRecommendation') {
+            capturedCards.push({
+              type: 'subscription_recommendation',
+              subscriptions: event.data.subscriptions,
             });
           } else if (event.event === 'usageAnalysis') {
             capturedCards.push({ type: 'usage_analysis', data: event.data });
@@ -247,6 +295,8 @@ export function createChatStream(
           plans,
           addOns,
           addOnAdoptionRates,
+          subscriptions,
+          subscriptionAdoptionRates,
           mergedKeywords,
           userId,
           send: trackingSend,
@@ -261,7 +311,13 @@ export function createChatStream(
             ? [
                 {
                   role: 'system',
-                  content: buildSystemPrompt(plans, addOns, mergedKeywords, summary),
+                  content: buildSystemPrompt(
+                    plans,
+                    addOns,
+                    subscriptions,
+                    mergedKeywords,
+                    summary,
+                  ),
                 },
                 ...messages.slice(1),
               ]
@@ -281,7 +337,8 @@ export function createChatStream(
           Boolean(recommendCall) ||
           Boolean(analyzeSavingsCall) ||
           Boolean(showUsageTrendCall) ||
-          Boolean(recommendAddOnsCall);
+          Boolean(recommendAddOnsCall) ||
+          Boolean(recommendSubscriptionsCall);
 
         if (extractCall && !calledActionInTurn1) {
           const decision = await streamCompletion({
@@ -305,6 +362,9 @@ export function createChatStream(
           recommendAddOnsCall = decision.toolCalls.find(
             (call) => call.name === 'recommend_addons',
           );
+          recommendSubscriptionsCall = decision.toolCalls.find(
+            (call) => call.name === 'recommend_subscriptions',
+          );
 
           messagesWithTools = await appendToolRound(
             messagesWithTools,
@@ -317,17 +377,21 @@ export function createChatStream(
           Boolean(recommendCall) ||
           Boolean(analyzeSavingsCall) ||
           Boolean(showUsageTrendCall) ||
-          Boolean(recommendAddOnsCall);
+          Boolean(recommendAddOnsCall) ||
+          Boolean(recommendSubscriptionsCall);
 
         // 가드레일: 실행 도구가 끝내 하나도 안 불렸는데 1턴 텍스트에 실제 요금제명·
-        // 부가서비스명이 있으면 - 서버 계산을 거치지 않은 값이 확실하다(CARD-001/002,
-        // NFR-003~004). extractCall 여부와 무관하게 항상 검사한다 - extract_conditions
-        // 조차 안 부르고 곧바로 카탈로그를 옮겨 적는 경우(예: 조건 없이 "넷플릭스 관련
-        // 상품 있나요?")도 실제로 관측됐다. 아직 아무것도 화면에 안 나간 상태이므로
-        // 그대로 버리고 에러로 전환한다(CARD-006: 재시도 가능).
-        if (!actionConfirmed && containsCatalogName(turn1Text, plans, addOns)) {
+        // 부가서비스명·구독 상품명이 있으면 - 서버 계산을 거치지 않은 값이 확실하다
+        // (CARD-001/002, NFR-003~004). extractCall 여부와 무관하게 항상 검사한다 -
+        // extract_conditions조차 안 부르고 곧바로 카탈로그를 옮겨 적는 경우(예: 조건
+        // 없이 "넷플릭스 관련 상품 있나요?")도 실제로 관측됐다. 아직 아무것도 화면에
+        // 안 나간 상태이므로 그대로 버리고 에러로 전환한다(CARD-006: 재시도 가능).
+        if (
+          !actionConfirmed &&
+          containsCatalogName(turn1Text, plans, addOns, subscriptions)
+        ) {
           console.error(
-            '[api/chat] 가드레일: 추천 도구 없이 요금제·부가서비스명 언급 감지 -',
+            '[api/chat] 가드레일: 추천 도구 없이 요금제·부가서비스·구독명 언급 감지 -',
             turn1Text,
           );
           send({

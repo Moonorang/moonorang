@@ -36,8 +36,10 @@ export const EXTRACT_CONDITIONS_TOOL: ChatCompletionTool = {
           description:
             '사용자가 대화 중 드러낸 관심사·취미·선호 키워드를 짧은 명사로 배열에 담는다 ' +
             '(예: "넷플릭스", "유튜브", "게임", "여행", "카페", "육아", "반려동물"). ' +
-            '이미 파악된 조건에 없는, 이번 발화에서 새로 나온 키워드만 담는다 - 이미 아는 ' +
-            '것을 다시 넣지 않는다.',
+            '"OTT", "스트리밍", "음악"처럼 구체적인 브랜드명이 아니라 카테고리·장르로만 ' +
+            '말해도 마찬가지로 담는다 - 구체적이지 않다고 빼먹지 않는다. 이미 파악된 ' +
+            '조건에 없는, 이번 발화에서 새로 나온 키워드만 담는다 - 이미 아는 것을 다시 ' +
+            '넣지 않는다.',
         },
       },
       additionalProperties: false,
@@ -120,12 +122,32 @@ export const RECOMMEND_ADD_ONS_TOOL: ChatCompletionTool = {
   },
 };
 
+/**
+ * CARD-027~028: "구독 상품 추천해줘"처럼 구독 상품(넷플릭스+유튜브 프리미엄 묶음 등)
+ * 추천을 원할 때. RECOMMEND_ADD_ONS_TOOL과 같은 패턴 - 인자 없이 서버(selectSubscriptions.ts)가
+ * 관심사와 채택률(user_subscriptions 실 데이터)로 계산한다.
+ */
+export const RECOMMEND_SUBSCRIPTIONS_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'recommend_subscriptions',
+    description:
+      '사용자가 "구독 상품 추천해줘", "관심사에 맞는 구독 상품 있나요?", ' +
+      '"OTT 구독권 있어요?"처럼 구독 상품(넷플릭스·유튜브 프리미엄 묶음 등 매달 결제하는 ' +
+      '상품) 추천을 원할 때 호출한다. 이번 발화에 관심사가 있으면 그 관심사에 맞는 구독 ' +
+      '상품을, 없으면 다른 고객이 많이 쓰는 인기 구독 상품을 서버가 찾아 보여준다. ' +
+      '부가서비스(recommend_addons)·요금제(recommend_plans) 추천과는 다른 도구다.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+  },
+};
+
 export const CHAT_TOOLS: ChatCompletionTool[] = [
   EXTRACT_CONDITIONS_TOOL,
   RECOMMEND_PLANS_TOOL,
   ANALYZE_SAVINGS_TOOL,
   SHOW_USAGE_TREND_TOOL,
   RECOMMEND_ADD_ONS_TOOL,
+  RECOMMEND_SUBSCRIPTIONS_TOOL,
 ];
 
 // extract_conditions를 뺀 "실행" 도구만. 1턴에서 extract_conditions만 부르고 실행 도구를
@@ -136,6 +158,7 @@ export const ACTION_TOOLS: ChatCompletionTool[] = [
   ANALYZE_SAVINGS_TOOL,
   SHOW_USAGE_TREND_TOOL,
   RECOMMEND_ADD_ONS_TOOL,
+  RECOMMEND_SUBSCRIPTIONS_TOOL,
 ];
 
 // extract_conditions tool call의 JSON 문자열을 파싱한다.
