@@ -41,7 +41,7 @@ export default function MembershipDetailCard({
         {/* 로고는 목록 카드와 같은 크기·모양으로 둔다 - 목록에서 상세로 들어와도 같은 것으로 읽힌다 */}
         <div className="flex items-center gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="truncate text-12 text-text-secondary">{category}</p>
+            <p className="truncate text-12 text-text-primary">{category}</p>
             <p className="truncate text-14 font-medium text-text-primary">
               {name}
             </p>
