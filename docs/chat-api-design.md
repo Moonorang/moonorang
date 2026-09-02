@@ -114,7 +114,10 @@ type ChatStreamEvent =
   | {
       event: 'error';
       // CARD-005: 실패 사유를 구분해서 표시해야 함
-      data: { reason: 'runtime_unavailable' | 'timeout' | 'invalid_format'; message: string };
+      data: {
+        reason: 'runtime_unavailable' | 'ai_server_error' | 'timeout' | 'invalid_format';
+        message: string;
+      };
     };
 ```
 
@@ -188,8 +191,13 @@ CARD-013이 원래 요구하는 항목(예산, 데이터 사용 패턴, 통화�
 
 ## 7. 실패/재시도 (NFR-002, CARD-005~006)
 
-- 서버에서 OpenAI 요청에 60초 타임아웃을 건다. 초과하면 `event: error`, `reason: 'timeout'`.
-- OpenAI 요청 자체가 실패(네트워크, 인증 등)하면 `reason: 'runtime_unavailable'`.
+- 서버에서 OpenAI 요청에 30초 타임아웃을 건다. 초과하면 `event: error`, `reason: 'timeout'`.
+- OpenAI가 에러를 명시적으로 돌려줬거나(5xx/4xx, 인증 실패, rate limit 등) 우리 서버가
+  OpenAI에 아예 연결하지 못한 경우는 `reason: 'ai_server_error'` — 사용자와 우리 서버
+  사이는 멀쩡하고 OpenAI 쪽 문제라는 게 명확하므로, 사용자에게 네트워크를 의심하게
+  만드는 안내를 보여주지 않기 위해 `runtime_unavailable`과 분리했다.
+- 그 외(우리 코드/DB 쪽 예외, 사용자 브라우저가 우리 서버에 아예 연결 못 한 경우)는
+  `reason: 'runtime_unavailable'`.
 - tool call 결과 파싱 실패(스키마 안 맞음)는 `reason: 'invalid_format'`.
 - 재시도(CARD-006)는 클라이언트가 **직전 요청과 동일한 입력·문맥**을 다시 보내는 것으로 처리한다 — 서버는 별도 재시도 상태를 갖지 않고, 클라이언트가 마지막으로 보낸 요청 바디를 기억해뒀다가 그대로 재전송한다.
 
