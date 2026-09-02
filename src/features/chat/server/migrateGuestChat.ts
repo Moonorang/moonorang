@@ -1,5 +1,9 @@
 import { serializeCardPayload } from '@/features/chat/lib/chatCard';
 import {
+  getJoinBlockMessage,
+  getJoinBlockTarget,
+} from '@/features/chat/lib/joinBlock';
+import {
   getChatSummary,
   getOrCreateActiveChat,
   insertMessages,
@@ -7,11 +11,15 @@ import {
   upsertChatSummary,
 } from '@/features/chat/server/chatRepository';
 import { mergeSummaries } from '@/features/chat/server/summarizeConversation';
-import type { ChatKeywords, ChatMessage, PlanJoinBlock } from '@/features/chat/types';
+import type {
+  ChatKeywords,
+  ChatMessage,
+  JoinBlock,
+} from '@/features/chat/types';
 
 interface MigrateGuestChatParams {
   messages: ChatMessage[];
-  joinBlocks: PlanJoinBlock[];
+  joinBlocks: JoinBlock[];
   keywords: ChatKeywords;
   /** 게스트일 때 이미 요약돼있던 이전 대화 - 있으면 DB 쪽에도 이어서 남긴다 */
   summary?: string;
@@ -88,10 +96,13 @@ export async function migrateGuestChat(
     for (const block of joinBlocks) {
       if (block.afterMessageId !== message.id) continue;
 
-      rows.push({ role: 'user', content: `${block.plan.name} 요금제 가입할래` });
+      rows.push({ role: 'user', content: getJoinBlockMessage(block) });
       rows.push({
         role: 'ai',
-        content: serializeCardPayload({ type: 'join_flow', planId: block.plan.id }),
+        content: serializeCardPayload({
+          type: 'join_flow',
+          ...getJoinBlockTarget(block),
+        }),
       });
     }
   }
@@ -119,7 +130,9 @@ export async function migrateGuestChat(
       ? await mergeSummaries(existingSummary.summary, summary)
       : summary;
 
-    tasks.push(upsertChatSummary(chat.id, mergedSummary, Number(lastMessage.id)));
+    tasks.push(
+      upsertChatSummary(chat.id, mergedSummary, Number(lastMessage.id)),
+    );
   }
 
   await Promise.all(tasks);

@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import ChatRoom from '@/features/chat/components/ChatRoom';
 import JoinCompleteCard from '@/features/join/components/JoinCompleteCard';
 import JoinFlowCard from '@/features/join/components/JoinFlowCard';
+import { JOIN_COMPLETE_MESSAGE } from '@/features/join/data/complete';
 import { buildJoinResultMessage } from '@/features/join/lib/joinResultMessage';
 import TestLoadingModal from '@/features/test/components/TestLoadingModal';
 import TestQuestionCard from '@/features/test/components/TestQuestionCard';
@@ -41,11 +42,11 @@ export default function ChatPage() {
         isLoggedIn={isAuthLoading ? undefined : isLoggedIn}
         onPlanTest={test.openTest}
         renderJoinFlow={(
-          plan,
+          block,
           { isCompleted, progress, onProgressChange, onComplete },
         ) => (
           <JoinFlowCard
-            plan={plan}
+            plan={block.item}
             isLoggedIn={isLoggedIn}
             renderSignup={() => <KakaoLoginButton />}
             isCompleted={isCompleted}
@@ -53,12 +54,17 @@ export default function ChatPage() {
             onProgressChange={onProgressChange}
             onComplete={() =>
               onComplete(
-                buildJoinResultMessage({ planName: plan.name, customerName }),
+                buildJoinResultMessage({
+                  planName: block.item.name,
+                  customerName,
+                }),
               )
             }
           />
         )}
-        renderJoinResult={() => <JoinCompleteCard />}
+        renderJoinResult={(kind) => (
+          <JoinCompleteCard message={JOIN_COMPLETE_MESSAGE[kind]} />
+        )}
         renderUsageAnalysis={(data, { onJoin }) => (
           <UsageAnalysisSection data={data} onJoin={onJoin} />
         )}

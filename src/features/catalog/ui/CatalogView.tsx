@@ -14,14 +14,17 @@ import SubscriptionRow from '@/features/catalog/ui/SubscriptionRow';
 import { CATALOG_EMPTY_MESSAGES } from '@/features/catalog/constants';
 import { useCatalogDetail } from '@/features/catalog/hooks/useCatalogDetail';
 import { useCatalogTabs } from '@/features/catalog/hooks/useCatalogTabs';
+import type { CatalogData, CatalogTab } from '@/features/catalog/types';
+
 import {
   buildAddOnJoinMessage,
   buildPlanJoinMessage,
   buildSubscriptionJoinMessage,
-} from '@/features/catalog/lib/joinMessage';
-import type { CatalogData, CatalogTab } from '@/features/catalog/types';
-
+} from '@/entities/join';
+import type { AddOn } from '@/entities/addOn/types';
 import type { MembershipBrand } from '@/entities/membershipBrand/types';
+import type { Plan } from '@/entities/plan/types';
+import type { Subscription } from '@/entities/subscription/types';
 
 interface CatalogViewProps {
   catalog: CatalogData;
@@ -37,9 +40,11 @@ interface CatalogViewProps {
 export default function CatalogView({ catalog, initialTab }: CatalogViewProps) {
   // 1. 상태 및 훅
   const { activeTab, panelId, handleTabChange } = useCatalogTabs(initialTab);
-  const planDetail = useCatalogDetail(buildPlanJoinMessage);
-  const addOnDetail = useCatalogDetail(buildAddOnJoinMessage);
-  const subscriptionDetail = useCatalogDetail(buildSubscriptionJoinMessage);
+  const planDetail = useCatalogDetail<Plan>(buildPlanJoinMessage);
+  const addOnDetail = useCatalogDetail<AddOn>(buildAddOnJoinMessage);
+  const subscriptionDetail = useCatalogDetail<Subscription>(
+    buildSubscriptionJoinMessage,
+  );
   // 멤버십은 가입 대상이 아니라 열고 닫는 것만 쓴다
   const membershipDetail = useCatalogDetail<MembershipBrand>();
 

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 
 import { getPlansByIds } from '@/entities/plan/server/planRepository';
 import {
-  getCurrentUser,
   MEMBER_GUARD_MESSAGE,
   MEMBER_GUARD_STATUS,
   requireMember,
@@ -14,7 +13,39 @@ import {
   insertJoinResultMessages,
   updateJoinFlowMarker,
 } from '@/features/chat/server/chatRepository';
-import type { PlanJoinProgress } from '@/entities/planJoin/types';
+import { buildPlanJoinMessage } from '@/entities/join';
+import type { JoinKind, JoinProgress, JoinTarget } from '@/entities/join/types';
+
+const JOIN_KINDS: JoinKind[] = ['plan', 'addOn', 'subscription'];
+
+/** 요청 바디에서 어떤 상품에 대한 카드인지를 읽어낸다. 모양이 안 맞으면 null */
+function parseJoinTarget(body: unknown): JoinTarget | null {
+  if (!body || typeof body !== 'object') return null;
+
+  const { kind, itemId } = body as { kind?: unknown; itemId?: unknown };
+
+  if (!JOIN_KINDS.includes(kind as JoinKind)) return null;
+  if (typeof itemId !== 'number' || !Number.isInteger(itemId)) return null;
+
+  return { kind: kind as JoinKind, itemId };
+}
+
+/**
+ * 마커와 함께 남길 사용자 말풍선 문구.
+ * CARD-001과 같은 원칙으로, 클라이언트가 보낸 이름을 쓰지 않고 번호로 실제 값을
+ * 다시 조회해서 만든다. 없는 상품이면 null - 호출하는 쪽이 404 로 돌려준다.
+ */
+async function buildJoinDisplayText(
+  target: JoinTarget,
+): Promise<string | null> {
+  if (target.kind === 'plan') {
+    const [plan] = await getPlansByIds([target.itemId]);
+
+    return plan ? buildPlanJoinMessage(plan) : null;
+  }
+
+  return null;
+}
 
 /**
  * CARD-029: 회원이 채팅 안에서 "신청하기"를 누른 순간을 DB에 남긴다 - 나중에 이
@@ -33,31 +64,26 @@ export async function POST(request: Request) {
 
   const user = guard.user;
 
-  const body = (await request.json().catch(() => null)) as {
-    planId?: unknown;
-  } | null;
-  const planId = typeof body?.planId === 'number' ? body.planId : null;
+  const target = parseJoinTarget(await request.json().catch(() => null));
 
-  if (planId === null) {
+  if (!target) {
     return NextResponse.json(
-      { error: 'planId가 필요합니다.' },
+      { error: 'kind와 itemId가 필요합니다.' },
       { status: 400 },
     );
   }
 
   try {
-    // CARD-001과 같은 원칙: 클라이언트가 보낸 요금제 정보를 그대로 믿지 않고,
-    // id로 실제 DB 값을 다시 조회해서 저장한다.
-    const [plan] = await getPlansByIds([planId]);
-    if (!plan) {
+    const displayText = await buildJoinDisplayText(target);
+    if (!displayText) {
       return NextResponse.json(
-        { error: '요금제를 찾을 수 없습니다.' },
+        { error: '가입할 상품을 찾을 수 없습니다.' },
         { status: 404 },
       );
     }
 
     const chat = await getOrCreateActiveChat(user.id);
-    await insertJoinFlowMessages(chat.id, plan);
+    await insertJoinFlowMessages(chat.id, target, displayText);
 
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -70,7 +96,6 @@ export async function POST(request: Request) {
 }
 
 interface JoinPatchBody {
-  planId?: unknown;
   progress?: unknown;
   isCompleted?: unknown;
   resultMessage?: unknown;
@@ -84,28 +109,30 @@ interface JoinPatchBody {
  * 비회원은 이 엔드포인트를 안 쓰고 localStorage 로만 들고 있는다.
  */
 export async function PATCH(request: Request) {
-  const user = await getCurrentUser();
+  const guard = await requireMember();
 
-  if (!user) {
+  if (!guard.isMember) {
     return NextResponse.json(
-      { error: '로그인이 필요합니다.' },
-      { status: 401 },
+      { error: MEMBER_GUARD_MESSAGE[guard.reason] },
+      { status: MEMBER_GUARD_STATUS[guard.reason] },
     );
   }
 
-  const body = (await request.json().catch(() => null)) as JoinPatchBody | null;
-  const planId = typeof body?.planId === 'number' ? body.planId : null;
+  const user = guard.user;
 
-  if (planId === null) {
+  const body = (await request.json().catch(() => null)) as JoinPatchBody | null;
+  const target = parseJoinTarget(body);
+
+  if (!target) {
     return NextResponse.json(
-      { error: 'planId가 필요합니다.' },
+      { error: 'kind와 itemId가 필요합니다.' },
       { status: 400 },
     );
   }
 
   const progress =
     body?.progress && typeof body.progress === 'object'
-      ? (body.progress as PlanJoinProgress)
+      ? (body.progress as JoinProgress)
       : undefined;
   const isCompleted =
     typeof body?.isCompleted === 'boolean' ? body.isCompleted : undefined;
@@ -125,7 +152,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const isUpdated = await updateJoinFlowMarker(chat.id, planId, {
+    const isUpdated = await updateJoinFlowMarker(chat.id, target, {
       progress,
       isCompleted,
     });
@@ -138,7 +165,7 @@ export async function PATCH(request: Request) {
     }
 
     if (resultMessage) {
-      await insertJoinResultMessages(chat.id, resultMessage);
+      await insertJoinResultMessages(chat.id, target.kind, resultMessage);
     }
 
     return NextResponse.json({ ok: true });

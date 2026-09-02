@@ -6,11 +6,15 @@ import {
   requireMember,
 } from '@/features/auth/server';
 import { migrateGuestChat } from '@/features/chat/server/migrateGuestChat';
-import type { ChatKeywords, ChatMessage, PlanJoinBlock } from '@/features/chat/types';
+import type {
+  ChatKeywords,
+  ChatMessage,
+  JoinBlock,
+} from '@/features/chat/types';
 
 interface MigrateRequestBody {
   messages?: ChatMessage[];
-  joinBlocks?: PlanJoinBlock[];
+  joinBlocks?: JoinBlock[];
   keywords?: ChatKeywords;
   summary?: string;
 }
@@ -32,7 +36,9 @@ export async function POST(request: Request) {
 
   const user = guard.user;
 
-  const body = (await request.json().catch(() => null)) as MigrateRequestBody | null;
+  const body = (await request
+    .json()
+    .catch(() => null)) as MigrateRequestBody | null;
   const messages = Array.isArray(body?.messages) ? body.messages : [];
 
   if (messages.length === 0) {
@@ -50,6 +56,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[api/chat/migrate] 승계 실패:', error);
-    return NextResponse.json({ error: '대화를 이어받지 못했습니다.' }, { status: 500 });
+    return NextResponse.json(
+      { error: '대화를 이어받지 못했습니다.' },
+      { status: 500 },
+    );
   }
 }

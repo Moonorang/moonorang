@@ -19,16 +19,18 @@ import {
   selectTurnsToSummarize,
   selectUnsummarizedHistory,
 } from '@/features/chat/lib/turns';
+import { getJoinBlockTarget } from '@/features/chat/lib/joinBlock';
 import type {
   ChatErrorReason,
   ChatKeywords,
   ChatMessage,
   ChatSummarizeResponseBody,
-  PlanJoinBlock,
+  JoinBlock,
+  JoinBlockItem,
 } from '@/features/chat/types';
 
-import type { PlanJoinProgress } from '@/entities/planJoin/types';
-import type { Plan } from '@/entities/plan/types';
+import { getJoinKey } from '@/entities/join';
+import type { JoinProgress, JoinTarget } from '@/entities/join/types';
 
 import { createId } from '@/shared/utils/createId';
 
@@ -39,7 +41,7 @@ export interface ChatError {
 
 interface MemberChatHistoryResponse {
   messages: ChatMessage[];
-  joinBlocks: PlanJoinBlock[];
+  joinBlocks: JoinBlock[];
   keywords: ChatKeywords;
 }
 
@@ -58,10 +60,7 @@ export interface ChatConflict {
  * 가입 카드는 렌더할 때마다 진행 상태를 알려오는데, 달라진 게 없을 때도 저장하면
  * 상태가 새로 만들어져 다시 렌더되고, 그게 또 알림을 부르는 고리가 된다.
  */
-function isSameProgress(
-  a: PlanJoinProgress | undefined,
-  b: PlanJoinProgress,
-): boolean {
+function isSameProgress(a: JoinProgress | undefined, b: JoinProgress): boolean {
   return (
     a !== undefined &&
     a.stepIndex === b.stepIndex &&
@@ -117,16 +116,19 @@ export function useChat(isLoggedIn: boolean | undefined) {
   // NearbyMembershipCard의 미니 지도가 "내 위치" 핀을 찍을 수 있게 화면에 내려주기
   // 위한 것 - 둘이 항상 같은 값을 가리키도록 같이 갱신한다.
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
   // getCurrentPosition은 비동기라, 예전엔 이 결과를 기다리지 않고 곧바로 fetch를
   // 보내서 - 권한이 이미 허용돼 있어도 매번 위치 없이 요청이 나가는 레이스가 있었다
   // (locationRef.current가 아직 null인 채로 fetch 본문이 만들어짐). 그래서
   // runChatRequest가 이 promise를 await해서 요청을 보내기 직전에 위치가 반영되게
   // 한다. 이미 얻은 뒤(locationRef.current 있음)나 요청이 이미 진행 중일 때는
   // 새로 묻지 않고 같은 promise/값을 재사용한다.
-  const locationPromiseRef = useRef<Promise<{ lat: number; lng: number } | null> | null>(
-    null,
-  );
+  const locationPromiseRef = useRef<Promise<{
+    lat: number;
+    lng: number;
+  } | null> | null>(null);
 
   const ensureLocationRequested = useCallback((): Promise<{
     lat: number;
@@ -138,26 +140,28 @@ export function useChat(isLoggedIn: boolean | undefined) {
       return Promise.resolve(null);
     }
 
-    const promise = new Promise<{ lat: number; lng: number } | null>((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const nextLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          locationRef.current = nextLocation;
-          setLocation(nextLocation);
-          resolve(nextLocation);
-        },
-        () => {
-          // 거부·타임아웃 등 - promise를 비워서 다음 메시지를 보낼 때 다시
-          // 시도되게 한다(COMMON-002의 "재시도 수단").
-          locationPromiseRef.current = null;
-          resolve(null);
-        },
-        { timeout: 10_000 },
-      );
-    });
+    const promise = new Promise<{ lat: number; lng: number } | null>(
+      (resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const nextLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            locationRef.current = nextLocation;
+            setLocation(nextLocation);
+            resolve(nextLocation);
+          },
+          () => {
+            // 거부·타임아웃 등 - promise를 비워서 다음 메시지를 보낼 때 다시
+            // 시도되게 한다(COMMON-002의 "재시도 수단").
+            locationPromiseRef.current = null;
+            resolve(null);
+          },
+          { timeout: 10_000 },
+        );
+      },
+    );
     locationPromiseRef.current = promise;
     return promise;
   }, []);
@@ -169,8 +173,8 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
   // CARD-029: 신청하기로 띄운 가입 카드들. 대화 이력과 섞지 않고 따로 들고 있지만,
   // 화면을 벗어났다 돌아왔을 때 같이 복구돼야 해서 저장은 messages와 함께 한다.
-  const [joinBlocks, setJoinBlocks] = useState<PlanJoinBlock[]>([]);
-  const joinBlocksRef = useRef<PlanJoinBlock[]>([]);
+  const [joinBlocks, setJoinBlocks] = useState<JoinBlock[]>([]);
+  const joinBlocksRef = useRef<JoinBlock[]>([]);
 
   // §2.3 "대화 요약" 계층 - 화면엔 안 보이고 시스템 프롬프트에만 실어 보낸다.
   const [summary, setSummary] = useState('');
@@ -614,7 +618,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
             } else if (parsed?.event === 'addOnRecommendation') {
               setAiMessageAddOnRecommendations(parsed.data.addOns);
             } else if (parsed?.event === 'subscriptionRecommendation') {
-              setAiMessageSubscriptionRecommendations(parsed.data.subscriptions);
+              setAiMessageSubscriptionRecommendations(
+                parsed.data.subscriptions,
+              );
             } else if (parsed?.event === 'nearbyMembership') {
               setAiMessageNearbyMemberships(parsed.data.memberships);
             } else if (parsed?.event === 'keywords') {
@@ -730,12 +736,22 @@ export function useChat(isLoggedIn: boolean | undefined) {
    * 다시 보이게 한다.
    */
   const addJoinBlock = useCallback(
-    (plan: Plan, afterMessageId: string) => {
-      if (joinBlocksRef.current.some((block) => block.plan.id === plan.id)) {
+    (item: JoinBlockItem, afterMessageId: string) => {
+      const target = { kind: item.kind, itemId: item.item.id };
+      const key = getJoinKey(target);
+
+      if (
+        joinBlocksRef.current.some(
+          (block) => getJoinKey(getJoinBlockTarget(block)) === key,
+        )
+      ) {
         return;
       }
 
-      const next = [...joinBlocksRef.current, { plan, afterMessageId }];
+      const next: JoinBlock[] = [
+        ...joinBlocksRef.current,
+        { ...item, afterMessageId },
+      ];
       joinBlocksRef.current = next;
       setJoinBlocks(next);
 
@@ -743,7 +759,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
         fetch('/api/chat/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ planId: plan.id }),
+          body: JSON.stringify(target),
         }).catch(() => {
           // 서버에 못 남겨도 지금 화면에는 이미 카드가 떠 있으니 대화는 계속된다 -
           // 다음에 복구할 때만 이 카드가 안 보일 뿐이다.
@@ -762,12 +778,13 @@ export function useChat(isLoggedIn: boolean | undefined) {
    * 그 자리가 덜 되살아날 뿐이다(addJoinBlock 과 같은 취지).
    */
   const patchJoinFlow = useCallback(
-    (body: {
-      planId: number;
-      progress?: PlanJoinProgress;
-      isCompleted?: boolean;
-      resultMessage?: string;
-    }) => {
+    (
+      body: JoinTarget & {
+        progress?: JoinProgress;
+        isCompleted?: boolean;
+        resultMessage?: string;
+      },
+    ) => {
       fetch('/api/chat/join', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -785,20 +802,22 @@ export function useChat(isLoggedIn: boolean | undefined) {
    * 만으로는 이어갈 수 없다.
    */
   const saveJoinProgress = useCallback(
-    (planId: number, progress: PlanJoinProgress) => {
-      const target = joinBlocksRef.current.find(
-        (block) => block.plan.id === planId,
-      );
-      if (!target || isSameProgress(target.progress, progress)) return;
+    (target: JoinTarget, progress: JoinProgress) => {
+      const key = getJoinKey(target);
+      const isTarget = (block: JoinBlock) =>
+        getJoinKey(getJoinBlockTarget(block)) === key;
+
+      const current = joinBlocksRef.current.find(isTarget);
+      if (!current || isSameProgress(current.progress, progress)) return;
 
       const nextBlocks = joinBlocksRef.current.map((block) =>
-        block.plan.id === planId ? { ...block, progress } : block,
+        isTarget(block) ? { ...block, progress } : block,
       );
       joinBlocksRef.current = nextBlocks;
       setJoinBlocks(nextBlocks);
 
       if (isLoggedIn) {
-        patchJoinFlow({ planId, progress });
+        patchJoinFlow({ ...target, progress });
         return;
       }
 
@@ -813,14 +832,16 @@ export function useChat(isLoggedIn: boolean | undefined) {
    * 두 번 결제되지 않도록 그 가입 카드에도 끝났다는 표시를 남긴다.
    */
   const completeJoinBlock = useCallback(
-    (planId: number, resultMessage: string) => {
-      const target = joinBlocksRef.current.find(
-        (block) => block.plan.id === planId,
-      );
-      if (!target || target.isCompleted) return;
+    (target: JoinTarget, resultMessage: string) => {
+      const key = getJoinKey(target);
+      const isTarget = (block: JoinBlock) =>
+        getJoinKey(getJoinBlockTarget(block)) === key;
+
+      const current = joinBlocksRef.current.find(isTarget);
+      if (!current || current.isCompleted) return;
 
       const nextBlocks = joinBlocksRef.current.map((block) =>
-        block.plan.id === planId ? { ...block, isCompleted: true } : block,
+        isTarget(block) ? { ...block, isCompleted: true } : block,
       );
       joinBlocksRef.current = nextBlocks;
       setJoinBlocks(nextBlocks);
@@ -832,12 +853,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
           role: 'ai',
           content: resultMessage,
           createdAt: new Date().toISOString(),
-          isJoinResult: true,
+          joinResultKind: target.kind,
         },
       ]);
 
       if (isLoggedIn) {
-        patchJoinFlow({ planId, isCompleted: true, resultMessage });
+        patchJoinFlow({ ...target, isCompleted: true, resultMessage });
         return;
       }
 

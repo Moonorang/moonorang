@@ -26,7 +26,7 @@ import { completeJoin } from '@/features/join/server/actions';
 import type { CardValues } from '@/features/join/lib/cardSchema';
 import type { IdentityValues } from '@/features/join/lib/identitySchema';
 
-import type { PlanJoinProgress } from '@/entities/planJoin/types';
+import type { JoinProgress } from '@/entities/join/types';
 import type { Plan } from '@/entities/plan/types';
 import { saveSignupPrefill } from '@/entities/user/lib/signupPrefill';
 import type { Gender } from '@/entities/user/types';
@@ -70,9 +70,9 @@ interface JoinFlowCardProps {
    * CARD-046: 지난번에 어디까지 밟았는지. 회원가입 하러 나갔다 돌아오면 화면이
    * 통째로 새로 뜨므로, 이 값이 없으면 늘 첫 단계부터 다시 시작하게 된다.
    */
-  progress?: PlanJoinProgress;
+  progress?: JoinProgress;
   /** 진행 상태가 달라질 때마다 불린다 - 대화 쪽이 받아서 함께 저장한다 */
-  onProgressChange?: (progress: PlanJoinProgress) => void;
+  onProgressChange?: (progress: JoinProgress) => void;
 }
 
 /**

@@ -1,8 +1,10 @@
+import type { Plan } from '@/entities/plan/types';
+
 import { CHAT_STORAGE_KEY } from '@/features/chat/constants';
 import type {
   ChatKeywords,
   ChatMessage,
-  PlanJoinBlock,
+  JoinBlock,
 } from '@/features/chat/types';
 
 export interface StoredChatState {
@@ -13,7 +15,36 @@ export interface StoredChatState {
   summarizedTurnCount: number;
   keywords: ChatKeywords;
   /** CARD-029: 대화 중간에 띄운 가입 카드들 - 메시지와 같이 복구해야 순서가 유지된다 */
-  joinBlocks: PlanJoinBlock[];
+  joinBlocks: JoinBlock[];
+}
+
+/** 요금제만 가입할 수 있던 시절에 저장된 가입 카드의 모양 */
+type LegacyJoinBlock = Omit<JoinBlock, 'kind' | 'item'> & { plan: Plan };
+
+/**
+ * 예전 브라우저 저장분의 가입 카드를 지금 모양으로 맞춘다.
+ * 서버 쪽 chatCard.ts 의 normalizeCardPayload 와 같은 취지 - 읽는 자리에서
+ * 흡수해서, 위쪽은 kind 가 늘 있다고 믿고 쓰게 한다.
+ */
+function normalizeJoinBlock(stored: unknown): JoinBlock | null {
+  if (!stored || typeof stored !== 'object') return null;
+
+  const block = stored as Partial<JoinBlock> & Partial<LegacyJoinBlock>;
+
+  if (block.kind === 'plan' && block.item) {
+    return block as JoinBlock;
+  }
+
+  // kind 가 없고 plan 을 들고 있으면 예전 모양이다
+  if (!block.kind && block.plan) {
+    const { plan, ...rest } = block as LegacyJoinBlock;
+
+    return { ...rest, kind: 'plan', item: plan };
+  }
+
+  // 알 수 없는 모양(앞으로 늘어날 종류를 예전 버전이 읽는 경우)은 버린다 -
+  // 그릴 방법이 없는 카드를 들고 있어봐야 저장분에만 남는다
+  return null;
 }
 
 /**
@@ -46,11 +77,19 @@ export function loadChatState(): StoredChatState | null {
       messages: parsed.messages,
       summary: typeof parsed.summary === 'string' ? parsed.summary : '',
       summarizedTurnCount:
-        typeof parsed.summarizedTurnCount === 'number' ? parsed.summarizedTurnCount : 0,
+        typeof parsed.summarizedTurnCount === 'number'
+          ? parsed.summarizedTurnCount
+          : 0,
       keywords:
-        parsed.keywords && typeof parsed.keywords === 'object' ? parsed.keywords : {},
+        parsed.keywords && typeof parsed.keywords === 'object'
+          ? parsed.keywords
+          : {},
       // 이 필드가 없던 시절에 저장된 값도 그대로 복구돼야 한다 - 없으면 빈 배열
-      joinBlocks: Array.isArray(parsed.joinBlocks) ? parsed.joinBlocks : [],
+      joinBlocks: Array.isArray(parsed.joinBlocks)
+        ? parsed.joinBlocks
+            .map(normalizeJoinBlock)
+            .filter((block): block is JoinBlock => block !== null)
+        : [],
     };
   } catch {
     return null;

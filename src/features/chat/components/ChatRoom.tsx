@@ -21,10 +21,15 @@ import UserMessage from '@/features/chat/components/UserMessage';
 import { WELCOME_MESSAGE } from '@/features/chat/constants';
 import { useChat } from '@/features/chat/hooks/useChat';
 import { useConditionQuestions } from '@/features/chat/hooks/useConditionQuestions';
-import type { ChatKeywords } from '@/features/chat/types';
+import {
+  getJoinBlockMessage,
+  getJoinBlockTarget,
+} from '@/features/chat/lib/joinBlock';
+import type { ChatKeywords, JoinBlock } from '@/features/chat/types';
 
 import { takePendingChatMessage } from '@/entities/chat';
-import type { PlanJoinProgress } from '@/entities/planJoin/types';
+import { getJoinKey } from '@/entities/join';
+import type { JoinKind, JoinProgress } from '@/entities/join/types';
 import type { Plan } from '@/entities/plan/types';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
 
@@ -42,8 +47,14 @@ const CONDITION_CARD_KEYWORDS = ['선택지', '카드', '골라'];
  * 가입 카드와 함께 남기는 안내 문구.
  * 문구가 매번 달라지면 안 되고 대화 문맥도 아니라서 모델을 거치지 않고 여기서 만든다.
  */
-const PLAN_JOIN_GUIDE = `선택하신 요금제의 상세 내용을 확인해주세요!
-선택하신 요금제가 맞으신가요?`;
+const JOIN_GUIDE: Record<JoinKind, string> = {
+  plan: `선택하신 요금제의 상세 내용을 확인해주세요!
+선택하신 요금제가 맞으신가요?`,
+  addOn: `선택하신 부가서비스의 상세 내용을 확인해주세요!
+선택하신 부가서비스가 맞으신가요?`,
+  subscription: `선택하신 구독 상품의 상세 내용을 확인해주세요!
+선택하신 구독 상품이 맞으신가요?`,
+};
 
 interface ChatRoomProps {
   /**
@@ -71,11 +82,11 @@ interface ChatRoomProps {
    * CARD-046: 진행 상태는 대화와 함께 저장했다가 카드가 다시 뜰 때 돌려준다.
    */
   renderJoinFlow?: (
-    plan: Plan,
+    block: JoinBlock,
     options: {
       isCompleted: boolean;
-      progress?: PlanJoinProgress;
-      onProgressChange: (progress: PlanJoinProgress) => void;
+      progress?: JoinProgress;
+      onProgressChange: (progress: JoinProgress) => void;
       onComplete: (resultMessage: string) => void;
     },
   ) => ReactNode;
@@ -83,7 +94,7 @@ interface ChatRoomProps {
    * CARD-043: 가입을 마친 메시지의 말풍선 아래에 붙는 축하 카드.
    * 사용량 분석 카드와 같은 이유로 슬롯으로 받는다.
    */
-  renderJoinResult?: () => ReactNode;
+  renderJoinResult?: (kind: JoinKind) => ReactNode;
   /**
    * CARD-022~028: usageAnalysis 이벤트가 온 메시지에 끼워 넣는 사용량 분석/절약 카드.
    * features/usage도 다른 feature라 직접 참조 못 해 슬롯으로 받는다. onJoin은 이 화면이
@@ -336,7 +347,7 @@ export default function ChatRoom({
     if (!lastMessageId) return;
 
     setIsAtBottom(true);
-    addJoinBlock(plan, lastMessageId);
+    addJoinBlock({ kind: 'plan', item: plan }, lastMessageId);
   };
 
   // features/test 오버레이(부모가 넘김)와 조건 수집 카드(이 컴포넌트가 직접 엶)를
@@ -451,30 +462,33 @@ export default function ChatRoom({
                       renderUsageAnalysis?.(message.usageAnalysis, {
                         onJoin: handleJoin,
                       })}
-                    {message.isJoinResult && renderJoinResult?.()}
+                    {message.joinResultKind &&
+                      renderJoinResult?.(message.joinResultKind)}
                   </AiMessage>
                 )}
 
                 {/* 이 메시지 뒤에 띄운 가입 카드 - 대화 순서를 그대로 지킨다 */}
                 {joinBlocks
                   .filter((block) => block.afterMessageId === message.id)
-                  .map((block) => (
-                    <Fragment key={block.plan.id}>
-                      <UserMessage
-                        content={`${block.plan.name} 요금제 가입할래`}
-                      />
-                      <AiMessage content={PLAN_JOIN_GUIDE}>
-                        {renderJoinFlow?.(block.plan, {
-                          isCompleted: Boolean(block.isCompleted),
-                          progress: block.progress,
-                          onProgressChange: (progress) =>
-                            saveJoinProgress(block.plan.id, progress),
-                          onComplete: (resultMessage) =>
-                            completeJoinBlock(block.plan.id, resultMessage),
-                        })}
-                      </AiMessage>
-                    </Fragment>
-                  ))}
+                  .map((block) => {
+                    const target = getJoinBlockTarget(block);
+
+                    return (
+                      <Fragment key={getJoinKey(target)}>
+                        <UserMessage content={getJoinBlockMessage(block)} />
+                        <AiMessage content={JOIN_GUIDE[block.kind]}>
+                          {renderJoinFlow?.(block, {
+                            isCompleted: Boolean(block.isCompleted),
+                            progress: block.progress,
+                            onProgressChange: (progress) =>
+                              saveJoinProgress(target, progress),
+                            onComplete: (resultMessage) =>
+                              completeJoinBlock(target, resultMessage),
+                          })}
+                        </AiMessage>
+                      </Fragment>
+                    );
+                  })}
               </Fragment>
             );
           })}
