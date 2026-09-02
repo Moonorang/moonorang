@@ -102,7 +102,7 @@ export default function PlanDetailCard({ plan, onJoin }: PlanDetailCardProps) {
           onClick={onJoin}
           appendClassName="mt-[18px]"
         >
-          채팅에서 신청하기
+          채팅에서 가입하기
         </Button>
       )}
 

@@ -10,9 +10,12 @@ import PlanRow from '@/features/catalog/ui/PlanRow';
 import SubscriptionRow from '@/features/catalog/ui/SubscriptionRow';
 
 import { CATALOG_EMPTY_MESSAGES } from '@/features/catalog/constants';
-import { useAddOnDetail } from '@/features/catalog/hooks/useAddOnDetail';
+import { useCatalogDetail } from '@/features/catalog/hooks/useCatalogDetail';
 import { useCatalogTabs } from '@/features/catalog/hooks/useCatalogTabs';
-import { usePlanDetail } from '@/features/catalog/hooks/usePlanDetail';
+import {
+  buildAddOnJoinMessage,
+  buildPlanJoinMessage,
+} from '@/features/catalog/lib/joinMessage';
 import type { CatalogData } from '@/features/catalog/types';
 
 interface CatalogViewProps {
@@ -22,14 +25,13 @@ interface CatalogViewProps {
 /**
  * 상품·혜택 목록 화면.
  * 데이터는 서버(page.tsx)에서 받아 props 로 내려오고,
- * 여기서는 탭·아코디언 상태와 어떤 요금제 상세가 열려 있는지만 갖는다.
+ * 여기서는 탭 상태와, 어떤 항목의 상세가 열려 있는지만 갖는다.
  */
 export default function CatalogView({ catalog }: CatalogViewProps) {
   // 1. 상태 및 훅
   const { activeTab, panelId, handleTabChange } = useCatalogTabs();
-  const { selectedPlan, openPlanDetail, closePlanDetail, goToJoin } =
-    usePlanDetail();
-  const addOnDetail = useAddOnDetail();
+  const planDetail = useCatalogDetail(buildPlanJoinMessage);
+  const addOnDetail = useCatalogDetail(buildAddOnJoinMessage);
 
   // 2. 렌더링
   const items = catalog[activeTab];
@@ -52,7 +54,7 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
                 <PlanRow
                   key={plan.id}
                   plan={plan}
-                  onSelect={() => openPlanDetail(plan)}
+                  onSelect={() => planDetail.openDetail(plan)}
                 />
               ))}
 
@@ -61,7 +63,7 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
                 <AddOnRow
                   key={addOn.id}
                   addOn={addOn}
-                  onSelect={() => addOnDetail.openAddOnDetail(addOn)}
+                  onSelect={() => addOnDetail.openDetail(addOn)}
                 />
               ))}
 
@@ -82,14 +84,14 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
       </div>
 
       <PlanDetailModal
-        plan={selectedPlan}
-        onClose={closePlanDetail}
-        onJoin={goToJoin}
+        plan={planDetail.selectedItem}
+        onClose={planDetail.closeDetail}
+        onJoin={planDetail.goToJoin}
       />
 
       <AddOnDetailModal
-        addOn={addOnDetail.selectedAddOn}
-        onClose={addOnDetail.closeAddOnDetail}
+        addOn={addOnDetail.selectedItem}
+        onClose={addOnDetail.closeDetail}
         onJoin={addOnDetail.goToJoin}
       />
     </main>
