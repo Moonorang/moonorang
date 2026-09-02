@@ -61,7 +61,8 @@ export async function getActiveChat(
   return data;
 }
 
-/** CHAT-014: 대화 초기화 시 새 세션을 강제로 만든다 - 이전 세션은 DB에 그대로 남는다. */
+/** CHAT-014: 대화 초기화 시 새 세션을 강제로 만든다. 이전 세션을 지우는 건 이
+ * 함수의 책임이 아니다 - 호출부(reset 라우트)가 deleteChat으로 먼저 지운다. */
 export async function createNewChat(userId: string): Promise<{ id: string; keywords: ChatKeywords }> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -74,6 +75,20 @@ export async function createNewChat(userId: string): Promise<{ id: string; keywo
     throw new Error(`채팅 세션 생성 실패: ${error?.message}`);
   }
   return data;
+}
+
+/**
+ * CHAT-014: 대화 초기화 시 이전 세션을 완전히 지운다. chat_messages/chat_summary는
+ * chats(id)를 on delete cascade로 참조하고 있어서(database-schema.sql), chats 행
+ * 하나만 지우면 그 세션의 메시지·요약까지 한 번에 같이 지워진다 - 따로 지울 필요 없음.
+ */
+export async function deleteChat(chatId: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.from('chats').delete().eq('id', chatId);
+
+  if (error) {
+    throw new Error(`이전 세션 삭제 실패: ${error.message}`);
+  }
 }
 
 export async function insertMessage(

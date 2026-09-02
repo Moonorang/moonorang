@@ -600,8 +600,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
   /**
    * CHAT-014: 전체 대화 내역을 비운다. 파악해둔 조건·요약·저장분도 같이 지운다.
-   * 회원이면 서버에 새 세션을 만들어달라고 요청한다 - 이전 세션은 DB에 그대로
-   * 남고, 다음 메시지부터는 새 세션에 쌓인다(A안: 대화 목록 없이 하나만 재사용).
+   * 회원이면 서버에 초기화를 요청한다 - 이전 세션(chats/chat_messages/chat_summary)을
+   * 지우고 새 세션을 만든다(A안: 대화 목록 없이 하나만 재사용 - 지우지 않으면 다시는
+   * 안 쓰이는 세션이 DB에 계속 쌓인다).
    */
   const reset = useCallback(() => {
     messagesRef.current = [];
