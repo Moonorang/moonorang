@@ -75,9 +75,14 @@ function buildKakaoDirectionsUrl(
  * 지도가 생성된 바로 그 순간에 컨테이너가 이미 최종 크기와 다르게 잡혀 있고
  * 그 뒤로 한 번도 안 바뀌는 경우(작은 미리보기 지도처럼, 카드 폭이 마운트
  * 직후 자리 잡고 나서 다시는 안 바뀌는 경우)엔 이 관찰만으로는 못 잡는다.
- * registerMap을 onCreate에서 불러서, 생성 직후 한 프레임 뒤에도 강제로 한 번
- * relayout을 호출한다. relayout()은 center를 흐트러뜨릴 수 있어서
- * (카카오 데브톡 안내), 그 뒤에 bounds/center를 다시 맞추는 콜백을 같이 받는다.
+ * registerMap을 onCreate에서 불러서 생성 직후 여러 프레임에 걸쳐 컨테이너
+ * 크기를 지켜본다 - 폰트 로딩 등으로 레이아웃이 한 프레임 뒤에도 또 바뀌는
+ * 경우까지 잡기 위해 한 번이 아니라 짧게(약 10프레임, 0.15초) 확인한다.
+ * 다만 매 프레임 무조건 relayout+recenter를 부르면(이전 버전) 크기가 그대로인
+ * 프레임에도 지도를 계속 다시 그려서 눈에 띄게 깜빡였다 - 그래서 컨테이너의
+ * 실측 크기가 실제로 바뀐 프레임에서만 호출한다. relayout()은 center를
+ * 흐트러뜨릴 수 있어서(카카오 데브톡 안내), 부를 때마다 그 뒤에 bounds/center를
+ * 다시 맞추는 콜백을 같이 받는다.
  */
 function useMapRelayout() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -96,20 +101,50 @@ function useMapRelayout() {
 
   const registerMap = (map: kakao.maps.Map, recenter: () => void) => {
     mapRef.current = map;
-    requestAnimationFrame(() => {
-      map.relayout();
-      recenter();
-    });
+
+    let lastWidth = -1;
+    let lastHeight = -1;
+    let framesLeft = 10;
+
+    const tick = () => {
+      const container = containerRef.current;
+      const width = container?.clientWidth ?? -1;
+      const height = container?.clientHeight ?? -1;
+
+      // 크기가 실제로 바뀐 프레임(최초 1회 포함)에만 다시 그린다 - 그대로인
+      // 프레임까지 매번 relayout하면 깜빡임만 생기고 얻는 게 없다.
+      if (width !== lastWidth || height !== lastHeight) {
+        lastWidth = width;
+        lastHeight = height;
+        map.relayout();
+        recenter();
+      }
+
+      framesLeft -= 1;
+      if (framesLeft > 0) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   };
 
   return { containerRef, mapRef, registerMap };
 }
 
-/** onCreate에서 핀이 여러 개(내 위치 포함)면 전부 화면에 들어오게 범위를 잡는다. */
+/**
+ * onCreate에서 핀이 여러 개(내 위치 포함)면 전부 화면에 들어오게 범위를 잡는다.
+ *
+ * maxLevel을 주면, 핀들이 넓게 흩어져 있어서 setBounds가 너무 멀리 축소해버리는
+ * 경우 그 확대 수준으로 다시 당겨준다 - 카카오 지도 JS SDK는 고밀도(레티나)
+ * 디스플레이용 타일을 따로 제공하지 않는 래스터 지도라, 많이 축소될수록(카메라가
+ * 멀어질수록) 같은 타일 흐림이 화면에서 상대적으로 더 크게 도드라져 보인다.
+ * 좁은 미리보기 지도(140px)에서 특히 체감이 커서, 모든 핀을 다 담는 것보다
+ * 어느 정도 이상 확대된 상태를 유지하는 쪽을 택한다 - 나머지는 탭해서 여는
+ * 전체 모달에서 보면 된다.
+ */
 function fitBoundsToPoints(
   map: kakao.maps.Map,
   points: { lat: number; lng: number }[],
   padding: number,
+  maxLevel?: number,
 ) {
   if (points.length < 2) return;
   const bounds = new kakao.maps.LatLngBounds();
@@ -117,6 +152,10 @@ function fitBoundsToPoints(
     bounds.extend(new kakao.maps.LatLng(point.lat, point.lng));
   });
   map.setBounds(bounds, padding);
+
+  if (maxLevel !== undefined && map.getLevel() > maxLevel) {
+    map.setLevel(maxLevel);
+  }
 }
 
 /**
@@ -182,11 +221,13 @@ function NearbyMembershipMapPreview({
     >
       <Map
         center={center}
-        level={6}
+        level={5}
         draggable={false}
         zoomable={false}
         style={{ width: '100%', height: '100%' }}
         onCreate={(map) => {
+          // 내 위치 + 혜택 지점 전부가 한눈에 들어와야 해서 축소 상한은 두지 않는다
+          // (흐림 완화용 상한을 뒀더니 오히려 일부 핀이 화면 밖으로 밀려났었다).
           const applyBounds = () => fitBoundsToPoints(map, points, 32);
           applyBounds();
           registerMap(map, applyBounds);
