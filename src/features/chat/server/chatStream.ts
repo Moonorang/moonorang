@@ -288,11 +288,13 @@ export function createChatStream(
           Boolean(analyzeSavingsCall) ||
           Boolean(showUsageTrendCall);
 
-        // 가드레일: 조건은 확인됐는데(extractCall) 실행 도구가 끝내 하나도 안
-        // 불렸고, 그런데도 1턴 텍스트에 실제 요금제명이 있으면 - 서버 계산을 거치지
-        // 않은 값이 확실하다. 아직 아무것도 화면에 안 나간 상태이므로 그대로 버리고
+        // 가드레일: 실행 도구가 끝내 하나도 안 불렸는데 1턴 텍스트에 실제 요금제명이
+        // 있으면 - 서버 계산을 거치지 않은 값이 확실하다(CARD-001/002, NFR-003~004).
+        // extractCall 여부와 무관하게 항상 검사한다 - extract_conditions조차 안 부르고
+        // 곧바로 카탈로그를 옮겨 적는 경우(예: 조건 없이 "넷플릭스 관련 상품 있나요?")도
+        // 실제로 관측됐다. 아직 아무것도 화면에 안 나간 상태이므로 그대로 버리고
         // 에러로 전환한다(CARD-006: 재시도 가능).
-        if (extractCall && !actionConfirmed && containsPlanName(turn1Text, plans)) {
+        if (!actionConfirmed && containsPlanName(turn1Text, plans)) {
           console.error(
             '[api/chat] 가드레일: recommend_plans 없이 요금제명 언급 감지 -',
             turn1Text,

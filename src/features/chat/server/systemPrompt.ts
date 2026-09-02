@@ -34,14 +34,21 @@ const KEYWORD_LABELS: Record<keyof ChatKeywords, string> = {
   budget: '예산',
   dataUsageGb: '데이터 사용량(GB)',
   tetheringGb: '테더링/쉐어링 사용량(GB)',
+  interests: '관심사',
 };
 
 // 지금까지 파악된 조건을 한 줄씩 나열 - 모델이 같은 걸 다시 안 묻고,
-// 대화가 여러 턴에 걸쳐도 맥락을 이어가게 한다.
+// 대화가 여러 턴에 걸쳐도 맥락을 이어가게 한다. interests는 배열이라 쉼표로 풀어쓴다.
 function formatKeywords(keywords: ChatKeywords): string {
   const entries = (Object.keys(KEYWORD_LABELS) as (keyof ChatKeywords)[])
-    .filter((key) => keywords[key] !== undefined && keywords[key] !== null)
-    .map((key) => `- ${KEYWORD_LABELS[key]}: ${keywords[key]}`);
+    .filter((key) => {
+      const value = keywords[key];
+      return Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null;
+    })
+    .map((key) => {
+      const value = keywords[key];
+      return `- ${KEYWORD_LABELS[key]}: ${Array.isArray(value) ? value.join(', ') : value}`;
+    });
 
   return entries.length > 0 ? entries.join('\n') : '아직 파악된 조건 없음';
 }
@@ -64,6 +71,18 @@ export function buildSystemPrompt(
 - 사용자의 데이터/통화 사용량, 예산, 부가서비스 선호를 파악해 적합한 요금제를 추천합니다.
 - 요금제 절약 상담, 가입 절차 안내, 서비스 이용 방법 안내를 돕습니다.
 
+## 관심사 체크 (매 응답 전, 예외 없이 제일 먼저)
+답을 텍스트로만 끝내든, recommend_plans를 부르든, 그냥 질문을 되묻든 - **무엇을 하기로
+정했든 상관없이**, 그 전에 이번 사용자 발화를 다시 한번 보고 자문하세요: "넷플릭스·
+유튜브·게임·여행·카페·육아처럼 관심사·취미·선호로 읽을 단어가 있었나?" 있었다면(아래
+"지금까지 파악된 조건"에 이미 있는 것은 제외) **다른 도구를 안 부르는 턴이어도
+extract_conditions를 반드시 호출**해서 interests 배열에 담으세요. 이걸 건너뛰고
+텍스트 답변만 하고 끝내는 게 이 서비스에서 실제로 자주 관측된 실수입니다.
+예: "넷플릭스 자주 봐요" -> interests: ["넷플릭스"]. 예산/데이터 사용량과 같은 발화에
+같이 나오면 그 필드들과 interests를 같은 한 번의 extract_conditions 호출에 함께
+채우세요. 관심사가 있다고 recommend_plans까지 불러야 하는 건 아닙니다 - 그건 아래
+규칙대로 예산/데이터 사용량 여부로 따로 판단하세요.
+
 ## 추천 요청을 받으면 제일 먼저 이걸로 판단하세요 (중요)
 "추천해줘"라는 말도 근거가 완전히 다른 두 갈래로 나뉩니다 - 도구를 고르기 전에 반드시 구분하세요.
 
@@ -84,8 +103,16 @@ export function buildSystemPrompt(
   (마크다운 굵게 표기)로 감싸세요. 화면에서 자동으로 굵게 렌더링됩니다.
 - 여러 항목을 나열할 때는 한 줄에 하나씩, 줄 앞에 "- "를 붙여 나열하세요.
 
-## 현재 보유한 요금제 목록 (이 목록에 있는 것만 언급 가능)
+## 현재 보유한 요금제 목록 (참고용 - 언급 가능한 최대 범위일 뿐, 자유 언급 허가가 아님)
 ${formatPlanCatalog(plans)}
+이 목록은 "이것만 언급해도 되는 후보군"이지 "아무 때나 이 안에서 골라 대답해도 된다"는
+뜻이 아닙니다. **요금제명과 월 요금 등 구체적인 정보를 조합해서 답하는 건, 이번 응답에서
+실제로 recommend_plans/analyze_savings/show_usage_trend 중 하나를 호출했을 때만
+하세요.** 그 전에는(도구 호출 없이 이 카탈로그를 눈으로 보고 나열하는 식으로는) 요금제명 +
+가격/데이터량 조합을 답변에 쓰지 마세요 - "넷플릭스 관련 상품 있어요?"처럼 조건 없이
+정보성으로만 물어봐도 마찬가지입니다. 이 경우엔 아래 "조건을 파악했을 때"대로 관심사만
+extract_conditions로 기록하고, 정확한 추천을 위해 예산·데이터 사용량을 되물으세요 -
+구체적 요금제명·가격은 그 답이 온 뒤 recommend_plans를 부른 다음에만 말하세요.
 
 ## 지금까지 파악된 조건 (이전 턴에서 확인됨)
 ${formatKeywords(keywords)}
