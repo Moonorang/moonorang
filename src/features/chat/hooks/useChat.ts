@@ -169,7 +169,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
       // 안에서 감지할 수 없다. 그래서 회원으로 확인될 때마다 localStorage에 아직
       // 안 옮겨진 게스트 대화가 남아있는지를 직접 확인한다.
       const guestStored = loadChatState();
-      const hasGuestConversation = Boolean(guestStored && guestStored.messages.length > 0);
+      const hasGuestConversation = Boolean(
+        guestStored && guestStored.messages.length > 0,
+      );
 
       fetch('/api/chat/history')
         .then((response) => (response.ok ? response.json() : null))
@@ -200,11 +202,6 @@ export function useChat(isLoggedIn: boolean | undefined) {
     }
 
     const stored = loadChatState();
-
-    // 저장된 대화가 없어도(첫 방문) 복구는 "끝난" 것이다. 아래 early return 뒤에
-    // 두면 첫 방문자에게만 신호가 안 가서, 이걸 기다리는 쪽이 영영 안 움직인다.
-    setIsRestored(true);
-
     if (!stored) return;
 
     messagesRef.current = stored.messages;
@@ -415,7 +412,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
       ) => {
         updateMessages((prev) =>
           prev.map((message) =>
-            message.id === aiMessageId ? { ...message, usageAnalysis } : message,
+            message.id === aiMessageId
+              ? { ...message, usageAnalysis }
+              : message,
           ),
         );
       };
@@ -654,7 +653,6 @@ export function useChat(isLoggedIn: boolean | undefined) {
     messages,
     isStreaming,
     error,
-    isRestored,
     keywords,
     summary,
     joinBlocks,
