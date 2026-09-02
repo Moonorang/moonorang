@@ -14,6 +14,8 @@ interface JoinStepLayoutProps {
    * 카드 머리의 ‹ 화살표로 돌아간다.
    */
   onPrev?: () => void;
+  /** 되돌아갈 곳이 없어진 단계(가입을 마친 뒤 등)에서 이전 버튼을 잠근다 */
+  isPrevDisabled?: boolean;
   children: ReactNode;
 }
 
@@ -26,6 +28,7 @@ export default function JoinStepLayout({
   onSubmit,
   isSubmitDisabled = false,
   onPrev,
+  isPrevDisabled = false,
   children,
 }: JoinStepLayoutProps) {
   const handleFormSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -46,6 +49,7 @@ export default function JoinStepLayout({
             radius="sm"
             size="lg"
             isFullWidth
+            disabled={isPrevDisabled}
             onClick={onPrev}
           >
             이전

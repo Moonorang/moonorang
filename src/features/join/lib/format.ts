@@ -12,9 +12,9 @@ export function formatRrnFront(value: string): string {
   return value.replace(/\D/g, '').slice(0, 6);
 }
 
-/** 주민등록번호 뒷자리 - 숫자 7개 */
-export function formatRrnBack(value: string): string {
-  return value.replace(/\D/g, '').slice(0, 7);
+/** 주민등록번호 뒷자리 첫 숫자 - 성별을 가르는 한 자리라 가리지 않고 보여준다 */
+export function formatRrnGenderCode(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 1);
 }
 
 /**

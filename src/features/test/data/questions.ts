@@ -1,63 +1,66 @@
 import type { TestQuestion } from '@/features/test/types';
 
 // TEST-002: 5문항 객관식
-// TEST-003: 데이터 이용 행태(1,2), 부가서비스 선호(3), 가격 민감도(4), 데이터 민감도(5)
-// 선택지는 모두 1 -> 4 로 강도가 커지는 순서이며 score 가 곧 강도다.
+// 휴식·취미·여가를 어떻게 보내는지 묻는다. 선택지는 모두 1 -> 4 로
+// "집에서 가만히" 에서 "밖에서 활발하게" 쪽으로 강도가 커지고, score 가 곧 강도다.
+// keyword 는 그 선택지가 뜻하는 취미를 한 낱말로 붙인 것이다.
 export const TEST_QUESTIONS: TestQuestion[] = [
   {
     id: 1,
-    question: '스마트폰을 가장 많이 쓰는 순간은?',
-    countsTowardType: true,
+    question: '약속 하나 없는 주말, 어떻게 보내나요?',
     options: [
-      { score: 1, label: '전화 문자 확인할 때가 대부분' },
-      { score: 2, label: '인스타, 카톡 같은 SNS 둘러볼 때' },
-      { score: 3, label: '유튜브, OTT 영상 볼 때' },
-      { score: 4, label: '게임, 화상회의 등 헤비하게 계속 사용' },
+      { score: 1, label: '침대 밖으로 안 나감', keyword: '집콕' },
+      { score: 2, label: '집에서 영화나 드라마 몰아보기', keyword: '몰아보기' },
+      {
+        score: 3,
+        label: '동네 카페까지는 산책 삼아 나감',
+        keyword: '동네산책',
+      },
+      { score: 4, label: '어디든 나가서 하루를 꽉 채움', keyword: '나들이' },
     ],
   },
   {
     id: 2,
-    question: '와이파이가 없는 곳에서 데이터를 쓰는 빈도는?',
-    countsTowardType: true,
+    question: '쉴 때 가장 자주 하는 건?',
     options: [
-      { score: 1, label: '거의 안 씀, 와이파이만 사용' },
-      { score: 2, label: '가끔, 필요할 때만' },
-      { score: 3, label: '밖에 있을 때 자주 사용' },
-      { score: 4, label: '항상, 와이파이 잘 안 잡음' },
+      { score: 1, label: '아무것도 안 하고 멍때리기', keyword: '멍때리기' },
+      { score: 2, label: '유튜브나 OTT 보기', keyword: 'OTT' },
+      { score: 3, label: '게임 한 판, 아니면 음악 듣기', keyword: '게임' },
+      { score: 4, label: '운동하면서 몸 쓰기', keyword: '운동' },
     ],
   },
   {
     id: 3,
-    question: '핫스팟(테더링)으로 노트북·태블릿 연결하는 편인가요?',
-    countsTowardType: true,
+    question: '여행을 간다면 어느 쪽에 가깝나요?',
     options: [
-      { score: 1, label: '전혀 안 함' },
-      { score: 2, label: '아주 가끔' },
-      { score: 3, label: '종종 사용함' },
-      { score: 4, label: '매일 사용, 필수' },
+      { score: 1, label: '여행보다는 집이 제일 좋음', keyword: '집순이집돌이' },
+      { score: 2, label: '가까운 곳에서 당일치기', keyword: '당일치기' },
+      { score: 3, label: '일정 짜서 국내 여행', keyword: '국내여행' },
+      { score: 4, label: '일단 비행기표부터 예약', keyword: '해외여행' },
     ],
   },
   {
     id: 4,
-    // 예산은 성향 유형이 아니라 추천 요금제를 고를 때 쓴다.
-    question: '한 달 통신비로 지출 가능한 예산은?',
-    countsTowardType: false,
+    question: '새 취미를 시작한다면?',
     options: [
-      { score: 1, label: '4만원 이하' },
-      { score: 2, label: '4~6만원' },
-      { score: 3, label: '6~8만원' },
-      { score: 4, label: '8만원 이상, 무제한이면 좋겠음' },
+      {
+        score: 1,
+        label: '혼자 조용히 하는 것 (독서, 뜨개질)',
+        keyword: '혼자취미',
+      },
+      { score: 2, label: '집에서 만드는 것 (요리, 홈카페)', keyword: '홈카페' },
+      { score: 3, label: '배우러 다니는 것 (공방, 클래스)', keyword: '배우기' },
+      { score: 4, label: '같이 하는 것 (동호회, 러닝크루)', keyword: '동호회' },
     ],
   },
   {
     id: 5,
-    question: '데이터가 부족해지면 드는 생각은?',
-    countsTowardType: true,
+    question: '하루 중 가장 기다려지는 시간은?',
     options: [
-      { score: 1, label: '애초에 그럴 일이 별로 없음' },
-      { score: 2, label: '속도 제한 걸려도 크게 신경 안 씀' },
-      { score: 3, label: '답답해서 데이터 추가 구매함' },
-      { score: 4, label: '생각만 해도 스트레스, 무조건 무제한' },
+      { score: 1, label: '이불 속에 들어가는 잠들기 직전', keyword: '늦잠' },
+      { score: 2, label: '저녁에 소파에 눕는 시간', keyword: '집콕휴식' },
+      { score: 3, label: '할 일 끝내고 취미에 쓰는 시간', keyword: '취미시간' },
+      { score: 4, label: '나갈 준비를 하는 주말 아침', keyword: '외출' },
     ],
   },
 ];

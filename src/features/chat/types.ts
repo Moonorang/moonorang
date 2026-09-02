@@ -1,3 +1,4 @@
+import type { PlanJoinProgress } from '@/entities/planJoin/types';
 import type { Plan } from '@/entities/plan/types';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
 
@@ -89,6 +90,11 @@ export interface ChatMessage {
   recommendations?: PlanRecommendation[];
   // usageAnalysis 이벤트가 오면 채워짐 (AI 메시지에만 해당)
   usageAnalysis?: UsageAnalysisResult;
+  /**
+   * CARD-043: 가입을 마쳤을 때 남기는 메시지인지. 참이면 말풍선 아래에 축하 카드가
+   * 붙는다 - 카드에 담을 값이 따로 없어서 표시만 해둔다.
+   */
+  isJoinResult?: boolean;
 }
 
 /**
@@ -98,6 +104,19 @@ export interface ChatMessage {
  */
 export interface PlanJoinBlock {
   plan: Plan;
-  /** 이 메시지 바로 뒤에 끼워 넣는다 - 대화 순서를 지키기 위한 것 */
+  /**
+   * 이 메시지 바로 뒤에 끼워 넣는다 - 대화 순서를 지키기 위한 것.
+   * 신청하기를 누른 시점의 마지막 메시지라, 카드는 늘 그때까지의 대화 끝에 붙는다.
+   */
   afterMessageId: string;
+  /**
+   * CARD-043: 결제까지 마친 카드인지. 카드 안에 두면 화면을 떠났다 돌아왔을 때
+   * 다시 결제할 수 있게 되므로, 대화와 함께 저장되는 이 자리에 둔다.
+   */
+  isCompleted?: boolean;
+  /**
+   * CARD-046: 절차를 어디까지 밟았는지. 카카오 회원가입처럼 화면을 아주 떠났다
+   * 돌아오는 경우가 있어서, 카드가 아니라 대화와 함께 저장되는 여기에 둔다.
+   */
+  progress?: PlanJoinProgress;
 }

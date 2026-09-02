@@ -3,6 +3,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import ConfirmModal from '@/shared/ui/ConfirmModal';
+
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
@@ -18,6 +20,7 @@ import { useChat } from '@/features/chat/hooks/useChat';
 import { useConditionQuestions } from '@/features/chat/hooks/useConditionQuestions';
 import type { ChatKeywords } from '@/features/chat/types';
 
+import type { PlanJoinProgress } from '@/entities/planJoin/types';
 import type { Plan } from '@/entities/plan/types';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
 
@@ -37,14 +40,36 @@ interface ChatRoomProps {
    * 값이 있으면 떠 있는 것으로 보고 추천 질문 칩을 감춘다.
    */
   overlay?: ReactNode;
-  /** CHAT-015: 추가 기능 메뉴의 '요금제 성향 검사' 진입 */
+  /**
+   * 로그인 여부. 로그아웃하는 순간 대화를 비우려고 받는다 -
+   * features/auth 를 직접 참조할 수 없어 바깥에서 넣어준다.
+   */
+  isLoggedIn?: boolean;
+  /** CHAT-015: 추가 기능 메뉴의 '취미 성향 검사' 진입 */
   onPlanTest?: () => void;
   /**
    * CARD-029: 신청하기로 띄우는 가입 카드.
    * 대화 순서에 맞는 자리는 여기서 잡고, 카드 자체는 바깥에서 그린다
    * (features 끼리 직접 참조하지 않기 위한 슬롯).
+   *
+   * CARD-043: 결제가 끝나면 onComplete 로 가입 결과 문구를 넘겨준다 - 문구에
+   * 요금제 이름과 고객 이름이 들어가서 이 화면이 만들 수 없다.
+   * CARD-046: 진행 상태는 대화와 함께 저장했다가 카드가 다시 뜰 때 돌려준다.
    */
-  renderJoinFlow?: (plan: Plan) => ReactNode;
+  renderJoinFlow?: (
+    plan: Plan,
+    options: {
+      isCompleted: boolean;
+      progress?: PlanJoinProgress;
+      onProgressChange: (progress: PlanJoinProgress) => void;
+      onComplete: (resultMessage: string) => void;
+    },
+  ) => ReactNode;
+  /**
+   * CARD-043: 가입을 마친 메시지의 말풍선 아래에 붙는 축하 카드.
+   * 사용량 분석 카드와 같은 이유로 슬롯으로 받는다.
+   */
+  renderJoinResult?: () => ReactNode;
   /**
    * CARD-022~028: usageAnalysis 이벤트가 온 메시지에 끼워 넣는 사용량 분석/절약 카드.
    * features/usage도 다른 feature라 직접 참조 못 해 슬롯으로 받는다. onJoin은 이 화면이
@@ -59,13 +84,17 @@ interface ChatRoomProps {
 /** 채팅 화면 본체 - 대화 내역, 추천 질문 칩, 입력창, 추가 기능 메뉴 */
 export default function ChatRoom({
   overlay,
+  isLoggedIn = false,
   onPlanTest,
   renderJoinFlow,
+  renderJoinResult,
   renderUsageAnalysis,
 }: ChatRoomProps) {
   // 1. 상태 및 훅
   const [value, setValue] = useState('');
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
+  // CHAT-014: 대화 초기화는 되돌릴 수 없어서 한 번 되묻는다
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const {
     messages,
     isStreaming,
@@ -77,6 +106,8 @@ export default function ChatRoom({
     retry,
     reset,
     addJoinBlock,
+    saveJoinProgress,
+    completeJoinBlock,
     setKeywordValue,
     pruneVisibleMessages,
     stopGeneration,
@@ -97,6 +128,26 @@ export default function ChatRoom({
   const [isAtBottom, setIsAtBottom] = useState(true);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // CHAT-014: 대화를 비울 때 가입 카드도, 조건 수집 진행 상태도, 보내지 않고
+  // 쓰다 만 입력까지 같이 걷어낸다 - 대화만 사라지고 입력창에 하던 말이 남아 있으면
+  // 초기화가 안 된 것처럼 보인다. (가입 카드는 reset 이 같이 비운다)
+  const clearConversation = useCallback(() => {
+    reset();
+    setValue('');
+    setConditionAnswers([]);
+    setDismissedEntryChipsFor(null);
+  }, [reset]);
+
+  const closeResetConfirm = useCallback(() => setIsResetConfirmOpen(false), []);
+
+  const handleResetConfirm = () => {
+    setIsResetConfirmOpen(false);
+    clearConversation();
+  };
+
+  // 로그인 상태였는지 - 로그아웃으로 넘어가는 순간을 알아채려고 들고 있는다
+  const wasLoggedInRef = useRef(false);
 
   const scrollToBottom = useCallback(() => {
     const element = scrollAreaRef.current;
@@ -119,11 +170,23 @@ export default function ChatRoom({
     scrollToBottom();
   }, [messages, joinBlocks, error, isStreaming, isAtBottom, scrollToBottom]);
 
+  // CHAT-011/012: 로그아웃하면 대화를 화면에서도 브라우저 저장분에서도 비운다.
+  // 로그인해서 나눈 이야기가 로그아웃 뒤에까지 남아 있으면, 같은 기기를 쓰는
+  // 다음 사람에게 그대로 보인다.
+  useEffect(() => {
+    if (wasLoggedInRef.current && !isLoggedIn) clearConversation();
+
+    wasLoggedInRef.current = isLoggedIn;
+  }, [isLoggedIn, clearConversation]);
+
   // 화면 유지 상한을 넘긴 오래된(이미 요약된) 턴은, 사용자가 맨 아래를 보고 있을 때만
   // 걷어낸다 - 과거 대화를 스크롤해서 보는 도중에 눈앞에서 사라지는 걸 막기 위함.
   useEffect(() => {
     if (isAtBottom) pruneVisibleMessages();
   }, [isAtBottom, messages.length, pruneVisibleMessages]);
+
+  const lastMessage = messages[messages.length - 1];
+  const lastMessageId = lastMessage?.id;
 
   // 3. 이벤트 핸들러
   const handleScroll = () => {
@@ -204,21 +267,17 @@ export default function ChatRoom({
 
   // CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다.
   // 카드 목록은 useChat이 들고 있다 - 대화 내역과 같이 저장·복구돼야 하기 때문.
-  const handleJoin = (plan: Plan, afterMessageId: string) => {
+  //
+  // 카드는 누른 추천 카드 뒤가 아니라 '지금 대화의 맨 끝'에 붙인다. 추천을 받고
+  // 몇 마디 더 물어본 뒤에 신청하기를 누르는 일이 흔한데, 그때 추천 카드 자리에
+  // 끼워 넣으면 화면은 맨 아래에 있는데 카드는 저 위에 생겨서 눌러도 아무것도
+  // 안 나온 것처럼 보인다. 방금 보낸 말처럼 아래에 이어 붙여야 흐름이 안 끊긴다.
+  const handleJoin = (plan: Plan) => {
+    if (!lastMessageId) return;
+
     setIsAtBottom(true);
-    addJoinBlock(plan, afterMessageId);
+    addJoinBlock(plan, lastMessageId);
   };
-
-  // CHAT-014: 대화를 비울 때 가입 카드도, 조건 수집 진행 상태도 같이 걷어낸다
-  // (가입 카드는 reset이 같이 비운다)
-  const handleReset = () => {
-    reset();
-    setConditionAnswers([]);
-    setDismissedEntryChipsFor(null);
-  };
-
-  const lastMessage = messages[messages.length - 1];
-  const lastMessageId = lastMessage?.id;
 
   // features/test 오버레이(부모가 넘김)와 조건 수집 카드(이 컴포넌트가 직접 엶)를
   // 같은 슬롯에서 다룬다 - 둘 다 "대화 영역 아래에 뜨는 카드"라 위치·스타일이 같다.
@@ -301,13 +360,14 @@ export default function ChatRoom({
                       message.recommendations.length > 0 && (
                         <PlanCardCarousel
                           recommendations={message.recommendations}
-                          onJoin={(plan) => handleJoin(plan, message.id)}
+                          onJoin={handleJoin}
                         />
                       )}
                     {message.usageAnalysis &&
                       renderUsageAnalysis?.(message.usageAnalysis, {
-                        onJoin: (plan) => handleJoin(plan, message.id),
+                        onJoin: handleJoin,
                       })}
+                    {message.isJoinResult && renderJoinResult?.()}
                   </AiMessage>
                 )}
 
@@ -320,7 +380,14 @@ export default function ChatRoom({
                         content={`${block.plan.name} 요금제 가입할래`}
                       />
                       <AiMessage content={PLAN_JOIN_GUIDE}>
-                        {renderJoinFlow?.(block.plan)}
+                        {renderJoinFlow?.(block.plan, {
+                          isCompleted: Boolean(block.isCompleted),
+                          progress: block.progress,
+                          onProgressChange: (progress) =>
+                            saveJoinProgress(block.plan.id, progress),
+                          onComplete: (resultMessage) =>
+                            completeJoinBlock(block.plan.id, resultMessage),
+                        })}
                       </AiMessage>
                     </Fragment>
                   ))}
@@ -374,8 +441,17 @@ export default function ChatRoom({
       <PlusMenu
         isOpen={isPlusMenuOpen}
         onClose={() => setIsPlusMenuOpen(false)}
-        onReset={handleReset}
+        onReset={() => setIsResetConfirmOpen(true)}
         onPlanTest={onPlanTest}
+      />
+
+      <ConfirmModal
+        isOpen={isResetConfirmOpen}
+        title="대화를 초기화할까요?"
+        description="지금까지 나눈 대화와 진행 중인 가입 카드가 모두 사라져요. 되돌릴 수 없어요."
+        confirmLabel="초기화"
+        onConfirm={handleResetConfirm}
+        onCancel={closeResetConfirm}
       />
 
       <ChatInput

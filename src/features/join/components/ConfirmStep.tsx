@@ -7,6 +7,13 @@ import type { Plan } from '@/entities/plan/types';
 interface ConfirmStepProps {
   plan: Plan;
   submitLabel: string;
+  /**
+   * CARD-043: 이미 가입을 마친 카드인지. 결제하기는 두 번 눌리면 안 되고
+   * 이전도 되돌아가 고칠 것이 없어서, 두 버튼을 함께 잠근다.
+   */
+  isCompleted?: boolean;
+  /** COMMON-002: 가입 정보를 저장하지 못했을 때의 사유 */
+  errorMessage?: string | null;
   onPrev: () => void;
   onNext: () => void;
 }
@@ -19,11 +26,19 @@ interface ConfirmStepProps {
 export default function ConfirmStep({
   plan,
   submitLabel,
+  isCompleted = false,
+  errorMessage,
   onPrev,
   onNext,
 }: ConfirmStepProps) {
   return (
-    <JoinStepLayout submitLabel={submitLabel} onSubmit={onNext} onPrev={onPrev}>
+    <JoinStepLayout
+      submitLabel={submitLabel}
+      onSubmit={onNext}
+      isSubmitDisabled={isCompleted}
+      onPrev={onPrev}
+      isPrevDisabled={isCompleted}
+    >
       <div className="mt-4 flex flex-col gap-1">
         <p className="text-12 font-medium text-text-primary">
           월 납부금액(부가세포함)
@@ -39,6 +54,13 @@ export default function ConfirmStep({
         <p className="text-12 font-medium text-text-primary">요금제</p>
         <p className="text-12 text-text-secondary">{plan.name}</p>
       </div>
+
+      {/* 다시 시도는 아래 결제하기를 한 번 더 누르면 된다 */}
+      {errorMessage && (
+        <p role="alert" className="mt-4 text-center text-12 text-status-error">
+          {errorMessage}
+        </p>
+      )}
     </JoinStepLayout>
   );
 }

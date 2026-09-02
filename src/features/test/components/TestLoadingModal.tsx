@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
 /**
- * 성향 검사 응답을 마친 뒤 결과 화면으로 넘어가기 전에 잠깐 뜨는 모달.
+ * 취미 성향 검사 응답을 마친 뒤 결과 화면으로 넘어가기 전에 잠깐 뜨는 모달.
  * 열릴 때마다 처음부터 차오르도록 부모에서 조건부로 렌더한다.
  * 진행 바는 연출용이며 실제 진행률을 나타내지는 않는다.
  */
@@ -41,7 +41,7 @@ export default function TestLoadingModal() {
           priority
         />
         <p className="text-12 text-text-primary">
-          요금제 성향 검사 결과 불러오는 중
+          취미 성향 검사 결과 불러오는 중
         </p>
         <div className="h-2 w-full overflow-hidden rounded-full bg-border-default">
           <div
