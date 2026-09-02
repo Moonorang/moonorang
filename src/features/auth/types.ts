@@ -1,5 +1,8 @@
-// 성별. users_gender_check에 맞춘 저장값이며, 화면 표시는 남/여로 매핑함
-export type Gender = 'MALE' | 'FEMALE';
+import type { Gender } from '@/entities/user/types';
+
+// 요금제 가입(features/join)에서도 쓰게 돼 entities/user 로 옮겼다.
+// 기존 import 경로가 계속 살아 있도록 여기서 다시 내보낸다.
+export type { Gender };
 
 // Supabase users 테이블 레코드 (컬럼명을 그대로 따름)
 export interface UserRow {

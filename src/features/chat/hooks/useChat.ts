@@ -27,6 +27,7 @@ import type {
   PlanJoinBlock,
 } from '@/features/chat/types';
 
+import type { PlanJoinProgress } from '@/entities/planJoin/types';
 import type { Plan } from '@/entities/plan/types';
 
 import { createId } from '@/shared/utils/createId';
@@ -50,6 +51,25 @@ interface MemberChatHistoryResponse {
 export interface ChatConflict {
   /** 로그인 전 게스트로 나눈 메시지 개수 - 모달 문구에 사용 */
   guestMessageCount: number;
+}
+
+/**
+ * 저장해둔 진행 상태와 방금 온 값이 같은지.
+ * 가입 카드는 렌더할 때마다 진행 상태를 알려오는데, 달라진 게 없을 때도 저장하면
+ * 상태가 새로 만들어져 다시 렌더되고, 그게 또 알림을 부르는 고리가 된다.
+ */
+function isSameProgress(
+  a: PlanJoinProgress | undefined,
+  b: PlanJoinProgress,
+): boolean {
+  return (
+    a !== undefined &&
+    a.stepIndex === b.stepIndex &&
+    a.gender === b.gender &&
+    a.birth === b.birth &&
+    a.agreedTermIds.length === b.agreedTermIds.length &&
+    a.agreedTermIds.every((id, index) => id === b.agreedTermIds[index])
+  );
 }
 
 /**
@@ -86,6 +106,61 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
   // CHAT-008: 응답 생성 중단용. 진행 중인 요청이 있을 때만 값이 있다.
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // CARD-028: 브라우저 위치 정보. 페이지 진입 시가 아니라 메시지를 보낼 때 요청한다 -
+  // 채팅을 아예 안 쓰는 사용자에게 미리 위치 권한을 묻지 않기 위함이다. 아직 위치를
+  // 못 얻었으면 메시지를 보낼 때마다 다시 시도한다(이미 얻었으면 재요청 안 함) -
+  // 처음엔 거부했다가 나중에 브라우저 설정에서 허용해도, 다음 메시지에서 자연스럽게
+  // 다시 시도되는 게 COMMON-002의 "재시도 수단"이다. 실패해도 조용히 넘어간다 -
+  // find_nearby_memberships를 실제로 부를 때만 서버가 "위치가 없다"고 안내한다.
+  // ref는 runChatRequest가 요청 직전에 최신값을 동기로 읽기 위한 것이고, state는
+  // NearbyMembershipCard의 미니 지도가 "내 위치" 핀을 찍을 수 있게 화면에 내려주기
+  // 위한 것 - 둘이 항상 같은 값을 가리키도록 같이 갱신한다.
+  const locationRef = useRef<{ lat: number; lng: number } | null>(null);
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  // getCurrentPosition은 비동기라, 예전엔 이 결과를 기다리지 않고 곧바로 fetch를
+  // 보내서 - 권한이 이미 허용돼 있어도 매번 위치 없이 요청이 나가는 레이스가 있었다
+  // (locationRef.current가 아직 null인 채로 fetch 본문이 만들어짐). 그래서
+  // runChatRequest가 이 promise를 await해서 요청을 보내기 직전에 위치가 반영되게
+  // 한다. 이미 얻은 뒤(locationRef.current 있음)나 요청이 이미 진행 중일 때는
+  // 새로 묻지 않고 같은 promise/값을 재사용한다.
+  const locationPromiseRef = useRef<Promise<{ lat: number; lng: number } | null> | null>(
+    null,
+  );
+
+  const ensureLocationRequested = useCallback((): Promise<{
+    lat: number;
+    lng: number;
+  } | null> => {
+    if (locationRef.current) return Promise.resolve(locationRef.current);
+    if (locationPromiseRef.current) return locationPromiseRef.current;
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      return Promise.resolve(null);
+    }
+
+    const promise = new Promise<{ lat: number; lng: number } | null>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const nextLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          locationRef.current = nextLocation;
+          setLocation(nextLocation);
+          resolve(nextLocation);
+        },
+        () => {
+          // 거부·타임아웃 등 - promise를 비워서 다음 메시지를 보낼 때 다시
+          // 시도되게 한다(COMMON-002의 "재시도 수단").
+          locationPromiseRef.current = null;
+          resolve(null);
+        },
+        { timeout: 10_000 },
+      );
+    });
+    locationPromiseRef.current = promise;
+    return promise;
+  }, []);
 
   // CHAT-011: 지금까지 파악된 조건. 서버는 DB에 저장하지 않고, 매 요청마다
   // 이 값을 실어 보내고 응답의 keywords 이벤트로 갱신받는 왕복 방식으로 기억한다.
@@ -425,6 +500,42 @@ export function useChat(isLoggedIn: boolean | undefined) {
         );
       };
 
+      const setAiMessageAddOnRecommendations = (
+        addOnRecommendations: ChatMessage['addOnRecommendations'],
+      ) => {
+        updateMessages((prev) =>
+          prev.map((message) =>
+            message.id === aiMessageId
+              ? { ...message, addOnRecommendations }
+              : message,
+          ),
+        );
+      };
+
+      const setAiMessageSubscriptionRecommendations = (
+        subscriptionRecommendations: ChatMessage['subscriptionRecommendations'],
+      ) => {
+        updateMessages((prev) =>
+          prev.map((message) =>
+            message.id === aiMessageId
+              ? { ...message, subscriptionRecommendations }
+              : message,
+          ),
+        );
+      };
+
+      const setAiMessageNearbyMemberships = (
+        nearbyMemberships: ChatMessage['nearbyMemberships'],
+      ) => {
+        updateMessages((prev) =>
+          prev.map((message) =>
+            message.id === aiMessageId
+              ? { ...message, nearbyMemberships }
+              : message,
+          ),
+        );
+      };
+
       const updateKeywords = (next: ChatKeywords) => {
         keywordsRef.current = next;
         setKeywords(next);
@@ -447,6 +558,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
       abortControllerRef.current = abortController;
 
       try {
+        // CARD-028: 요청을 보내기 직전에 위치를 기다린다 - fetch를 먼저 쏘고
+        // 위치는 나중에 오는 레이스가 있으면, 권한이 이미 허용돼 있어도 매번
+        // location 없이 요청이 나간다. 이미 얻었으면(또는 이미 실패했으면)
+        // 즉시 반환되므로 두 번째 메시지부터는 지연이 없다.
+        const location = await ensureLocationRequested();
+
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -460,6 +577,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
               messagesRef.current,
               summarizedTurnCountRef.current,
             ),
+            location: location ?? undefined,
           }),
           signal: abortController.signal,
         });
@@ -493,6 +611,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
               appendToAiMessage(parsed.data.delta);
             } else if (parsed?.event === 'recommendation') {
               setAiMessageRecommendations(parsed.data.plans);
+            } else if (parsed?.event === 'addOnRecommendation') {
+              setAiMessageAddOnRecommendations(parsed.data.addOns);
+            } else if (parsed?.event === 'subscriptionRecommendation') {
+              setAiMessageSubscriptionRecommendations(parsed.data.subscriptions);
+            } else if (parsed?.event === 'nearbyMembership') {
+              setAiMessageNearbyMemberships(parsed.data.memberships);
             } else if (parsed?.event === 'keywords') {
               updateKeywords(parsed.data.keywords);
             } else if (parsed?.event === 'usageAnalysis') {
@@ -528,7 +652,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
         setIsStreaming(false);
       }
     },
-    [updateMessages, persist, summarizeIfNeeded],
+    [updateMessages, persist, summarizeIfNeeded, ensureLocationRequested],
   );
 
   /** CHAT-008: 응답 생성 중, 사용자가 직접 중단한다. */
@@ -553,6 +677,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
       lastUserTextRef.current = trimmed;
       lastAiMessageIdRef.current = aiMessageId;
+
+      // CARD-028: 위치 요청은 runChatRequest가 fetch 직전에 기다린다(레이스 방지) -
+      // 여기서는 따로 시작하지 않는다.
 
       // AI 메시지를 빈 content로 먼저 넣어둔다 - AiMessage 가 이 상태를
       // "첫 토큰 대기 중"으로 알아서 표시한다 (isStreaming + content.length===0).
@@ -583,6 +710,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
               ...message,
               content: '',
               recommendations: undefined,
+              addOnRecommendations: undefined,
+              subscriptionRecommendations: undefined,
+              nearbyMemberships: undefined,
               usageAnalysis: undefined,
             }
           : message,
@@ -594,6 +724,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
   /**
    * CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다.
+   * afterMessageId 는 누른 시점의 마지막 메시지 - 카드가 대화 끝에 이어 붙는다.
    * 같은 요금제를 또 눌러도 카드가 여러 장 쌓이지 않게 무시한다. 회원이면 서버에도
    * 같은 자리를 남겨서(POST /api/chat/join), 나중에 복구했을 때 이 카드가 그대로
    * 다시 보이게 한다.
@@ -626,9 +757,100 @@ export function useChat(isLoggedIn: boolean | undefined) {
   );
 
   /**
+   * 회원의 가입 카드 진행 상태를 서버에도 남긴다.
+   * 실패해도 지금 화면은 이미 바뀌어 있으니 대화는 계속된다 - 다음에 복구할 때만
+   * 그 자리가 덜 되살아날 뿐이다(addJoinBlock 과 같은 취지).
+   */
+  const patchJoinFlow = useCallback(
+    (body: {
+      planId: number;
+      progress?: PlanJoinProgress;
+      isCompleted?: boolean;
+      resultMessage?: string;
+    }) => {
+      fetch('/api/chat/join', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).catch(() => {
+        // 무시 - 위 주석 참고
+      });
+    },
+    [],
+  );
+
+  /**
+   * CARD-046: 가입 카드가 어디까지 진행됐는지를 대화와 함께 저장해둔다.
+   * 카카오 회원가입처럼 화면을 아주 떠났다 돌아오는 길이 있어서, 카드 안의 state
+   * 만으로는 이어갈 수 없다.
+   */
+  const saveJoinProgress = useCallback(
+    (planId: number, progress: PlanJoinProgress) => {
+      const target = joinBlocksRef.current.find(
+        (block) => block.plan.id === planId,
+      );
+      if (!target || isSameProgress(target.progress, progress)) return;
+
+      const nextBlocks = joinBlocksRef.current.map((block) =>
+        block.plan.id === planId ? { ...block, progress } : block,
+      );
+      joinBlocksRef.current = nextBlocks;
+      setJoinBlocks(nextBlocks);
+
+      if (isLoggedIn) {
+        patchJoinFlow({ planId, progress });
+        return;
+      }
+
+      persist();
+    },
+    [isLoggedIn, patchJoinFlow, persist],
+  );
+
+  /**
+   * CARD-043: 가입 절차가 끝나면 결과를 AI 메시지로 대화에 남긴다.
+   * 모델을 거치지 않는 정해진 문구라 스트리밍 없이 완성된 채로 넣고, 같은 카드가
+   * 두 번 결제되지 않도록 그 가입 카드에도 끝났다는 표시를 남긴다.
+   */
+  const completeJoinBlock = useCallback(
+    (planId: number, resultMessage: string) => {
+      const target = joinBlocksRef.current.find(
+        (block) => block.plan.id === planId,
+      );
+      if (!target || target.isCompleted) return;
+
+      const nextBlocks = joinBlocksRef.current.map((block) =>
+        block.plan.id === planId ? { ...block, isCompleted: true } : block,
+      );
+      joinBlocksRef.current = nextBlocks;
+      setJoinBlocks(nextBlocks);
+
+      updateMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: 'ai',
+          content: resultMessage,
+          createdAt: new Date().toISOString(),
+          isJoinResult: true,
+        },
+      ]);
+
+      if (isLoggedIn) {
+        patchJoinFlow({ planId, isCompleted: true, resultMessage });
+        return;
+      }
+
+      persist();
+    },
+    [isLoggedIn, patchJoinFlow, persist, updateMessages],
+  );
+
+  /**
    * CHAT-014: 전체 대화 내역을 비운다. 파악해둔 조건·요약·저장분도 같이 지운다.
-   * 회원이면 서버에 새 세션을 만들어달라고 요청한다 - 이전 세션은 DB에 그대로
-   * 남고, 다음 메시지부터는 새 세션에 쌓인다(A안: 대화 목록 없이 하나만 재사용).
+   * 회원이면 서버에 초기화를 요청한다 - 이전 세션(chats/chat_messages/chat_summary)을
+   * 지우고 새 세션을 만든다(A안: 대화 목록 없이 하나만 재사용 - 지우지 않으면 다시는
+   * 안 쓰이는 세션이 DB에 계속 쌓인다).
    */
   const reset = useCallback(() => {
     messagesRef.current = [];
@@ -676,6 +898,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     messages,
     isStreaming,
     error,
+    location,
     isRestored,
     keywords,
     summary,
@@ -685,6 +908,8 @@ export function useChat(isLoggedIn: boolean | undefined) {
     retry,
     reset,
     addJoinBlock,
+    saveJoinProgress,
+    completeJoinBlock,
     setKeywordValue,
     pruneVisibleMessages,
     stopGeneration,

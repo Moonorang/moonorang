@@ -88,7 +88,7 @@ export default function PlusMenu({
             />
           </div>
           <span className="text-left text-12 font-medium text-text-primary">
-            요금제 성향 검사
+            취미 성향 검사
           </span>
         </Button>
 

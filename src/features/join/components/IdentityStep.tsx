@@ -5,6 +5,7 @@ import { useForm, useWatch } from 'react-hook-form';
 
 import FormField from '@/shared/ui/FormField';
 import TextField from '@/shared/ui/TextField';
+import { FIELD_BASE_CLASS, FIELD_SIZE_STYLES } from '@/shared/ui/fieldSize';
 
 import JoinStepLayout from '@/features/join/components/JoinStepLayout';
 import MoVerification from '@/features/join/components/MoVerification';
@@ -12,8 +13,8 @@ import { useMoVerification } from '@/features/join/hooks/useMoVerification';
 import {
   formatIssuedDate,
   formatMobileNum,
-  formatRrnBack,
   formatRrnFront,
+  formatRrnGenderCode,
 } from '@/features/join/lib/format';
 import {
   identitySchema,
@@ -83,7 +84,7 @@ export default function IdentityStep({
         <FormField
           label="주민등록번호"
           htmlFor="join-rrn-front"
-          error={errors.rrnFront?.message ?? errors.rrnBack?.message}
+          error={errors.rrnFront?.message ?? errors.rrnGenderCode?.message}
         >
           <div className="flex items-center gap-1.5">
             {/* 배치(flex-1)는 감싸는 요소가 맡고, 입력 칸은 폭을 모른다 */}
@@ -104,21 +105,40 @@ export default function IdentityStep({
               -
             </span>
 
-            {/* CARD-036: 뒷자리는 입력하는 동안에도 가린다 */}
-            <div className="flex-1">
+            {/*
+              CARD-036: 뒷자리에서 실제로 받는 것은 첫 한 자리뿐이다. 성별과 출생
+              세기를 알려주는 자리라 이것만 있으면 되고, 나머지 여섯 자리는 받지도
+              저장하지도 않는다 - 안 받는다는 게 보이도록 * 만 그려둔다.
+
+              한 자리 칸이라도 w-10 아래로는 줄이지 않는다. 입력 칸의 좌우 안쪽
+              여백만 24px 이라, 그보다 좁으면 글자가 들어설 자리가 없어 찌그러진다.
+            */}
+            <div className="w-10">
               <TextField
-                id="join-rrn-back"
-                type="password"
+                id="join-rrn-gender-code"
+                type="text"
                 inputMode="numeric"
                 size="sm"
-                placeholder="*******"
-                aria-label="주민등록번호 뒷자리"
-                format={formatRrnBack}
-                isInvalid={Boolean(errors.rrnBack)}
-                {...register('rrnBack')}
+                placeholder="1"
+                aria-label="주민등록번호 뒷자리 첫 숫자"
+                format={formatRrnGenderCode}
+                isInvalid={Boolean(errors.rrnGenderCode)}
+                {...register('rrnGenderCode')}
               />
             </div>
+
+            {/* 입력 칸이 아니라 자리를 채우는 그림이라 보조기술에서는 감춘다 */}
+            <p
+              aria-hidden
+              className={`${FIELD_BASE_CLASS} ${FIELD_SIZE_STYLES.sm} flex-1 tracking-widest text-text-secondary`}
+            >
+              ******
+            </p>
           </div>
+
+          <p className="text-10 text-text-secondary">
+            뒷자리는 성별 확인에 필요한 첫 자리만 받아요.
+          </p>
         </FormField>
 
         <FormField

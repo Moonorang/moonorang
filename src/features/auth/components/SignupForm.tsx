@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,6 +22,10 @@ import {
 } from '@/features/auth/lib/signupSchema';
 import { submitSignup } from '@/features/auth/server/actions';
 import type { PlanOption } from '@/entities/plan/types';
+import {
+  clearSignupPrefill,
+  loadSignupPrefill,
+} from '@/entities/user/lib/signupPrefill';
 
 interface SignupFormProps {
   plans: PlanOption[];
@@ -60,7 +64,20 @@ export default function SignupForm({
   const selectedPlanId = useWatch({ control, name: 'currentPlanId' });
   const selectedGender = useWatch({ control, name: 'gender' });
 
-  // 2. 이벤트 핸들러
+  // 2. 부수 효과
+  // AUTH-008: 요금제 가입 도중 넘어온 경우, 본인 확인에 입력했던 이름·연락처를
+  // 초기값으로 채운다. 카카오 닉네임(defaultName)보다 이쪽이 실제 이름이라 덮어쓴다.
+  // sessionStorage 는 서버에서 읽을 수 없어 defaultValues 로는 못 넣고, 붙은 뒤에 채운다.
+  useEffect(() => {
+    const prefill = loadSignupPrefill();
+    if (!prefill) return;
+
+    if (prefill.name) setValue('name', prefill.name);
+    if (prefill.mobileNum)
+      setValue('contact', formatContact(prefill.mobileNum));
+  }, [setValue]);
+
+  // 3. 이벤트 핸들러
   const handleFormSubmit = handleSubmit(async (values) => {
     setSubmitError(null);
 
@@ -71,11 +88,14 @@ export default function SignupForm({
       return;
     }
 
+    // 회원 정보에 들어간 뒤로는 브라우저에 남아 있을 이유가 없다
+    clearSignupPrefill();
+
     router.replace(nextPath);
     router.refresh();
   });
 
-  // 3. 렌더링
+  // 4. 렌더링
   return (
     <form
       onSubmit={handleFormSubmit}

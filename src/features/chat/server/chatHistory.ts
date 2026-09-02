@@ -7,6 +7,8 @@ import {
 } from '@/features/chat/server/chatRepository';
 import type { ChatKeywords, ChatMessage, PlanJoinBlock } from '@/features/chat/types';
 
+import type { PlanJoinProgress } from '@/entities/planJoin/types';
+
 export interface MemberChatHistory {
   messages: ChatMessage[];
   joinBlocks: PlanJoinBlock[];
@@ -16,6 +18,10 @@ export interface MemberChatHistory {
 interface PendingJoinMarker {
   planId: number;
   afterMessageId: string;
+  /** CARD-046: 절차를 어디까지 밟았는지 */
+  progress?: PlanJoinProgress;
+  /** CARD-043: 결제까지 마쳤는지 */
+  isCompleted?: boolean;
 }
 
 /**
@@ -23,7 +29,8 @@ interface PendingJoinMarker {
  * 규칙(카드 마커 행)을 그대로 반대로 읽는다.
  * - join_flow 마커: 그 앞의 "OO 요금제 가입할래" 사용자 행을 대화에서 빼서 가입
  *   카드 자리로 돌린다 (라이브 화면에서 joinBlocks가 렌더되는 방식과 동일).
- * - recommendation/usage_analysis 마커: 바로 앞 AI 텍스트 메시지에 그대로 붙인다.
+ *   진행 상태·완료 여부도 이 마커에 실려 있어 그대로 되살린다.
+ * - join_result/recommendation/usage_analysis 마커: 바로 앞 AI 메시지에 그대로 붙인다.
  */
 function splitRows(rows: DbChatMessage[]): {
   messages: ChatMessage[];
@@ -39,14 +46,45 @@ function splitRows(rows: DbChatMessage[]): {
       messages.pop();
       const afterMessage = messages[messages.length - 1];
       if (afterMessage) {
-        joinMarkers.push({ planId: card.planId, afterMessageId: afterMessage.id });
+        joinMarkers.push({
+          planId: card.planId,
+          afterMessageId: afterMessage.id,
+          progress: card.progress,
+          isCompleted: card.isCompleted,
+        });
       }
+      continue;
+    }
+
+    if (card?.type === 'join_result') {
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'ai') last.isJoinResult = true;
       continue;
     }
 
     if (card?.type === 'recommendation') {
       const last = messages[messages.length - 1];
       if (last && last.role === 'ai') last.recommendations = card.plans;
+      continue;
+    }
+
+    if (card?.type === 'add_on_recommendation') {
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'ai') last.addOnRecommendations = card.addOns;
+      continue;
+    }
+
+    if (card?.type === 'subscription_recommendation') {
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'ai') {
+        last.subscriptionRecommendations = card.subscriptions;
+      }
+      continue;
+    }
+
+    if (card?.type === 'nearby_membership') {
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'ai') last.nearbyMemberships = card.memberships;
       continue;
     }
 
@@ -86,7 +124,14 @@ export async function loadMemberChatHistory(
 
   const joinBlocks = joinMarkers.reduce<PlanJoinBlock[]>((acc, marker) => {
     const plan = planById.get(marker.planId);
-    if (plan) acc.push({ plan, afterMessageId: marker.afterMessageId });
+    if (plan) {
+      acc.push({
+        plan,
+        afterMessageId: marker.afterMessageId,
+        progress: marker.progress,
+        isCompleted: marker.isCompleted,
+      });
+    }
     return acc;
   }, []);
 

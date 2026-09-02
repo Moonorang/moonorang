@@ -1,10 +1,10 @@
-import CatalogCard from '@/features/catalog/ui/CatalogCard';
 import BenefitSummary from '@/features/catalog/ui/BenefitSummary';
 
 import { isMeaningful } from '@/features/catalog/lib/isMeaningful';
-import { formatWon } from '@/shared/utils/formatCurrency';
 import { parseDataAllowance } from '@/entities/plan/lib/format';
 import type { Plan } from '@/entities/plan/types';
+import CatalogCard from '@/shared/ui/CatalogCard';
+import { formatWon } from '@/shared/utils/formatCurrency';
 
 interface PlanRowProps {
   plan: Plan;

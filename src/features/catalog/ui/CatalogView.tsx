@@ -19,12 +19,14 @@ import {
   buildPlanJoinMessage,
   buildSubscriptionJoinMessage,
 } from '@/features/catalog/lib/joinMessage';
-import type { CatalogData } from '@/features/catalog/types';
+import type { CatalogData, CatalogTab } from '@/features/catalog/types';
 
 import type { MembershipBrand } from '@/entities/membershipBrand/types';
 
 interface CatalogViewProps {
   catalog: CatalogData;
+  /** 채팅 카드의 "둘러보기"처럼, 특정 탭을 미리 선택한 채로 들어올 때 쓴다 */
+  initialTab?: CatalogTab;
 }
 
 /**
@@ -32,9 +34,9 @@ interface CatalogViewProps {
  * 데이터는 서버(page.tsx)에서 받아 props 로 내려오고,
  * 여기서는 탭 상태와, 어떤 항목의 상세가 열려 있는지만 갖는다.
  */
-export default function CatalogView({ catalog }: CatalogViewProps) {
+export default function CatalogView({ catalog, initialTab }: CatalogViewProps) {
   // 1. 상태 및 훅
-  const { activeTab, panelId, handleTabChange } = useCatalogTabs();
+  const { activeTab, panelId, handleTabChange } = useCatalogTabs(initialTab);
   const planDetail = useCatalogDetail(buildPlanJoinMessage);
   const addOnDetail = useCatalogDetail(buildAddOnJoinMessage);
   const subscriptionDetail = useCatalogDetail(buildSubscriptionJoinMessage);

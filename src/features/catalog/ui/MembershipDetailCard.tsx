@@ -2,8 +2,8 @@ import Image from 'next/image';
 
 import Button from '@/shared/ui/Button';
 
-import { CATALOG_IMAGE_BASE_PATH } from '@/features/catalog/constants';
 import type { MembershipBrand } from '@/entities/membershipBrand/types';
+import { CATALOG_IMAGE_BASE_PATH } from '@/shared/utils/catalogImagePath';
 
 interface MembershipDetailCardProps {
   brand: MembershipBrand;

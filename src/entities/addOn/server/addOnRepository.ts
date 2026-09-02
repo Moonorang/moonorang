@@ -42,3 +42,43 @@ export async function getAllAddOns(): Promise<AddOn[]> {
 
   return (data ?? []).map(mapAddOnRow);
 }
+
+/**
+ * "N%의 고객님이 선택했어요" 배지에 쓰는 실제 채택률.
+ * 분모는 전체 회원이 아니라 "부가서비스를 하나라도 쓰고 있는 회원 수"로 잡는다 -
+ * 전체 회원 기준이면 부가서비스 자체를 안 쓰는 회원이 대부분이라 모든 항목이
+ * 몇 %로만 나와 무의미해지기 때문에, "부가서비스를 쓰는 사람들 중에서"라는
+ * 기준으로 상대적 인기를 보여준다. 지어낸 숫자가 아니라 user_add_ons 실 데이터
+ * 기반 계산이다(CARD-001과 같은 원칙 - 서버가 계산하고 모델은 문장만 만든다).
+ * add_on_id -> 반올림한 퍼센트(0~100) 맵. 아무도 안 쓰고 있으면 빈 맵.
+ */
+export async function getAddOnAdoptionRates(): Promise<Map<number, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('user_add_ons')
+    .select('user_id, add_on_id')
+    .eq('status', 'ACTIVE')
+    .overrideTypes<{ user_id: string; add_on_id: number }[], { merge: false }>();
+
+  if (error) {
+    throw new Error(`부가서비스 채택률 조회 실패: ${error.message}`);
+  }
+
+  const rows = data ?? [];
+  const totalSubscribers = new Set(rows.map((row) => row.user_id)).size;
+  if (totalSubscribers === 0) return new Map();
+
+  const subscribersByAddOn = new Map<number, Set<string>>();
+  for (const row of rows) {
+    const set = subscribersByAddOn.get(row.add_on_id) ?? new Set<string>();
+    set.add(row.user_id);
+    subscribersByAddOn.set(row.add_on_id, set);
+  }
+
+  return new Map(
+    [...subscribersByAddOn.entries()].map(([addOnId, subscribers]) => [
+      addOnId,
+      Math.round((subscribers.size / totalSubscribers) * 100),
+    ]),
+  );
+}

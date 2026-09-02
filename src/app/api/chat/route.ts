@@ -30,6 +30,7 @@ export async function POST(request: Request) {
       parsed.data.summary,
       guard.isMember ? guard.user.id : null,
       parsed.data.recentMessages ?? [],
+      parsed.data.location,
     ),
     { headers: SSE_HEADERS },
   );

@@ -38,7 +38,19 @@ export function parseChatRequest(body: unknown): ParseResult {
       ? parsed.recentMessages
       : [];
 
-  return { ok: true, data: { message, keywords, summary, recentMessages } };
+  // location(CARD-028)도 같은 이유로, 형식이 안 맞거나 없으면 그냥 생략한다 -
+  // find_nearby_memberships가 없는 채로 알아서 ok: false 처리한다.
+  const location = isValidLocation(parsed?.location) ? parsed.location : undefined;
+
+  return { ok: true, data: { message, keywords, summary, recentMessages, location } };
+}
+
+function isValidLocation(
+  value: unknown,
+): value is { lat: number; lng: number } {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<{ lat: unknown; lng: unknown }>;
+  return typeof candidate.lat === 'number' && typeof candidate.lng === 'number';
 }
 
 type SummarizeParseResult =
