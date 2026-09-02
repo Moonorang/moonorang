@@ -12,7 +12,7 @@ export const EXTRACT_CONDITIONS_TOOL: ChatCompletionTool = {
   function: {
     name: 'extract_conditions',
     description:
-      '사용자 발화에서 요금제 조건(예산, 데이터/테더링 사용량)을 새로 언급했거나 정정했을 때만 호출한다. 언급 안 된 필드는 아예 넣지 않는다. 조건이 전혀 없는 발화면 호출하지 않는다. 숫자(GB, 원)로 직접 말하지 않고 "밖에서 유튜브 보는 정도"처럼 생활 패턴으로만 말해도, 아래 기준을 참고해서 상식적으로 추정한 숫자를 채운다 - 정확한 숫자를 다시 묻지 않는다.',
+      '사용자 발화에서 요금제 조건(예산, 데이터/테더링 사용량) 또는 관심사·선호를 새로 언급했거나 정정했을 때만 호출한다. 언급 안 된 필드는 아예 넣지 않는다. 조건도 관심사도 전혀 없는 발화면 호출하지 않는다. 숫자(GB, 원)로 직접 말하지 않고 "밖에서 유튜브 보는 정도"처럼 생활 패턴으로만 말해도, 아래 기준을 참고해서 상식적으로 추정한 숫자를 채운다 - 정확한 숫자를 다시 묻지 않는다.',
     parameters: {
       type: 'object',
       properties: {
@@ -29,6 +29,15 @@ export const EXTRACT_CONDITIONS_TOOL: ChatCompletionTool = {
           description:
             '한 달 예상 테더링/쉐어링 사용량(GB). 생활 패턴 표현을 이 기준으로 추정: ' +
             '거의 안 함=0, 노트북 가끔 잠깐=10, 자주 씀=30, 거의 매일 씀=60',
+        },
+        interests: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            '사용자가 대화 중 드러낸 관심사·취미·선호 키워드를 짧은 명사로 배열에 담는다 ' +
+            '(예: "넷플릭스", "유튜브", "게임", "여행", "카페", "육아", "반려동물"). ' +
+            '이미 파악된 조건에 없는, 이번 발화에서 새로 나온 키워드만 담는다 - 이미 아는 ' +
+            '것을 다시 넣지 않는다.',
         },
       },
       additionalProperties: false,
@@ -125,6 +134,14 @@ export function parseExtractConditionsArguments(
       result.dataUsageGb = parsed.dataUsageGb;
     if (typeof parsed.tetheringGb === 'number')
       result.tetheringGb = parsed.tetheringGb;
+
+    if (Array.isArray(parsed.interests)) {
+      const interests = parsed.interests
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+      if (interests.length > 0) result.interests = interests;
+    }
 
     return Object.keys(result).length > 0 ? result : null;
   } catch {

@@ -7,6 +7,9 @@ import type { UsageAnalysisResult } from '@/entities/usage/types';
  * 채팅에서 파악한 요금제 조건 (chat-api-design.md §2.5/§5).
  * extract_conditions tool의 출력이자, chats.keywords에 대응하는 모양이다.
  * 값이 없는 필드는 "아직 안 물어봤다"는 뜻 - 누적 병합이 아니라 최신값으로 덮어쓴다.
+ *
+ * 예외: interests는 "현재 값"이 아니라 "그동안 알아낸 것들의 목록"이라 성격이 달라서,
+ * mergeKeywords.ts에서 덮어쓰지 않고 기존 값에 새로 언급된 것만 더한다(합집합).
  */
 export interface ChatKeywords {
   /** 예산 상한 (원/월) */
@@ -15,6 +18,12 @@ export interface ChatKeywords {
   dataUsageGb?: number;
   /** 예상 월 테더링/쉐어링 사용량 (GB) */
   tetheringGb?: number;
+  /**
+   * 대화에서 드러난 관심사·선호·흥미 키워드 (예: "넷플릭스", "게임", "여행", "카페").
+   * CARD-013 중 아직 비어있던 "부가서비스 선호" 부분 - 부가서비스/구독 상품 개인화
+   * 추천(CARD-027~028)의 재료가 된다.
+   */
+  interests?: string[];
 }
 
 // 서버가 plans 테이블 조회 + 계산 결과를 합쳐서 클라이언트로 보내는 형태
