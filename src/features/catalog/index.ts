@@ -8,6 +8,8 @@ export { default as AddOnDetailModal } from './ui/AddOnDetailModal';
 export { default as AddOnDetailCard } from './ui/AddOnDetailCard';
 export { default as SubscriptionDetailModal } from './ui/SubscriptionDetailModal';
 export { default as SubscriptionDetailCard } from './ui/SubscriptionDetailCard';
+export { default as MembershipDetailModal } from './ui/MembershipDetailModal';
+export { default as MembershipDetailCard } from './ui/MembershipDetailCard';
 export { default as EmptyNotice } from './ui/EmptyNotice';
 export { useCatalogTabs } from './hooks/useCatalogTabs';
 export { useCatalogDetail } from './hooks/useCatalogDetail';

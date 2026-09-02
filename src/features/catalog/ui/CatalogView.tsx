@@ -4,6 +4,7 @@ import AddOnDetailModal from '@/features/catalog/ui/AddOnDetailModal';
 import AddOnRow from '@/features/catalog/ui/AddOnRow';
 import CatalogTabs from '@/features/catalog/ui/CatalogTabs';
 import EmptyNotice from '@/features/catalog/ui/EmptyNotice';
+import MembershipDetailModal from '@/features/catalog/ui/MembershipDetailModal';
 import MembershipRow from '@/features/catalog/ui/MembershipRow';
 import PlanDetailModal from '@/features/catalog/ui/PlanDetailModal';
 import PlanRow from '@/features/catalog/ui/PlanRow';
@@ -20,6 +21,8 @@ import {
 } from '@/features/catalog/lib/joinMessage';
 import type { CatalogData } from '@/features/catalog/types';
 
+import type { MembershipBrand } from '@/entities/membershipBrand/types';
+
 interface CatalogViewProps {
   catalog: CatalogData;
 }
@@ -35,6 +38,8 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
   const planDetail = useCatalogDetail(buildPlanJoinMessage);
   const addOnDetail = useCatalogDetail(buildAddOnJoinMessage);
   const subscriptionDetail = useCatalogDetail(buildSubscriptionJoinMessage);
+  // 멤버십은 가입 대상이 아니라 열고 닫는 것만 쓴다
+  const membershipDetail = useCatalogDetail<MembershipBrand>();
 
   // 2. 렌더링
   const items = catalog[activeTab];
@@ -81,7 +86,11 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
 
             {activeTab === 'memberships' &&
               catalog.memberships.map((brand) => (
-                <MembershipRow key={brand.id} brand={brand} />
+                <MembershipRow
+                  key={brand.id}
+                  brand={brand}
+                  onSelect={() => membershipDetail.openDetail(brand)}
+                />
               ))}
           </>
         )}
@@ -103,6 +112,11 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
         subscription={subscriptionDetail.selectedItem}
         onClose={subscriptionDetail.closeDetail}
         onJoin={subscriptionDetail.goToJoin}
+      />
+
+      <MembershipDetailModal
+        brand={membershipDetail.selectedItem}
+        onClose={membershipDetail.closeDetail}
       />
     </main>
   );
