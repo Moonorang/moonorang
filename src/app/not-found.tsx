@@ -10,7 +10,7 @@ import StepProgress from '@/shared/ui/StepProgress';
 import Tag from '@/shared/ui/Tag';
 
 import PlanCard from '@/entities/plan/ui/PlanCard';
-import PlanDetailCard from '@/features/join/components/PlanDetailCard';
+import PlanDetailCard from '@/entities/plan/ui/PlanDetailCard';
 
 import JoinFlowCard from '@/features/join/components/JoinFlowCard';
 

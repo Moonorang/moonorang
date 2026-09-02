@@ -1,24 +1,18 @@
 import type { ReactNode } from 'react';
 
-import ExpandToggle from '@/shared/ui/ExpandToggle';
 import { cn } from '@/shared/utils/cn';
 
 interface CatalogCardProps {
-  // 접혀 있을 때도 보이는 카드 본문
   children: ReactNode;
-  // 펼침 버튼에 보일 요약. detail 과 함께 있을 때만 버튼이 생긴다.
-  expandSummary?: string;
-  // 펼쳤을 때 보여줄 내용
-  detail?: ReactNode;
-  isExpanded?: boolean;
-  onToggle?: () => void;
   /** 기본 그림자를 다른 테두리 스타일로 바꾸는 등, 호출부별 모양 차이를 위한 탈출구 */
   appendClassName?: string;
 }
 
 /**
  * 목록 카드 4종(요금제·부가서비스·구독·멤버십)이 공유하는 껍데기.
- * 카드의 배치는 각 Row 가 갖고, 여기서는 테두리와 펼침 영역만 맞춘다.
+ * 카드 안의 배치는 각 Row 가 갖고, 여기서는 테두리와 최소 높이만 맞춘다.
+ * 예전엔 펼침(expand/detail) 기능도 여기서 가졌지만, 상세를 별도 모달로 여는
+ * 방식(useCatalogDetail + *DetailModal)으로 바뀌면서 필요 없어졌다.
  *
  * 폭을 스스로 정하지 않아서(w-full 등 없음), 좁은 부모 안에 두면 그대로 좁아진다 -
  * features/catalog의 목록 페이지(전체 폭)와 features/chat의 카드(w-[80%]) 둘 다
@@ -26,14 +20,8 @@ interface CatalogCardProps {
  */
 export default function CatalogCard({
   children,
-  expandSummary,
-  detail,
-  isExpanded = false,
-  onToggle,
   appendClassName,
 }: CatalogCardProps) {
-  const hasDetail = !!expandSummary && !!detail && !!onToggle;
-
   return (
     <div
       className={cn(
@@ -42,18 +30,6 @@ export default function CatalogCard({
       )}
     >
       {children}
-
-      {hasDetail && (
-        <ExpandToggle
-          summary={expandSummary}
-          isExpanded={isExpanded}
-          onToggle={onToggle}
-        />
-      )}
-
-      {hasDetail && isExpanded && (
-        <div className="border-t border-border-light px-4 py-3">{detail}</div>
-      )}
     </div>
   );
 }

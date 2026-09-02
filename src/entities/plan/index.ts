@@ -1,6 +1,7 @@
 // entities/plan Public API — 클라이언트에서 안전한 것만.
 // 서버 전용(planRepository)은 @/entities/plan/server 로 따로 가져간다.
 export { default as PlanCard } from './ui/PlanCard';
+export { default as PlanDetailCard } from './ui/PlanDetailCard';
 export {
   parseDataAllowance,
   parseDataAllowanceToGb,

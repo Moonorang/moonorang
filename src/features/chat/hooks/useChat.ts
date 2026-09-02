@@ -158,6 +158,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
   // messages 중 앞에서부터 몇 턴이 summary에 이미 반영됐는지
   const summarizedTurnCountRef = useRef(0);
 
+  // CHAT-012: 아래 하이드레이션이 끝났는지. 복구는 messages를 통째로 덮어쓰므로,
+  // 밖에서 대화를 밀어 넣으려면(entities/chat 의 pendingChatMessage) 이 값이 true가
+  // 된 뒤여야 한다. 회원은 서버 왕복이 끝난 뒤, 게스트는 localStorage를 읽은 뒤다.
+  const [isRestored, setIsRestored] = useState(false);
+
   // 로그인 직후 회원 DB 대화와 게스트 대화가 둘 다 있어서 사용자에게 물어봐야 할 때
   // (아래 하이드레이션 effect) 잠깐 들고 있는 자리 - 모달에서 고른 답이 나오기 전까지는
   // 화면을 어느 쪽으로도 확정하지 않는다.
@@ -199,7 +204,10 @@ export function useChat(isLoggedIn: boolean | undefined) {
           // 이제 이 대화의 진짜 주인은 DB다 - 로컬에 남겨두면 다음에 이 브라우저로
           // 로그아웃 후 다시 게스트로 쓸 때 지난 대화가 엉뚱하게 다시 나타난다.
           clearChatState();
-        }),
+        })
+        // 승계가 실패해도 복구는 "끝난" 것으로 둔다 - 여기서 막아버리면 밖에서
+        // 밀어 넣은 메시지가 영영 안 나간다(NFR-006과 같은 취지).
+        .finally(() => setIsRestored(true)),
     [applyMemberHistory],
   );
 
@@ -224,18 +232,26 @@ export function useChat(isLoggedIn: boolean | undefined) {
       // 안에서 감지할 수 없다. 그래서 회원으로 확인될 때마다 localStorage에 아직
       // 안 옮겨진 게스트 대화가 남아있는지를 직접 확인한다.
       const guestStored = loadChatState();
-      const hasGuestConversation = Boolean(guestStored && guestStored.messages.length > 0);
+      const hasGuestConversation = Boolean(
+        guestStored && guestStored.messages.length > 0,
+      );
 
       fetch('/api/chat/history')
         .then((response) => (response.ok ? response.json() : null))
         .then((data: MemberChatHistoryResponse | null) => {
-          if (!data) return;
+          if (!data) {
+            setIsRestored(true);
+            return;
+          }
 
           if (hasGuestConversation && guestStored && data.messages.length > 0) {
             // 회원 DB에도 이미 대화가 있고, 로그인 전 게스트로 나눈 대화도 있다 -
             // 서로 다른 두 대화라 자동으로 합치지 않고 사용자에게 물어본다.
             pendingGuestRef.current = guestStored;
             pendingMemberRef.current = data;
+            // 여기서는 isRestored를 올리지 않는다 - 아직 화면을 어느 쪽으로도
+            // 확정하지 않은 상태라, 지금 메시지를 밀어 넣으면 사용자가 고른 대화가
+            // 그 위에 덮어써진다. keepBoth/discard 쪽에서 올린다.
             setChatConflict({ guestMessageCount: guestStored.messages.length });
             return;
           }
@@ -247,14 +263,25 @@ export function useChat(isLoggedIn: boolean | undefined) {
           }
 
           applyMemberHistory(data);
+          setIsRestored(true);
         })
         .catch(() => {
           // 복구 실패해도 빈 대화로 시작 - 채팅 자체는 막지 않는다(NFR-006과 같은 취지)
+          setIsRestored(true);
         });
       return;
     }
 
     const stored = loadChatState();
+
+    /* eslint-disable react-hooks/set-state-in-effect --
+       로그인 여부가 확인된 뒤 localStorage를 딱 한 번 읽어와 동기화하는 것으로, 이
+       규칙이 막으려는 "반복 렌더로 이어지는 setState"가 아니다. */
+
+    // 저장된 대화가 없어도(첫 방문) 복구는 "끝난" 것이다. 아래 early return 뒤에
+    // 두면 첫 방문자에게만 신호가 안 가서, 이걸 기다리는 쪽이 영영 안 움직인다.
+    setIsRestored(true);
+
     if (!stored) return;
 
     messagesRef.current = stored.messages;
@@ -263,9 +290,6 @@ export function useChat(isLoggedIn: boolean | undefined) {
     summarizedTurnCountRef.current = stored.summarizedTurnCount;
     joinBlocksRef.current = stored.joinBlocks;
 
-    /* eslint-disable react-hooks/set-state-in-effect --
-       로그인 여부가 확인된 뒤 localStorage를 딱 한 번 읽어와 동기화하는 것으로, 이
-       규칙이 막으려는 "반복 렌더로 이어지는 setState"가 아니다. */
     setMessages(stored.messages);
     setKeywords(stored.keywords);
     setSummary(stored.summary);
@@ -322,6 +346,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     pendingMemberRef.current = null;
     clearChatState();
     if (memberData) applyMemberHistory(memberData);
+    setIsRestored(true);
   }, [applyMemberHistory]);
 
   const persist = useCallback(() => {
@@ -501,7 +526,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
       ) => {
         updateMessages((prev) =>
           prev.map((message) =>
-            message.id === aiMessageId ? { ...message, usageAnalysis } : message,
+            message.id === aiMessageId
+              ? { ...message, usageAnalysis }
+              : message,
           ),
         );
       };
@@ -761,6 +788,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     isStreaming,
     error,
     location,
+    isRestored,
     keywords,
     summary,
     joinBlocks,
