@@ -5,14 +5,17 @@ import type { ReactNode } from 'react';
 
 import ConfirmModal from '@/shared/ui/ConfirmModal';
 
+import AddOnRecommendationCard from '@/features/chat/components/AddOnRecommendationCard';
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatConflictModal from '@/features/chat/components/ChatConflictModal';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
 import ConditionQuestionCard from '@/features/chat/components/ConditionQuestionCard';
+import NearbyMembershipCard from '@/features/chat/components/NearbyMembershipCard';
 import PlanCardCarousel from '@/features/chat/components/PlanCardCarousel';
 import PlusMenu from '@/features/chat/components/PlusMenu';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
+import SubscriptionRecommendationCard from '@/features/chat/components/SubscriptionRecommendationCard';
 import SuggestionChips from '@/features/chat/components/SuggestionChips';
 import UserMessage from '@/features/chat/components/UserMessage';
 import { WELCOME_MESSAGE } from '@/features/chat/constants';
@@ -110,6 +113,7 @@ export default function ChatRoom({
     messages,
     isStreaming,
     error,
+    location,
     isRestored,
     keywords,
     summary,
@@ -419,6 +423,28 @@ export default function ChatRoom({
                         <PlanCardCarousel
                           recommendations={message.recommendations}
                           onJoin={handleJoin}
+                        />
+                      )}
+                    {!isMessageStreaming &&
+                      message.addOnRecommendations &&
+                      message.addOnRecommendations.length > 0 && (
+                        <AddOnRecommendationCard
+                          recommendations={message.addOnRecommendations}
+                        />
+                      )}
+                    {!isMessageStreaming &&
+                      message.subscriptionRecommendations &&
+                      message.subscriptionRecommendations.length > 0 && (
+                        <SubscriptionRecommendationCard
+                          recommendations={message.subscriptionRecommendations}
+                        />
+                      )}
+                    {!isMessageStreaming &&
+                      message.nearbyMemberships &&
+                      message.nearbyMemberships.length > 0 && (
+                        <NearbyMembershipCard
+                          memberships={message.nearbyMemberships}
+                          userLocation={location}
                         />
                       )}
                     {message.usageAnalysis &&

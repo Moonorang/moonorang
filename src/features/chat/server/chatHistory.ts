@@ -68,6 +68,26 @@ function splitRows(rows: DbChatMessage[]): {
       continue;
     }
 
+    if (card?.type === 'add_on_recommendation') {
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'ai') last.addOnRecommendations = card.addOns;
+      continue;
+    }
+
+    if (card?.type === 'subscription_recommendation') {
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'ai') {
+        last.subscriptionRecommendations = card.subscriptions;
+      }
+      continue;
+    }
+
+    if (card?.type === 'nearby_membership') {
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'ai') last.nearbyMemberships = card.memberships;
+      continue;
+    }
+
     if (card?.type === 'usage_analysis') {
       const last = messages[messages.length - 1];
       if (last && last.role === 'ai') last.usageAnalysis = card.data;

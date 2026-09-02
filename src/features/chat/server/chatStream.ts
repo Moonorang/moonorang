@@ -6,7 +6,14 @@ import type {
 } from 'openai/resources/chat/completions';
 import type { Stream } from 'openai/core/streaming';
 
+import { getAddOnAdoptionRates, getAllAddOns } from '@/entities/addOn/server';
+import { getAllMembershipBrands } from '@/entities/membershipBrand/server';
 import { getAllPlans } from '@/entities/plan/server/planRepository';
+import {
+  getAllSubscriptions,
+  getSubscriptionAdoptionRates,
+} from '@/entities/subscription/server';
+import { runFindNearbyMemberships } from '@/features/chat/server/findNearbyMemberships';
 import { mergeKeywords } from '@/features/chat/lib/mergeKeywords';
 import { createSSESender, type SSESend } from '@/features/chat/lib/sse';
 import { runSavingsAnalysis } from '@/features/chat/server/analyzeSavings';
@@ -16,26 +23,49 @@ import {
   persistMemberUserMessage,
 } from '@/features/chat/server/memberChat';
 import { streamCompletion, type ToolCallBuilder } from '@/features/chat/server/openaiStream';
+import { runAddOnRecommendation } from '@/features/chat/server/recommendAddOns';
 import { runPlanRecommendation } from '@/features/chat/server/recommendPlans';
+import { runSubscriptionRecommendation } from '@/features/chat/server/recommendSubscriptions';
 import { buildSystemPrompt } from '@/features/chat/server/systemPrompt';
 import { ACTION_TOOLS, parseExtractConditionsArguments } from '@/features/chat/server/tools';
 import type { ChatCardPayload, ChatKeywords, SummarizeTurnMessage } from '@/features/chat/types';
 
+import type { AddOn } from '@/entities/addOn/types';
+import type { MembershipBrand } from '@/entities/membershipBrand/types';
 import type { Plan } from '@/entities/plan/types';
+import type { Subscription } from '@/entities/subscription/types';
 
 interface ToolResultContext {
   plans: Plan[];
+  addOns: AddOn[];
+  addOnAdoptionRates: Map<number, number>;
+  subscriptions: Subscription[];
+  subscriptionAdoptionRates: Map<number, number>;
+  membershipBrands: MembershipBrand[];
+  location: { lat: number; lng: number } | undefined;
   mergedKeywords: ChatKeywords;
   userId: string | null;
   send: SSESend;
 }
 
 // 호출된 tool 이름별로 실제 계산/조회를 수행하고, 다음 턴의 tool 결과 메시지 content로
-// 쓸 값을 돌려준다. recommend_plans/analyze_savings/show_usage_trend는 여기서 SSE
-// 이벤트도 같이 내보낸다(카드 데이터를 텍스트보다 먼저 화면에 꽂아 넣기 위함).
+// 쓸 값을 돌려준다. recommend_plans/analyze_savings/show_usage_trend/recommend_addons/
+// recommend_subscriptions/find_nearby_memberships는 여기서 SSE 이벤트도 같이 내보낸다
+// (카드 데이터를 텍스트보다 먼저 화면에 꽂아 넣기 위함).
 async function getToolResultContent(
   call: ToolCallBuilder,
-  { plans, mergedKeywords, userId, send }: ToolResultContext,
+  {
+    plans,
+    addOns,
+    addOnAdoptionRates,
+    subscriptions,
+    subscriptionAdoptionRates,
+    membershipBrands,
+    location,
+    mergedKeywords,
+    userId,
+    send,
+  }: ToolResultContext,
 ): Promise<unknown> {
   switch (call.name) {
     case 'recommend_plans':
@@ -54,6 +84,17 @@ async function getToolResultContent(
         send,
         includeSavingsDecision: false,
       });
+    case 'recommend_addons':
+      return runAddOnRecommendation(addOns, addOnAdoptionRates, mergedKeywords, send);
+    case 'recommend_subscriptions':
+      return runSubscriptionRecommendation(
+        subscriptions,
+        subscriptionAdoptionRates,
+        mergedKeywords,
+        send,
+      );
+    case 'find_nearby_memberships':
+      return runFindNearbyMemberships(location, send, membershipBrands);
     default:
       return { ok: true, keywords: mergedKeywords };
   }
@@ -93,10 +134,22 @@ async function appendToolRound(
   ];
 }
 
-// 카탈로그에 있는 실제 요금제명이 텍스트에 하나라도 등장하는지 - recommend_plans가
-// 안 불렸는데 이게 참이면, 그 텍스트는 모델이 지어낸 것이다(CARD-002/NFR-003~004 위반).
-function containsPlanName(text: string, plans: Plan[]): boolean {
-  return plans.some((plan) => text.includes(plan.name));
+// 카탈로그에 있는 실제 요금제명·부가서비스명이 텍스트에 하나라도 등장하는지 -
+// 그걸 만든 tool(recommend_plans/recommend_addons)이 안 불렸는데 이게 참이면,
+// 그 텍스트는 모델이 지어낸 것이다(CARD-002/NFR-003~004 위반).
+function containsCatalogName(
+  text: string,
+  plans: Plan[],
+  addOns: AddOn[],
+  subscriptions: Subscription[],
+  membershipBrands: MembershipBrand[],
+): boolean {
+  return (
+    plans.some((plan) => text.includes(plan.name)) ||
+    addOns.some((addOn) => text.includes(addOn.title)) ||
+    subscriptions.some((subscription) => text.includes(subscription.name)) ||
+    membershipBrands.some((brand) => text.includes(brand.name))
+  );
 }
 
 /**
@@ -133,6 +186,9 @@ export function createChatStream(
   userId: string | null = null,
   /** §2.4: summary에 아직 반영 안 된 구간의 원문 - 직전 대화를 기억하게 하는 용도 */
   recentMessages: SummarizeTurnMessage[] = [],
+  /** CARD-028: 브라우저 Geolocation. 없으면(권한 거부 등) find_nearby_memberships가
+   * ok: false로 응답한다 - DB에 저장하지 않고 매 요청 왕복만 한다(keywords와 같은 방식). */
+  location?: { lat: number; lng: number },
 ): ReadableStream {
   // 클라이언트가 연결을 끊었을 때(페이지 이동 등) cancel() 에서 진행 중인 스트림을 정리
   let activeStream: Stream<ChatCompletionChunk> | null = null;
@@ -146,7 +202,21 @@ export function createChatStream(
       const send = createSSESender(controller);
 
       try {
-        const plans = await getAllPlans();
+        const [
+          plans,
+          addOns,
+          addOnAdoptionRates,
+          subscriptions,
+          subscriptionAdoptionRates,
+          membershipBrands,
+        ] = await Promise.all([
+          getAllPlans(),
+          getAllAddOns(),
+          getAddOnAdoptionRates(),
+          getAllSubscriptions(),
+          getSubscriptionAdoptionRates(),
+          getAllMembershipBrands(),
+        ]);
 
         // 회원이면 DB(chats/chat_messages/chat_summary)가 유일한 진짜 기록이라,
         // 클라이언트가 보낸 keywords/summary/recentMessages는 무시하고 여기서
@@ -163,7 +233,14 @@ export function createChatStream(
         const messages: ChatCompletionMessageParam[] = [
           {
             role: 'system',
-            content: buildSystemPrompt(plans, incomingKeywords, summary),
+            content: buildSystemPrompt(
+              plans,
+              addOns,
+              subscriptions,
+              membershipBrands,
+              incomingKeywords,
+              summary,
+            ),
           },
           // §2.4 "최근 채팅 메시지 N개" - summary가 아직 못 따라잡은 구간의 원문.
           // ChatMessage/SummarizeTurnMessage의 'ai' role을 OpenAI의 'assistant'로 바꿔준다.
@@ -199,6 +276,15 @@ export function createChatStream(
         let showUsageTrendCall = turn1Calls.find(
           (call) => call.name === 'show_usage_trend',
         );
+        let recommendAddOnsCall = turn1Calls.find(
+          (call) => call.name === 'recommend_addons',
+        );
+        let recommendSubscriptionsCall = turn1Calls.find(
+          (call) => call.name === 'recommend_subscriptions',
+        );
+        let findNearbyMembershipsCall = turn1Calls.find(
+          (call) => call.name === 'find_nearby_memberships',
+        );
 
         const mergedKeywords = extractCall
           ? mergeKeywords(
@@ -207,12 +293,28 @@ export function createChatStream(
             )
           : incomingKeywords;
 
-        // 회원이면 이번 턴에 실제로 화면에 보낸 카드(recommendation/usage_analysis)를
-        // 그대로 캡처해뒀다가, 나중에 DB에도 같은 스냅샷을 저장한다(CHAT-012 회원판).
+        // 회원이면 이번 턴에 실제로 화면에 보낸 카드(recommendation/addOnRecommendation/
+        // subscriptionRecommendation/nearbyMembership/usage_analysis)를 그대로
+        // 캡처해뒀다가, 나중에 DB에도 같은 스냅샷을 저장한다(CHAT-012 회원판).
         const capturedCards: ChatCardPayload[] = [];
         const trackingSend: SSESend = (event) => {
           if (event.event === 'recommendation') {
             capturedCards.push({ type: 'recommendation', plans: event.data.plans });
+          } else if (event.event === 'addOnRecommendation') {
+            capturedCards.push({
+              type: 'add_on_recommendation',
+              addOns: event.data.addOns,
+            });
+          } else if (event.event === 'subscriptionRecommendation') {
+            capturedCards.push({
+              type: 'subscription_recommendation',
+              subscriptions: event.data.subscriptions,
+            });
+          } else if (event.event === 'nearbyMembership') {
+            capturedCards.push({
+              type: 'nearby_membership',
+              memberships: event.data.memberships,
+            });
           } else if (event.event === 'usageAnalysis') {
             capturedCards.push({ type: 'usage_analysis', data: event.data });
           }
@@ -221,6 +323,12 @@ export function createChatStream(
 
         const toolContext: ToolResultContext = {
           plans,
+          addOns,
+          addOnAdoptionRates,
+          subscriptions,
+          subscriptionAdoptionRates,
+          membershipBrands,
+          location,
           mergedKeywords,
           userId,
           send: trackingSend,
@@ -235,7 +343,14 @@ export function createChatStream(
             ? [
                 {
                   role: 'system',
-                  content: buildSystemPrompt(plans, mergedKeywords, summary),
+                  content: buildSystemPrompt(
+                    plans,
+                    addOns,
+                    subscriptions,
+                    membershipBrands,
+                    mergedKeywords,
+                    summary,
+                  ),
                 },
                 ...messages.slice(1),
               ]
@@ -254,7 +369,10 @@ export function createChatStream(
         const calledActionInTurn1 =
           Boolean(recommendCall) ||
           Boolean(analyzeSavingsCall) ||
-          Boolean(showUsageTrendCall);
+          Boolean(showUsageTrendCall) ||
+          Boolean(recommendAddOnsCall) ||
+          Boolean(recommendSubscriptionsCall) ||
+          Boolean(findNearbyMembershipsCall);
 
         if (extractCall && !calledActionInTurn1) {
           const decision = await streamCompletion({
@@ -275,6 +393,15 @@ export function createChatStream(
           showUsageTrendCall = decision.toolCalls.find(
             (call) => call.name === 'show_usage_trend',
           );
+          recommendAddOnsCall = decision.toolCalls.find(
+            (call) => call.name === 'recommend_addons',
+          );
+          recommendSubscriptionsCall = decision.toolCalls.find(
+            (call) => call.name === 'recommend_subscriptions',
+          );
+          findNearbyMembershipsCall = decision.toolCalls.find(
+            (call) => call.name === 'find_nearby_memberships',
+          );
 
           messagesWithTools = await appendToolRound(
             messagesWithTools,
@@ -286,15 +413,23 @@ export function createChatStream(
         const actionConfirmed =
           Boolean(recommendCall) ||
           Boolean(analyzeSavingsCall) ||
-          Boolean(showUsageTrendCall);
+          Boolean(showUsageTrendCall) ||
+          Boolean(recommendAddOnsCall) ||
+          Boolean(recommendSubscriptionsCall) ||
+          Boolean(findNearbyMembershipsCall);
 
-        // 가드레일: 조건은 확인됐는데(extractCall) 실행 도구가 끝내 하나도 안
-        // 불렸고, 그런데도 1턴 텍스트에 실제 요금제명이 있으면 - 서버 계산을 거치지
-        // 않은 값이 확실하다. 아직 아무것도 화면에 안 나간 상태이므로 그대로 버리고
-        // 에러로 전환한다(CARD-006: 재시도 가능).
-        if (extractCall && !actionConfirmed && containsPlanName(turn1Text, plans)) {
+        // 가드레일: 실행 도구가 끝내 하나도 안 불렸는데 1턴 텍스트에 실제 요금제명·
+        // 부가서비스명·구독 상품명이 있으면 - 서버 계산을 거치지 않은 값이 확실하다
+        // (CARD-001/002, NFR-003~004). extractCall 여부와 무관하게 항상 검사한다 -
+        // extract_conditions조차 안 부르고 곧바로 카탈로그를 옮겨 적는 경우(예: 조건
+        // 없이 "넷플릭스 관련 상품 있나요?")도 실제로 관측됐다. 아직 아무것도 화면에
+        // 안 나간 상태이므로 그대로 버리고 에러로 전환한다(CARD-006: 재시도 가능).
+        if (
+          !actionConfirmed &&
+          containsCatalogName(turn1Text, plans, addOns, subscriptions, membershipBrands)
+        ) {
           console.error(
-            '[api/chat] 가드레일: recommend_plans 없이 요금제명 언급 감지 -',
+            '[api/chat] 가드레일: 추천 도구 없이 요금제·부가서비스·구독명 언급 감지 -',
             turn1Text,
           );
           send({

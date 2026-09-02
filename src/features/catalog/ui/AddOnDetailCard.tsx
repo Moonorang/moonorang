@@ -1,11 +1,8 @@
 import Button from '@/shared/ui/Button';
 
-import {
-  ADD_ON_ICON_FALLBACK,
-  ADD_ON_ICONS,
-} from '@/features/catalog/constants';
-import { formatMonthlyFee } from '@/features/catalog/lib/formatMonthlyFee';
+import { ADD_ON_ICON_FALLBACK, ADD_ON_ICONS } from '@/entities/addOn/lib/icons';
 import type { AddOn } from '@/entities/addOn/types';
+import { formatMonthlyFee } from '@/shared/utils/formatMonthlyFee';
 
 interface AddOnDetailCardProps {
   addOn: AddOn;

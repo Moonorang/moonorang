@@ -61,3 +61,40 @@ export async function getAllSubscriptions(): Promise<Subscription[]> {
 
   return (data ?? []).map(mapSubscriptionRow);
 }
+
+/**
+ * entities/addOn/server의 getAddOnAdoptionRates와 같은 원칙 - "N%의 고객님이
+ * 선택했어요" 배지에 쓸 실 채택률. 분모는 전체 회원이 아니라 "구독 상품을 하나라도
+ * 쓰는 회원 수"로 잡는다. PAUSED는 결제만 잠깐 멈춘 상태라 여전히 "쓰고 있다"고
+ * 보되, CANCELED는 제외한다.
+ */
+export async function getSubscriptionAdoptionRates(): Promise<Map<number, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('user_subscriptions')
+    .select('user_id, subscription_id')
+    .in('status', ['ACTIVE', 'PAUSED'])
+    .overrideTypes<{ user_id: string; subscription_id: number }[], { merge: false }>();
+
+  if (error) {
+    throw new Error(`구독 상품 채택률 조회 실패: ${error.message}`);
+  }
+
+  const rows = data ?? [];
+  const totalSubscribers = new Set(rows.map((row) => row.user_id)).size;
+  if (totalSubscribers === 0) return new Map();
+
+  const subscribersBySubscription = new Map<number, Set<string>>();
+  for (const row of rows) {
+    const set = subscribersBySubscription.get(row.subscription_id) ?? new Set<string>();
+    set.add(row.user_id);
+    subscribersBySubscription.set(row.subscription_id, set);
+  }
+
+  return new Map(
+    [...subscribersBySubscription.entries()].map(([subscriptionId, subscribers]) => [
+      subscriptionId,
+      Math.round((subscribers.size / totalSubscribers) * 100),
+    ]),
+  );
+}
