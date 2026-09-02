@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import AiMessage from '@/features/chat/components/AiMessage';
+import ChatConflictModal from '@/features/chat/components/ChatConflictModal';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
 import ConditionQuestionCard from '@/features/chat/components/ConditionQuestionCard';
@@ -40,6 +41,11 @@ const PLAN_JOIN_GUIDE = `선택하신 요금제의 상세 내용을 확인해주
 
 interface ChatRoomProps {
   /**
+   * 로그인 여부. features/chat이 features/auth를 직접 참조할 수 없어서 app 레이어가
+   * useAuth로 확인해 내려준다. 아직 확인 전이면 undefined.
+   */
+  isLoggedIn?: boolean;
+  /**
    * 대화 영역 하단에 끼워 넣을 카드 (성향 검사 문항 등).
    * 값이 있으면 떠 있는 것으로 보고 추천 질문 칩을 감춘다.
    */
@@ -65,6 +71,7 @@ interface ChatRoomProps {
 
 /** 채팅 화면 본체 - 대화 내역, 추천 질문 칩, 입력창, 추가 기능 메뉴 */
 export default function ChatRoom({
+  isLoggedIn,
   overlay,
   onPlanTest,
   renderJoinFlow,
@@ -81,6 +88,7 @@ export default function ChatRoom({
     keywords,
     summary,
     joinBlocks,
+    chatConflict,
     sendMessage,
     retry,
     reset,
@@ -88,7 +96,9 @@ export default function ChatRoom({
     setKeywordValue,
     pruneVisibleMessages,
     stopGeneration,
-  } = useChat();
+    keepBothConversations,
+    discardGuestConversation,
+  } = useChat(isLoggedIn);
   const conditionQuestions = useConditionQuestions();
 
   // 조건 수집 카드에서 선택한 답변을 문항이 끝날 때까지 모아뒀다가 한 번에 보낸다
@@ -98,7 +108,8 @@ export default function ChatRoom({
   // 입력창도 같이 열어 두면 두 군데에 동시에 타이핑하는 것처럼 보여 혼란스럽다 -
   // 열려 있는 동안은 채팅 입력창을 막는다. setState 함수는 항상 같은 참조라
   // ConditionQuestionCard에 그대로 넘겨도 매 렌더마다 새 함수가 되지 않는다.
-  const [isConditionFreeTextEditing, setIsConditionFreeTextEditing] = useState(false);
+  const [isConditionFreeTextEditing, setIsConditionFreeTextEditing] =
+    useState(false);
 
   // 바닥에 있는지 여부 - 자동 스크롤 여부와 버튼 노출을 함께 결정한다
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -199,7 +210,9 @@ export default function ChatRoom({
     setConditionAnswers([]);
 
     if (finalAnswers.length > 0) {
-      sendMessage(`${finalAnswers.join('\n')}\n\n이 조건으로 요금제 추천해주세요.`);
+      sendMessage(
+        `${finalAnswers.join('\n')}\n\n이 조건으로 요금제 추천해주세요.`,
+      );
     }
   };
 
@@ -304,7 +317,7 @@ export default function ChatRoom({
         className="flex flex-1 flex-col overflow-y-auto pt-(--height-header) pb-(--height-chat-input)"
       >
         {/* 채팅 내역 영역 */}
-        <div className="flex flex-col gap-6 px-4 py-6">
+        <div className="flex flex-col gap-3 px-4 py-6">
           <AiMessage content={WELCOME_MESSAGE} />
 
           {/*
@@ -368,7 +381,10 @@ export default function ChatRoom({
             사용자의 다음 답을 handleSend가 감지해 선택형 카드를 열지 판단한다. */}
         {messages.length === 0 && !resolvedOverlay && (
           <div className="mt-auto">
-            <SuggestionChips onSuggest={handleSuggest} onPlanTest={onPlanTest} />
+            <SuggestionChips
+              onSuggest={handleSuggest}
+              onPlanTest={onPlanTest}
+            />
           </div>
         )}
 
@@ -412,6 +428,14 @@ export default function ChatRoom({
         onStop={stopGeneration}
         isLocked={isConditionFreeTextEditing}
       />
+
+      {chatConflict && (
+        <ChatConflictModal
+          guestMessageCount={chatConflict.guestMessageCount}
+          onKeepBoth={keepBothConversations}
+          onDiscardGuest={discardGuestConversation}
+        />
+      )}
     </div>
   );
 }
