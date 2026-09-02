@@ -1,5 +1,5 @@
 import type { AddOn } from '@/entities/addOn/types';
-import type { JoinKind, JoinProgress } from '@/entities/join/types';
+import type { JoinItem, JoinKind, JoinProgress } from '@/entities/join/types';
 import type { MembershipBrand } from '@/entities/membershipBrand/types';
 import type { Plan } from '@/entities/plan/types';
 import type { Subscription } from '@/entities/subscription/types';
@@ -193,14 +193,7 @@ interface JoinBlockBase {
  * 상품 번호는 item.id 에 이미 있어서 따로 갖지 않는다 - 카드를 찾을 때 쓰는
  * JoinTarget 은 getJoinBlockTarget(lib/joinBlock.ts)으로 만들어 쓴다.
  */
-export type JoinBlock = JoinBlockBase & JoinBlockItem;
-
-/**
- * 가입 카드가 가리키는 상품. 카드를 새로 띄울 때(addJoinBlock) 넘기는 값이기도 하다.
- * 절차를 어디까지 밟았는지(JoinBlockBase)와 분리해둔 이유는, 카드를 띄우는 쪽은
- * 무엇을 가입하는지만 알면 되고 진행 상태는 그 뒤에 붙는 것이기 때문이다.
- */
-export type JoinBlockItem = { kind: 'plan'; item: Plan };
+export type JoinBlock = JoinBlockBase & JoinItem;
 
 /**
  * 회원의 chat_messages.content에 카드를 저장할 때 쓰는 JSON 모양. text 컬럼 하나뿐이라

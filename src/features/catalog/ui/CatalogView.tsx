@@ -40,7 +40,12 @@ interface CatalogViewProps {
 export default function CatalogView({ catalog, initialTab }: CatalogViewProps) {
   // 1. 상태 및 훅
   const { activeTab, panelId, handleTabChange } = useCatalogTabs(initialTab);
-  const planDetail = useCatalogDetail<Plan>(buildPlanJoinMessage);
+  // 요금제만 채팅에서 곧바로 가입 카드를 연다 - 부가서비스·구독은 카드가 아직
+  // 없어서 문장만 보내고 평소처럼 모델이 답한다
+  const planDetail = useCatalogDetail<Plan>(buildPlanJoinMessage, (plan) => ({
+    kind: 'plan',
+    item: plan,
+  }));
   const addOnDetail = useCatalogDetail<AddOn>(buildAddOnJoinMessage);
   const subscriptionDetail = useCatalogDetail<Subscription>(
     buildSubscriptionJoinMessage,

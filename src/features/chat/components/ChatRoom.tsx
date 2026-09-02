@@ -236,14 +236,23 @@ export default function ChatRoom({
   useEffect(() => {
     if (!isRestored) return;
 
-    const pendingMessage = takePendingChatMessage();
-    if (!pendingMessage) return;
+    const pending = takePendingChatMessage();
+    if (!pending) return;
 
     // 복구한 대화가 길면 방금 보낸 말이 화면 밖에 생긴다. "사용자가 위를 읽는 중이면
     // 끌어내리지 않는다"는 기본 규칙의 예외 - 사용자가 직접 시작한 대화라 보여줘야 한다.
     shouldForceScrollRef.current = true;
-    sendMessage(pendingMessage);
-  }, [isRestored, sendMessage]);
+
+    // 상세에서 이미 고른 상품이면 모델을 거치지 않고 그 자리에서 카드를 연다.
+    // 말풍선은 카드가 스스로 그리므로(getJoinBlockMessage) 문장을 따로 보내지 않는다 -
+    // 보내면 같은 말이 두 번 남는다.
+    if (pending.join) {
+      addJoinBlock(pending.join, lastMessageId ?? null);
+      return;
+    }
+
+    sendMessage(pending.text);
+  }, [isRestored, sendMessage, addJoinBlock, lastMessageId]);
 
   // 3. 이벤트 핸들러
   const handleScroll = () => {

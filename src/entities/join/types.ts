@@ -1,3 +1,4 @@
+import type { Plan } from '@/entities/plan/types';
 import type { Gender } from '@/entities/user/types';
 
 /**
@@ -17,6 +18,18 @@ export interface JoinTarget {
   kind: JoinKind;
   itemId: number;
 }
+
+/**
+ * 가입 절차를 걸 상품 하나. 종류마다 담기는 값이 달라 kind 로 가르는 판별 유니온이다.
+ *
+ * JoinTarget 이 "어느 상품인지"만 가리키는 데 비해 이쪽은 카드를 그리는 데 필요한
+ * 값을 통째로 들고 있다 - 목록 상세에서 채팅으로 넘어올 때처럼, 받는 쪽이 다시
+ * 조회하지 않고 곧바로 카드를 띄울 수 있어야 하는 자리가 있어서다.
+ *
+ * 종류가 늘면 여기에 갈래를 하나 더한다 - 그러면 이 값을 다루는 곳들이 컴파일
+ * 오류로 한 번에 드러난다.
+ */
+export type JoinItem = { kind: 'plan'; item: Plan };
 
 /**
  * CARD-046: 가입 절차 도중 화면을 떠났다 돌아왔을 때 이어가기 위한 진행 상태.

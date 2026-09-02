@@ -26,11 +26,10 @@ import type {
   ChatMessage,
   ChatSummarizeResponseBody,
   JoinBlock,
-  JoinBlockItem,
 } from '@/features/chat/types';
 
 import { getJoinKey } from '@/entities/join';
-import type { JoinProgress, JoinTarget } from '@/entities/join/types';
+import type { JoinItem, JoinProgress, JoinTarget } from '@/entities/join/types';
 
 import { createId } from '@/shared/utils/createId';
 
@@ -748,7 +747,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
    * 다시 보이게 한다.
    */
   const addJoinBlock = useCallback(
-    (item: JoinBlockItem, afterMessageId: string | null) => {
+    (item: JoinItem, afterMessageId: string | null) => {
       const target = { kind: item.kind, itemId: item.item.id };
       const key = getJoinKey(target);
 
