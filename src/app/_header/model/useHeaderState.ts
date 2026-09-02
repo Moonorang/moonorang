@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -19,10 +19,6 @@ export function useHeaderState() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const openMenu = useCallback(() => setIsMenuOpen(true), []);
-  const closeMenu = useCallback(() => setIsMenuOpen(false), []);
   const goHome = useCallback(() => router.push('/'), [router]);
   // AUTH-014: 지금 보던 화면을 next 로 넘겨 로그인 후 되돌아오게 한다
   const goLogin = useCallback(() => {
@@ -36,9 +32,6 @@ export function useHeaderState() {
     // 하위 경로(/auth/signup/terms 등)도 같은 흐름으로 취급한다
     isFlowRoute: FLOW_ROUTES.some((route) => pathname.startsWith(route)),
     isLoggedIn,
-    isMenuOpen,
-    openMenu,
-    closeMenu,
     goHome,
     goLogin,
     signOut,

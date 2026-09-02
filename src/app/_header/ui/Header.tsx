@@ -1,10 +1,15 @@
 import Link from 'next/link';
 
-import { ChevronLeft, Menu } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 
 import { cn } from '@/shared/utils/cn';
 
+import { HEADER_LINKS } from '../config/headerLinks';
+
 type HeaderVariant = 'logo' | 'back';
+
+const ACTION_CLASS =
+  'text-14 leading-fixed font-medium text-text-primary transition-colors hover:text-action-primary';
 
 interface HeaderProps {
   /** 'logo': 서비스 로고 표시, 'back': 뒤로가기 버튼 표시 */
@@ -12,17 +17,23 @@ interface HeaderProps {
   /** 뒤로가기 버튼 선택 시. 어디로 보낼지는 상위(AppHeader)가 정한다 */
   onBackClick?: () => void;
   /** 가입 흐름처럼 이탈을 막아야 하는 화면에서는 false */
-  hasMenu?: boolean;
-  /** 햄버거 버튼 선택 시. 메뉴 열림 상태는 상위(AppHeader)가 갖는다 */
-  onMenuClick?: () => void;
+  hasActions?: boolean;
+  /** HEADER-002: 로그인 여부에 따라 우측 항목을 분기한다 */
+  isLoggedIn?: boolean;
+  /** 비로그인 상태에서 로그인 선택 시, 로그인 화면 진입 */
+  onLoginClick?: () => void;
+  /** 로그인 상태에서 로그아웃 선택 시, 로그아웃 처리 */
+  onLogoutClick?: () => void;
   appendClassName?: string;
 }
 
 export default function Header({
   variant = 'logo',
   onBackClick,
-  hasMenu = true,
-  onMenuClick,
+  hasActions = true,
+  isLoggedIn = false,
+  onLoginClick,
+  onLogoutClick,
   appendClassName,
 }: HeaderProps) {
   return (
@@ -54,15 +65,22 @@ export default function Header({
         </Link>
       )}
 
-      {hasMenu && (
-        <button
-          type="button"
-          onClick={onMenuClick}
-          aria-label="메뉴 열기"
-          className="flex h-6 w-6 items-center justify-center text-text-primary transition-colors hover:cursor-pointer hover:text-action-primary"
-        >
-          <Menu size={24} strokeWidth={1.5} aria-hidden="true" />
-        </button>
+      {hasActions && (
+        <nav className="flex items-center gap-4">
+          {HEADER_LINKS.map(({ label, href }) => (
+            <Link key={href} href={href} className={ACTION_CLASS}>
+              {label}
+            </Link>
+          ))}
+
+          <button
+            type="button"
+            onClick={isLoggedIn ? onLogoutClick : onLoginClick}
+            className={cn(ACTION_CLASS, 'hover:cursor-pointer')}
+          >
+            {isLoggedIn ? '로그아웃' : '로그인'}
+          </button>
+        </nav>
       )}
     </header>
   );
