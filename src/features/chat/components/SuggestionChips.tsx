@@ -25,6 +25,7 @@ export default function SuggestionChips({
           key={suggestion}
           variant="answer"
           radius="full"
+          size="lg"
           onClick={() => onSuggest(suggestion)}
           appendClassName="shrink-0"
         >
@@ -34,6 +35,7 @@ export default function SuggestionChips({
       <Button
         variant="answer"
         radius="full"
+        size="lg"
         onClick={onPlanTest}
         appendClassName="shrink-0"
       >
