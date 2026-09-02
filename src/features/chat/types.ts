@@ -130,6 +130,17 @@ export interface PlanJoinBlock {
  *   id 참조가 아니라 전체 값을 통째로 저장한다)
  */
 export type ChatCardPayload =
-  | { type: 'join_flow'; planId: number }
+  /**
+   * 가입 카드 한 장. progress·isCompleted 는 절차가 진행될 때마다 이 마커 행을
+   * 고쳐서 남긴다 - 새 행을 쌓으면 대화에 없는 말이 늘어나기 때문이다(CARD-043/046).
+   */
+  | {
+      type: 'join_flow';
+      planId: number;
+      progress?: PlanJoinProgress;
+      isCompleted?: boolean;
+    }
+  /** 바로 앞 AI 메시지가 가입 결과라는 표시 - 말풍선 아래에 축하 카드가 붙는다 */
+  | { type: 'join_result' }
   | { type: 'recommendation'; plans: PlanRecommendation[] }
   | { type: 'usage_analysis'; data: UsageAnalysisResult };

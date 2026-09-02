@@ -1,7 +1,12 @@
 import { createClient } from '@/shared/lib/supabase/server';
 import type { Plan } from '@/entities/plan/types';
-import { serializeCardPayload } from '@/features/chat/lib/chatCard';
-import type { ChatKeywords } from '@/features/chat/types';
+import {
+  serializeCardPayload,
+  tryParseCardPayload,
+} from '@/features/chat/lib/chatCard';
+import type { ChatCardPayload, ChatKeywords } from '@/features/chat/types';
+
+import type { PlanJoinProgress } from '@/entities/planJoin/types';
 
 export interface DbChatMessage {
   /** chat_messages.id(bigint)를 문자열로 - 클라이언트 ChatMessage.id와 모양을 맞춘다 */
@@ -140,6 +145,81 @@ export async function insertJoinFlowMessages(
   await insertMessages(chatId, [
     { role: 'user', content: `${plan.name} 요금제 가입할래` },
     { role: 'ai', content: serializeCardPayload({ type: 'join_flow', planId: plan.id }) },
+  ]);
+}
+
+/**
+ * CARD-043/046: 가입 카드의 진행 상태를 그 카드의 마커 행에 덮어쓴다.
+ *
+ * 새 행을 쌓지 않고 이미 있는 마커를 고치는 이유는, 마커 행 하나가 카드 한 장에
+ * 대응하기 때문이다 - 진행할 때마다 행이 늘면 복구할 때 같은 카드가 여러 장 뜬다.
+ * 같은 요금제로 여러 번 신청한 흔적이 있으면 가장 최근 것을 고친다.
+ *
+ * 넘어온 값만 덮어쓴다. 완료만 알리는 호출이 이미 저장된 진행 단계를 지우면
+ * 안 되기 때문이다. 고칠 마커를 못 찾으면 false 를 돌려준다.
+ */
+export async function updateJoinFlowMarker(
+  chatId: string,
+  planId: number,
+  patch: { progress?: PlanJoinProgress; isCompleted?: boolean },
+): Promise<boolean> {
+  const supabase = await createClient();
+
+  // content 로 1차 추리고(마커는 JSON 이라 반드시 이 낱말을 품는다),
+  // 실제 판별은 파싱해서 한다 - 우연히 같은 낱말을 쓴 대화 텍스트를 걸러내기 위함.
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('id, content')
+    .eq('chat_id', chatId)
+    .eq('sender_type', 'AI')
+    .like('content', '%join_flow%')
+    .order('id', { ascending: false })
+    .returns<{ id: number; content: string }[]>();
+
+  if (error) {
+    throw new Error(`가입 카드 조회 실패: ${error.message}`);
+  }
+
+  const target = (data ?? [])
+    .map((row) => ({ row, payload: tryParseCardPayload(row.content) }))
+    .find(
+      ({ payload }) =>
+        payload?.type === 'join_flow' && payload.planId === planId,
+    );
+
+  if (!target || target.payload?.type !== 'join_flow') return false;
+
+  const next: ChatCardPayload = {
+    ...target.payload,
+    ...(patch.progress !== undefined ? { progress: patch.progress } : {}),
+    ...(patch.isCompleted !== undefined
+      ? { isCompleted: patch.isCompleted }
+      : {}),
+  };
+
+  const { error: updateError } = await supabase
+    .from('chat_messages')
+    .update({ content: serializeCardPayload(next) })
+    .eq('id', target.row.id);
+
+  if (updateError) {
+    throw new Error(`가입 카드 저장 실패: ${updateError.message}`);
+  }
+
+  return true;
+}
+
+/**
+ * CARD-043: 가입 결과 말풍선과 그 표시 마커를 한 세트로 남긴다.
+ * 마커는 바로 앞 AI 메시지가 가입 결과라는 뜻이고, 복구할 때 축하 카드를 다시 붙인다.
+ */
+export async function insertJoinResultMessages(
+  chatId: string,
+  resultMessage: string,
+): Promise<void> {
+  await insertMessages(chatId, [
+    { role: 'ai', content: resultMessage },
+    { role: 'ai', content: serializeCardPayload({ type: 'join_result' }) },
   ]);
 }
 

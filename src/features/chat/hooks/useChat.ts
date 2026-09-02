@@ -647,6 +647,29 @@ export function useChat(isLoggedIn: boolean | undefined) {
   );
 
   /**
+   * 회원의 가입 카드 진행 상태를 서버에도 남긴다.
+   * 실패해도 지금 화면은 이미 바뀌어 있으니 대화는 계속된다 - 다음에 복구할 때만
+   * 그 자리가 덜 되살아날 뿐이다(addJoinBlock 과 같은 취지).
+   */
+  const patchJoinFlow = useCallback(
+    (body: {
+      planId: number;
+      progress?: PlanJoinProgress;
+      isCompleted?: boolean;
+      resultMessage?: string;
+    }) => {
+      fetch('/api/chat/join', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).catch(() => {
+        // 무시 - 위 주석 참고
+      });
+    },
+    [],
+  );
+
+  /**
    * CARD-046: 가입 카드가 어디까지 진행됐는지를 대화와 함께 저장해둔다.
    * 카카오 회원가입처럼 화면을 아주 떠났다 돌아오는 길이 있어서, 카드 안의 state
    * 만으로는 이어갈 수 없다.
@@ -663,9 +686,15 @@ export function useChat(isLoggedIn: boolean | undefined) {
       );
       joinBlocksRef.current = nextBlocks;
       setJoinBlocks(nextBlocks);
+
+      if (isLoggedIn) {
+        patchJoinFlow({ planId, progress });
+        return;
+      }
+
       persist();
     },
-    [persist],
+    [isLoggedIn, patchJoinFlow, persist],
   );
 
   /**
@@ -697,9 +726,14 @@ export function useChat(isLoggedIn: boolean | undefined) {
         },
       ]);
 
+      if (isLoggedIn) {
+        patchJoinFlow({ planId, isCompleted: true, resultMessage });
+        return;
+      }
+
       persist();
     },
-    [persist, updateMessages],
+    [isLoggedIn, patchJoinFlow, persist, updateMessages],
   );
 
   /**
