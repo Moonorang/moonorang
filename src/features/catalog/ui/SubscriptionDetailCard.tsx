@@ -2,10 +2,10 @@ import Image from 'next/image';
 
 import Button from '@/shared/ui/Button';
 
-import { CATALOG_IMAGE_BASE_PATH } from '@/features/catalog/constants';
-import { getDiscountedFee } from '@/features/catalog/lib/getDiscountedFee';
-import { formatWon } from '@/shared/utils/formatCurrency';
+import { getDiscountedFee } from '@/entities/subscription/lib/getDiscountedFee';
 import type { Subscription } from '@/entities/subscription/types';
+import { CATALOG_IMAGE_BASE_PATH } from '@/shared/utils/catalogImagePath';
+import { formatWon } from '@/shared/utils/formatCurrency';
 
 interface SubscriptionDetailCardProps {
   subscription: Subscription;

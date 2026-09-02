@@ -1,10 +1,16 @@
 import type { QuestionOption } from '@/shared/ui/QuestionCard';
-import type { ChatKeywords } from '@/features/chat/types';
+
+/**
+ * 선택형 질문 카드는 선택지가 숫자 하나(QuestionOption.value)로 값이 매겨지는
+ * ChatKeywords 필드에만 쓸 수 있다. interests처럼 배열인 필드는 여기 못 들어간다 -
+ * keyof ChatKeywords 전체를 쓰면 그런 필드도 타입상 허용돼버려서 명시적으로 좁혀둔다.
+ */
+export type ConditionKeywordField = 'budget' | 'dataUsageGb' | 'tetheringGb';
 
 export interface ConditionQuestion {
   id: number;
   /** 이 문항의 답이 반영될 keywords 필드 */
-  keywordField: keyof ChatKeywords;
+  keywordField: ConditionKeywordField;
   /** 대화 이력 요약(CARD-012)에 쓰는 짧은 라벨. 카드에 뜨는 질문 문장과는 별개 */
   summaryLabel: string;
   question: string;

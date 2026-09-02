@@ -11,6 +11,12 @@ function describeFit(isWithinBudget: boolean, usageGb: number): string {
   return `${budgetNote} 데이터 사용 패턴(약 ${usageGb}GB 기준)에 맞춰 계산한 요금제예요.`;
 }
 
+// 예산·데이터 사용량 없이 관심사만으로 찾은 경우(selectPlans.ts의 isInterestBrowse) -
+// "예산 안에서" 같은 문구는 적합하지 않아 별도 문장을 쓴다.
+function describeInterestMatch(): string {
+  return '관심사에 맞는 혜택이 있는 요금제예요.';
+}
+
 /**
  * recommend_plans가 트리거되면(=사용자가 추천을 원하면) 실제 선별을 수행한다.
  *
@@ -27,13 +33,19 @@ export function runPlanRecommendation(
   send: SSESend,
 ): unknown {
   const usageGb = keywords.dataUsageGb ?? 15;
-  const { recommendations: scored, didRelaxBudget, didRelaxTethering } =
-    selectRecommendedPlans(plans, keywords);
+  const {
+    recommendations: scored,
+    didRelaxBudget,
+    didRelaxTethering,
+    isInterestBrowse,
+  } = selectRecommendedPlans(plans, keywords);
 
   const recommendations: PlanRecommendation[] = scored.map((item) => ({
     plan: item.plan,
     rank: item.rank,
-    reason: describeFit(item.isWithinBudget, usageGb),
+    reason: isInterestBrowse
+      ? describeInterestMatch()
+      : describeFit(item.isWithinBudget, usageGb),
   }));
 
   send({ event: 'recommendation', data: { plans: recommendations } });
@@ -50,5 +62,8 @@ export function runPlanRecommendation(
     // CARD-020: 조건을 못 채워서 필터를 완화했으면 그 사실을 안내 문구에 반영하라고 알려준다.
     didRelaxBudget,
     didRelaxTethering,
+    // 예산/데이터 없이 관심사만으로 찾았다는 사실 - 마무리 응답에서 "예산에 맞춰서" 같은
+    // 표현을 쓰지 않고 관심사 기준으로 설명하라고 시스템 프롬프트에서 안내한다.
+    isInterestBrowse,
   };
 }

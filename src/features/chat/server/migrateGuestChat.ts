@@ -45,6 +45,36 @@ export async function migrateGuestChat(
       });
     }
 
+    if (message.role === 'ai' && message.addOnRecommendations?.length) {
+      rows.push({
+        role: 'ai',
+        content: serializeCardPayload({
+          type: 'add_on_recommendation',
+          addOns: message.addOnRecommendations,
+        }),
+      });
+    }
+
+    if (message.role === 'ai' && message.subscriptionRecommendations?.length) {
+      rows.push({
+        role: 'ai',
+        content: serializeCardPayload({
+          type: 'subscription_recommendation',
+          subscriptions: message.subscriptionRecommendations,
+        }),
+      });
+    }
+
+    if (message.role === 'ai' && message.nearbyMemberships?.length) {
+      rows.push({
+        role: 'ai',
+        content: serializeCardPayload({
+          type: 'nearby_membership',
+          memberships: message.nearbyMemberships,
+        }),
+      });
+    }
+
     if (message.role === 'ai' && message.usageAnalysis) {
       rows.push({
         role: 'ai',
