@@ -14,6 +14,12 @@ export function useCatalogTabs(initialTab: CatalogTab = 'plans') {
 
   const handleTabChange = (tab: CatalogTab) => {
     setActiveTab(tab);
+
+    // 목록이 통째로 바뀌므로 이전 탭에서 내려둔 스크롤 위치를 유지할 이유가 없다.
+    // 그대로 두면 새 탭의 중간부터 보이거나, 항목이 더 적으면 빈 화면이 나온다.
+    // 탭 바는 sticky 라 화면에 남아 있고, 스크롤되는 건 창 자체다.
+    // 내용이 같은 순간에 바뀌어서 smooth 로 훑고 내려가면 오히려 어수선하다 - 즉시 이동.
+    window.scrollTo({ top: 0 });
   };
 
   return {
