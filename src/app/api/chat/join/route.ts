@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { getPlansByIds } from '@/entities/plan/server/planRepository';
 import {
+  getCurrentUser,
   MEMBER_GUARD_MESSAGE,
   MEMBER_GUARD_STATUS,
   requireMember,
@@ -32,11 +33,16 @@ export async function POST(request: Request) {
 
   const user = guard.user;
 
-  const body = (await request.json().catch(() => null)) as { planId?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as {
+    planId?: unknown;
+  } | null;
   const planId = typeof body?.planId === 'number' ? body.planId : null;
 
   if (planId === null) {
-    return NextResponse.json({ error: 'planId가 필요합니다.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'planId가 필요합니다.' },
+      { status: 400 },
+    );
   }
 
   try {
@@ -44,7 +50,10 @@ export async function POST(request: Request) {
     // id로 실제 DB 값을 다시 조회해서 저장한다.
     const [plan] = await getPlansByIds([planId]);
     if (!plan) {
-      return NextResponse.json({ error: '요금제를 찾을 수 없습니다.' }, { status: 404 });
+      return NextResponse.json(
+        { error: '요금제를 찾을 수 없습니다.' },
+        { status: 404 },
+      );
     }
 
     const chat = await getOrCreateActiveChat(user.id);
@@ -53,7 +62,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[api/chat/join] 저장 실패:', error);
-    return NextResponse.json({ error: '가입 카드를 저장하지 못했습니다.' }, { status: 500 });
+    return NextResponse.json(
+      { error: '가입 카드를 저장하지 못했습니다.' },
+      { status: 500 },
+    );
   }
 }
 
