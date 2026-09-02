@@ -113,6 +113,7 @@ export default function ChatRoom({
     messages,
     isStreaming,
     error,
+    isRetrying,
     location,
     isRestored,
     keywords,
@@ -479,7 +480,13 @@ export default function ChatRoom({
             );
           })}
 
-          {error && <ChatErrorNotice reason={error.reason} onRetry={retry} />}
+          {error && (
+            <ChatErrorNotice
+              reason={error.reason}
+              onRetry={retry}
+              isRetrying={isRetrying}
+            />
+          )}
         </div>
 
         {/* 메시지 리스트 하단에 추천 질문 칩 배치 (입력창 위로 떠 있는 듯한 위치) */}
