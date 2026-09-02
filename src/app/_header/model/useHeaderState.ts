@@ -5,7 +5,10 @@ import { usePathname, useRouter } from 'next/navigation';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
-import { FLOW_ROUTES } from '../config/flowRoutes';
+import { FLOW_ROUTES, HISTORY_BACK_ROUTES } from '../config/flowRoutes';
+
+const matchesRoute = (routes: string[], pathname: string) =>
+  routes.some((route) => pathname.startsWith(route));
 
 /**
  * 헤더가 그리는 데 필요한 상태와 동작을 한곳에서 만든다.
@@ -19,7 +22,22 @@ export function useHeaderState() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const goHome = useCallback(() => router.push('/'), [router]);
+  /**
+   * 나가기 동작. 직전 화면으로 돌아갈 화면(HISTORY_BACK_ROUTES)에서만 히스토리를 되감고,
+   * 그 외에는 홈으로 보낸다. 새 탭 등으로 바로 들어와 되감을 이력이 없으면 홈으로 대체한다.
+   */
+  const goBack = useCallback(() => {
+    const hasHistory =
+      typeof window !== 'undefined' && window.history.length > 1;
+
+    if (matchesRoute(HISTORY_BACK_ROUTES, pathname) && hasHistory) {
+      router.back();
+      return;
+    }
+
+    router.push('/');
+  }, [router, pathname]);
+
   // AUTH-014: 지금 보던 화면을 next 로 넘겨 로그인 후 되돌아오게 한다
   const goLogin = useCallback(() => {
     const query =
@@ -30,9 +48,9 @@ export function useHeaderState() {
 
   return {
     // 하위 경로(/auth/signup/terms 등)도 같은 흐름으로 취급한다
-    isFlowRoute: FLOW_ROUTES.some((route) => pathname.startsWith(route)),
+    isFlowRoute: matchesRoute(FLOW_ROUTES, pathname),
     isLoggedIn,
-    goHome,
+    goBack,
     goLogin,
     signOut,
   };
