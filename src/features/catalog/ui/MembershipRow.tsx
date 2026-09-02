@@ -1,9 +1,8 @@
 import Image from 'next/image';
 
-import CatalogCard from '@/features/catalog/ui/CatalogCard';
-
-import { CATALOG_IMAGE_BASE_PATH } from '@/features/catalog/constants';
 import type { MembershipBrand } from '@/entities/membershipBrand/types';
+import CatalogCard from '@/shared/ui/CatalogCard';
+import { CATALOG_IMAGE_BASE_PATH } from '@/shared/utils/catalogImagePath';
 
 interface MembershipRowProps {
   brand: MembershipBrand;

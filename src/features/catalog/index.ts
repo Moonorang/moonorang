@@ -2,7 +2,6 @@
 // 서버 전용(getCatalogData)은 @/features/catalog/server 로 따로 가져간다.
 export { default as CatalogView } from './ui/CatalogView';
 export { default as CatalogTabs } from './ui/CatalogTabs';
-export { default as CatalogCard } from './ui/CatalogCard';
 export { default as EmptyNotice } from './ui/EmptyNotice';
 export { useCatalogTabs } from './hooks/useCatalogTabs';
 export { CATALOG_TABS, CATALOG_EMPTY_MESSAGES } from './constants';

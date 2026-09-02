@@ -15,6 +15,3 @@ export const CATALOG_EMPTY_MESSAGES: Record<CatalogTab, string> = {
   subscriptions: '등록된 구독 상품이 없어요.',
   memberships: '등록된 멤버십 제휴처가 없어요.',
 };
-
-// 목록 카드 이미지가 놓인 public 경로 (DB 에는 파일명만 저장돼 있다)
-export const CATALOG_IMAGE_BASE_PATH = '/images/catalog';

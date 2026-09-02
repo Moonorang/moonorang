@@ -1,12 +1,12 @@
-import CatalogCard from '@/features/catalog/ui/CatalogCard';
-import ExpandToggle from '@/features/catalog/ui/ExpandToggle';
 // import DetailRow from '@/features/catalog/ui/DetailRow';
 
 import { isMeaningful } from '@/features/catalog/lib/isMeaningful';
-import { formatWon } from '@/shared/utils/formatCurrency';
 import { parseDataAllowance } from '@/entities/plan/lib/format';
 // import { parseVoiceSms } from '@/entities/plan/lib/format';
 import type { Plan } from '@/entities/plan/types';
+import CatalogCard from '@/shared/ui/CatalogCard';
+import ExpandToggle from '@/shared/ui/ExpandToggle';
+import { formatWon } from '@/shared/utils/formatCurrency';
 
 interface PlanRowProps {
   plan: Plan;
