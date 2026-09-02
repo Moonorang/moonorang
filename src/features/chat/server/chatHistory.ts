@@ -64,6 +64,12 @@ function splitRows(rows: DbChatMessage[]): {
       continue;
     }
 
+    if (card?.type === 'nearby_membership') {
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'ai') last.nearbyMemberships = card.memberships;
+      continue;
+    }
+
     if (card?.type === 'usage_analysis') {
       const last = messages[messages.length - 1];
       if (last && last.role === 'ai') last.usageAnalysis = card.data;

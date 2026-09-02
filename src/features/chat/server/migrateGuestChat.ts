@@ -65,6 +65,16 @@ export async function migrateGuestChat(
       });
     }
 
+    if (message.role === 'ai' && message.nearbyMemberships?.length) {
+      rows.push({
+        role: 'ai',
+        content: serializeCardPayload({
+          type: 'nearby_membership',
+          memberships: message.nearbyMemberships,
+        }),
+      });
+    }
+
     if (message.role === 'ai' && message.usageAnalysis) {
       rows.push({
         role: 'ai',

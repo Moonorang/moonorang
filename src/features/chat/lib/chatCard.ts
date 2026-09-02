@@ -5,6 +5,7 @@ const CARD_TYPES: ChatCardPayload['type'][] = [
   'recommendation',
   'add_on_recommendation',
   'subscription_recommendation',
+  'nearby_membership',
   'usage_analysis',
 ];
 
