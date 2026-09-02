@@ -6,6 +6,8 @@ export { default as CatalogCard } from './ui/CatalogCard';
 export { default as PlanDetailModal } from './ui/PlanDetailModal';
 export { default as AddOnDetailModal } from './ui/AddOnDetailModal';
 export { default as AddOnDetailCard } from './ui/AddOnDetailCard';
+export { default as SubscriptionDetailModal } from './ui/SubscriptionDetailModal';
+export { default as SubscriptionDetailCard } from './ui/SubscriptionDetailCard';
 export { default as EmptyNotice } from './ui/EmptyNotice';
 export { useCatalogTabs } from './hooks/useCatalogTabs';
 export { useCatalogDetail } from './hooks/useCatalogDetail';

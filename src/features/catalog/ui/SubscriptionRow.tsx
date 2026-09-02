@@ -9,11 +9,14 @@ import type { Subscription } from '@/entities/subscription/types';
 
 interface SubscriptionRowProps {
   subscription: Subscription;
+  /** DATA-014: 카드를 누르면 상세 모달을 연다 */
+  onSelect: () => void;
 }
 
 // DATA-013: 구독 상품명·월 요금·혜택
 export default function SubscriptionRow({
   subscription,
+  onSelect,
 }: SubscriptionRowProps) {
   const { name, baseMonthlyFee, discount, description } = subscription;
   const { fee } = getDiscountedFee(baseMonthlyFee, discount);
@@ -21,16 +24,11 @@ export default function SubscriptionRow({
   // description.image 는 파일명만 들어 있다.
   const imageSrc = `${CATALOG_IMAGE_BASE_PATH}/${description?.image ?? 'netflix_youtube.jpg'}`;
 
-  // TODO: 상세 화면 연결 전까지 임시 처리
-  const handleCardClick = () => {
-    alert(`${name} 상세`);
-  };
-
   return (
     <CatalogCard>
       <button
         type="button"
-        onClick={handleCardClick}
+        onClick={onSelect}
         className="flex w-full flex-1 cursor-pointer items-center gap-4 px-4 py-5 text-left"
       >
         {/* 이미지 높이만큼 늘려, 상품명은 위 끝 · 요금은 아래 끝에 붙인다.

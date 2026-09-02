@@ -7,6 +7,7 @@ import EmptyNotice from '@/features/catalog/ui/EmptyNotice';
 import MembershipRow from '@/features/catalog/ui/MembershipRow';
 import PlanDetailModal from '@/features/catalog/ui/PlanDetailModal';
 import PlanRow from '@/features/catalog/ui/PlanRow';
+import SubscriptionDetailModal from '@/features/catalog/ui/SubscriptionDetailModal';
 import SubscriptionRow from '@/features/catalog/ui/SubscriptionRow';
 
 import { CATALOG_EMPTY_MESSAGES } from '@/features/catalog/constants';
@@ -15,6 +16,7 @@ import { useCatalogTabs } from '@/features/catalog/hooks/useCatalogTabs';
 import {
   buildAddOnJoinMessage,
   buildPlanJoinMessage,
+  buildSubscriptionJoinMessage,
 } from '@/features/catalog/lib/joinMessage';
 import type { CatalogData } from '@/features/catalog/types';
 
@@ -32,6 +34,7 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
   const { activeTab, panelId, handleTabChange } = useCatalogTabs();
   const planDetail = useCatalogDetail(buildPlanJoinMessage);
   const addOnDetail = useCatalogDetail(buildAddOnJoinMessage);
+  const subscriptionDetail = useCatalogDetail(buildSubscriptionJoinMessage);
 
   // 2. 렌더링
   const items = catalog[activeTab];
@@ -72,6 +75,7 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
                 <SubscriptionRow
                   key={subscription.id}
                   subscription={subscription}
+                  onSelect={() => subscriptionDetail.openDetail(subscription)}
                 />
               ))}
 
@@ -93,6 +97,12 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
         addOn={addOnDetail.selectedItem}
         onClose={addOnDetail.closeDetail}
         onJoin={addOnDetail.goToJoin}
+      />
+
+      <SubscriptionDetailModal
+        subscription={subscriptionDetail.selectedItem}
+        onClose={subscriptionDetail.closeDetail}
+        onJoin={subscriptionDetail.goToJoin}
       />
     </main>
   );
