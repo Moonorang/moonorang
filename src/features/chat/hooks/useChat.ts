@@ -27,6 +27,7 @@ import type {
   PlanJoinBlock,
 } from '@/features/chat/types';
 
+import type { PlanJoinProgress } from '@/entities/planJoin/types';
 import type { Plan } from '@/entities/plan/types';
 
 import { createId } from '@/shared/utils/createId';
@@ -50,6 +51,25 @@ interface MemberChatHistoryResponse {
 export interface ChatConflict {
   /** 로그인 전 게스트로 나눈 메시지 개수 - 모달 문구에 사용 */
   guestMessageCount: number;
+}
+
+/**
+ * 저장해둔 진행 상태와 방금 온 값이 같은지.
+ * 가입 카드는 렌더할 때마다 진행 상태를 알려오는데, 달라진 게 없을 때도 저장하면
+ * 상태가 새로 만들어져 다시 렌더되고, 그게 또 알림을 부르는 고리가 된다.
+ */
+function isSameProgress(
+  a: PlanJoinProgress | undefined,
+  b: PlanJoinProgress,
+): boolean {
+  return (
+    a !== undefined &&
+    a.stepIndex === b.stepIndex &&
+    a.gender === b.gender &&
+    a.birth === b.birth &&
+    a.agreedTermIds.length === b.agreedTermIds.length &&
+    a.agreedTermIds.every((id, index) => id === b.agreedTermIds[index])
+  );
 }
 
 /**
@@ -704,6 +724,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
   /**
    * CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다.
+   * afterMessageId 는 누른 시점의 마지막 메시지 - 카드가 대화 끝에 이어 붙는다.
    * 같은 요금제를 또 눌러도 카드가 여러 장 쌓이지 않게 무시한다. 회원이면 서버에도
    * 같은 자리를 남겨서(POST /api/chat/join), 나중에 복구했을 때 이 카드가 그대로
    * 다시 보이게 한다.
@@ -733,6 +754,96 @@ export function useChat(isLoggedIn: boolean | undefined) {
       persist();
     },
     [isLoggedIn, persist],
+  );
+
+  /**
+   * 회원의 가입 카드 진행 상태를 서버에도 남긴다.
+   * 실패해도 지금 화면은 이미 바뀌어 있으니 대화는 계속된다 - 다음에 복구할 때만
+   * 그 자리가 덜 되살아날 뿐이다(addJoinBlock 과 같은 취지).
+   */
+  const patchJoinFlow = useCallback(
+    (body: {
+      planId: number;
+      progress?: PlanJoinProgress;
+      isCompleted?: boolean;
+      resultMessage?: string;
+    }) => {
+      fetch('/api/chat/join', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).catch(() => {
+        // 무시 - 위 주석 참고
+      });
+    },
+    [],
+  );
+
+  /**
+   * CARD-046: 가입 카드가 어디까지 진행됐는지를 대화와 함께 저장해둔다.
+   * 카카오 회원가입처럼 화면을 아주 떠났다 돌아오는 길이 있어서, 카드 안의 state
+   * 만으로는 이어갈 수 없다.
+   */
+  const saveJoinProgress = useCallback(
+    (planId: number, progress: PlanJoinProgress) => {
+      const target = joinBlocksRef.current.find(
+        (block) => block.plan.id === planId,
+      );
+      if (!target || isSameProgress(target.progress, progress)) return;
+
+      const nextBlocks = joinBlocksRef.current.map((block) =>
+        block.plan.id === planId ? { ...block, progress } : block,
+      );
+      joinBlocksRef.current = nextBlocks;
+      setJoinBlocks(nextBlocks);
+
+      if (isLoggedIn) {
+        patchJoinFlow({ planId, progress });
+        return;
+      }
+
+      persist();
+    },
+    [isLoggedIn, patchJoinFlow, persist],
+  );
+
+  /**
+   * CARD-043: 가입 절차가 끝나면 결과를 AI 메시지로 대화에 남긴다.
+   * 모델을 거치지 않는 정해진 문구라 스트리밍 없이 완성된 채로 넣고, 같은 카드가
+   * 두 번 결제되지 않도록 그 가입 카드에도 끝났다는 표시를 남긴다.
+   */
+  const completeJoinBlock = useCallback(
+    (planId: number, resultMessage: string) => {
+      const target = joinBlocksRef.current.find(
+        (block) => block.plan.id === planId,
+      );
+      if (!target || target.isCompleted) return;
+
+      const nextBlocks = joinBlocksRef.current.map((block) =>
+        block.plan.id === planId ? { ...block, isCompleted: true } : block,
+      );
+      joinBlocksRef.current = nextBlocks;
+      setJoinBlocks(nextBlocks);
+
+      updateMessages((prev) => [
+        ...prev,
+        {
+          id: createId(),
+          role: 'ai',
+          content: resultMessage,
+          createdAt: new Date().toISOString(),
+          isJoinResult: true,
+        },
+      ]);
+
+      if (isLoggedIn) {
+        patchJoinFlow({ planId, isCompleted: true, resultMessage });
+        return;
+      }
+
+      persist();
+    },
+    [isLoggedIn, patchJoinFlow, persist, updateMessages],
   );
 
   /**
@@ -797,6 +908,8 @@ export function useChat(isLoggedIn: boolean | undefined) {
     retry,
     reset,
     addJoinBlock,
+    saveJoinProgress,
+    completeJoinBlock,
     setKeywordValue,
     pruneVisibleMessages,
     stopGeneration,

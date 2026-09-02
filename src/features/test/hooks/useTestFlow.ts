@@ -10,7 +10,7 @@ import { useTestStore } from '@/features/test/store/testStore';
 const RESULT_LOADING_MS = 1200;
 
 /**
- * 채팅 안에서 진행하는 성향 검사 흐름 (TEST-001~005).
+ * 채팅 안에서 진행하는 취미 성향 검사 흐름 (TEST-001~005).
  * 문항 이동·응답·마지막 문항 이후 결과 화면 전환까지를 한곳에서 다룬다.
  */
 export function useTestFlow() {

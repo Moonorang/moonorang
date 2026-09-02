@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Pencil, Share2 } from 'lucide-react';
 
 import Button from '@/shared/ui/Button';
-import PlanCard from '@/entities/plan/ui/PlanCard';
+import Tag from '@/shared/ui/Tag';
 
 import BenefitList from '@/features/test/components/BenefitList';
 import SectionTitle from '@/features/test/components/SectionTitle';
@@ -16,10 +16,9 @@ interface TestResultProps {
   displayName: string;
 }
 
-/** TEST-007~012: 성향 검사 결과 화면 본문 */
+/** TEST-007~012: 취미 성향 검사 결과 화면 본문 */
 export default function TestResult({ displayName }: TestResultProps) {
-  const { hasAnswer, result, recommendedPlan, retryTest, shareResult } =
-    useTestResult();
+  const { hasAnswer, result, retryTest, shareResult } = useTestResult();
 
   // 응답이 없으면 훅이 채팅으로 되돌리는 중이므로 아무것도 그리지 않는다
   if (!hasAnswer) return null;
@@ -46,28 +45,32 @@ export default function TestResult({ displayName }: TestResultProps) {
         </div>
       </div>
 
-      {/* 추천 요금제 (TEST-007, TEST-008) */}
-      <section className="flex flex-col gap-2">
-        <SectionTitle
-          title={`${displayName}님을 위한 추천 요금제`}
-          iconSrc="/images/test/icon-plan.png"
-          iconWidth={25}
-          iconHeight={28}
-          iconTone="yellow"
-        />
-        {recommendedPlan ? (
-          <PlanCard plan={recommendedPlan} rank={1} appendClassName="w-full" />
-        ) : (
-          <p className="rounded-md bg-background-default p-4 text-12 text-text-secondary">
-            추천 요금제를 불러오는 중이에요.
-          </p>
-        )}
-      </section>
+      {/*
+        고른 선택지에서 모인 취미 키워드.
+        로그인 사용자라면 이 목록이 그대로 활동 로그에도 남는다(TEST-010).
+        문항을 전부 건너뛰면 남는 키워드가 없으므로 그때는 아예 그리지 않는다.
+      */}
+      {result.keywords.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <SectionTitle
+            title={`${displayName}님의 취미 키워드`}
+            iconSrc="/images/test/icon-plan.png"
+            iconWidth={25}
+            iconHeight={28}
+            iconTone="yellow"
+          />
+          <div className="flex flex-wrap gap-1.5 rounded-md bg-background-default p-4">
+            {result.keywords.map((keyword) => (
+              <Tag key={keyword}>#{keyword}</Tag>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 맞춤 혜택 */}
       <section className="flex flex-col gap-2">
         <SectionTitle
-          title="맞춤 혜택"
+          title="취미에 어울리는 혜택"
           iconSrc="/images/test/icon-benefit.png"
           iconWidth={30}
           iconHeight={27}
