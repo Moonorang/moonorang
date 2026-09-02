@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 
-import { getCurrentUser } from '@/features/auth/server';
+import {
+  MEMBER_GUARD_MESSAGE,
+  MEMBER_GUARD_STATUS,
+  requireMember,
+} from '@/features/auth/server';
 import { loadMemberChatHistory } from '@/features/chat/server/chatHistory';
 
 /**
@@ -8,11 +12,16 @@ import { loadMemberChatHistory } from '@/features/chat/server/chatHistory';
  * 그대로 복구해서 돌려준다. 비회원은 이 엔드포인트를 안 쓰고 localStorage를 쓴다.
  */
 export async function GET() {
-  const user = await getCurrentUser();
+  const guard = await requireMember();
 
-  if (!user) {
-    return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+  if (!guard.isMember) {
+    return NextResponse.json(
+      { error: MEMBER_GUARD_MESSAGE[guard.reason] },
+      { status: MEMBER_GUARD_STATUS[guard.reason] },
+    );
   }
+
+  const user = guard.user;
 
   try {
     const history = await loadMemberChatHistory(user.id);

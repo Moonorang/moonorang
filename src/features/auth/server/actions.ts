@@ -1,9 +1,12 @@
 'use server';
 
+import { cookies } from 'next/headers';
+
 import { createClient } from '@/shared/lib/supabase/server';
 
 import { toIsoBirth } from '@/features/auth/lib/formatUserInput';
 import { signupSchema } from '@/features/auth/lib/signupSchema';
+import { SIGNUP_PENDING_COOKIE } from '@/features/auth/lib/signupPending';
 
 export interface SignupActionResult {
   errorMessage?: string;
@@ -59,5 +62,17 @@ export async function submitSignup(
     };
   }
 
+  // users 레코드가 생겼으므로 가입 미완료 표식을 지운다 - 안 지우면 proxy 가
+  // 계속 가입 화면으로 되돌려보낸다.
+  (await cookies()).delete(SIGNUP_PENDING_COOKIE);
+
   return {};
+}
+
+/**
+ * 가입을 그만두고 나갈 때 호출한다. 로그아웃 자체는 클라이언트(useAuth)가 하고,
+ * httpOnly 쿠키인 가입 미완료 표식은 클라이언트에서 못 지우므로 여기서 지운다.
+ */
+export async function clearSignupPending(): Promise<void> {
+  (await cookies()).delete(SIGNUP_PENDING_COOKIE);
 }

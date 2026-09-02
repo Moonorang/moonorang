@@ -4,8 +4,16 @@ import { useCallback, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { clearSignupPending } from '@/features/auth/server/actions';
 
-import { FLOW_ROUTES } from '../config/flowRoutes';
+import {
+  FLOW_ROUTES,
+  HISTORY_BACK_ROUTES,
+  SIGNOUT_EXIT_ROUTES,
+} from '../config/flowRoutes';
+
+const matchesRoute = (routes: string[], pathname: string) =>
+  routes.some((route) => pathname.startsWith(route));
 
 /**
  * 헤더가 그리는 데 필요한 상태와 동작을 한곳에서 만든다.
@@ -19,11 +27,58 @@ export function useHeaderState() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
 
-  const openMenu = useCallback(() => setIsMenuOpen(true), []);
-  const closeMenu = useCallback(() => setIsMenuOpen(false), []);
-  const goHome = useCallback(() => router.push('/'), [router]);
+  const isExitConfirmRequired = matchesRoute(SIGNOUT_EXIT_ROUTES, pathname);
+
+  /**
+   * 나가기 동작.
+   * - 가입 미완료 화면: 바로 내보내지 않고 확인부터 받는다(아래 confirmExit)
+   * - 직전 화면으로 돌아갈 화면: 히스토리를 되감는다. 새 탭 등으로 바로 들어와
+   *   되감을 이력이 없으면 홈으로 대체한다
+   * - 그 외: 홈으로
+   */
+  const requestExit = useCallback(() => {
+    if (isExitConfirmRequired) {
+      setIsExitConfirmOpen(true);
+      return;
+    }
+
+    const hasHistory =
+      typeof window !== 'undefined' && window.history.length > 1;
+
+    if (matchesRoute(HISTORY_BACK_ROUTES, pathname) && hasHistory) {
+      router.back();
+      return;
+    }
+
+    router.push('/');
+  }, [isExitConfirmRequired, pathname, router]);
+
+  const cancelExit = useCallback(() => setIsExitConfirmOpen(false), []);
+
+  /**
+   * 가입을 그만두고 나간다. 인증 세션과 가입 미완료 표식을 함께 지워서,
+   * '로그인은 됐는데 회원 정보는 없는' 상태가 남지 않게 한다.
+   */
+  const confirmExit = useCallback(async () => {
+    // COMMON-004: 처리 중 중복 실행 차단
+    if (isExiting) return;
+    setIsExiting(true);
+
+    try {
+      await signOut();
+      await clearSignupPending();
+
+      setIsExitConfirmOpen(false);
+      router.replace('/');
+      router.refresh();
+    } finally {
+      setIsExiting(false);
+    }
+  }, [isExiting, router, signOut]);
+
   // AUTH-014: 지금 보던 화면을 next 로 넘겨 로그인 후 되돌아오게 한다
   const goLogin = useCallback(() => {
     const query =
@@ -34,12 +89,14 @@ export function useHeaderState() {
 
   return {
     // 하위 경로(/auth/signup/terms 등)도 같은 흐름으로 취급한다
-    isFlowRoute: FLOW_ROUTES.some((route) => pathname.startsWith(route)),
+    isFlowRoute: matchesRoute(FLOW_ROUTES, pathname),
+    isExitConfirmRequired,
     isLoggedIn,
-    isMenuOpen,
-    openMenu,
-    closeMenu,
-    goHome,
+    isExitConfirmOpen,
+    isExiting,
+    requestExit,
+    cancelExit,
+    confirmExit,
     goLogin,
     signOut,
   };

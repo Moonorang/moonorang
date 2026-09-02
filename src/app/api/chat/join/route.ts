@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 
 import { getPlansByIds } from '@/entities/plan/server/planRepository';
-import { getCurrentUser } from '@/features/auth/server';
+import {
+  MEMBER_GUARD_MESSAGE,
+  MEMBER_GUARD_STATUS,
+  requireMember,
+} from '@/features/auth/server';
 import {
   getActiveChat,
   getOrCreateActiveChat,
@@ -17,11 +21,16 @@ import type { PlanJoinProgress } from '@/entities/planJoin/types';
  * 비회원은 이 엔드포인트를 안 쓰고 클라이언트 상태로만 들고 있는다.
  */
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
+  const guard = await requireMember();
 
-  if (!user) {
-    return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+  if (!guard.isMember) {
+    return NextResponse.json(
+      { error: MEMBER_GUARD_MESSAGE[guard.reason] },
+      { status: MEMBER_GUARD_STATUS[guard.reason] },
+    );
   }
+
+  const user = guard.user;
 
   const body = (await request.json().catch(() => null)) as { planId?: unknown } | null;
   const planId = typeof body?.planId === 'number' ? body.planId : null;

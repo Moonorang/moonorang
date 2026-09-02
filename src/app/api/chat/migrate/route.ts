@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 
-import { getCurrentUser } from '@/features/auth/server';
+import {
+  MEMBER_GUARD_MESSAGE,
+  MEMBER_GUARD_STATUS,
+  requireMember,
+} from '@/features/auth/server';
 import { migrateGuestChat } from '@/features/chat/server/migrateGuestChat';
 import type { ChatKeywords, ChatMessage, PlanJoinBlock } from '@/features/chat/types';
 
@@ -17,11 +21,16 @@ interface MigrateRequestBody {
  * 자신이 방금까지 들고 있던 상태를 그대로 보내는 것이라 굳이 엄격하게 안 막는다.
  */
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
+  const guard = await requireMember();
 
-  if (!user) {
-    return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+  if (!guard.isMember) {
+    return NextResponse.json(
+      { error: MEMBER_GUARD_MESSAGE[guard.reason] },
+      { status: MEMBER_GUARD_STATUS[guard.reason] },
+    );
   }
+
+  const user = guard.user;
 
   const body = (await request.json().catch(() => null)) as MigrateRequestBody | null;
   const messages = Array.isArray(body?.messages) ? body.messages : [];
