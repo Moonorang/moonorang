@@ -7,27 +7,22 @@ import type { MembershipBrand } from '@/entities/membershipBrand/types';
 
 interface MembershipRowProps {
   brand: MembershipBrand;
-  isExpanded: boolean;
-  onToggle: () => void;
+  /** DATA-019: 카드를 누르면 상세 모달을 연다 */
+  onSelect: () => void;
 }
 
 // DATA-018: 태그·제휴사명·혜택
-export default function MembershipRow({ brand }: MembershipRowProps) {
+export default function MembershipRow({ brand, onSelect }: MembershipRowProps) {
   const { name, category, icon, discountRules } = brand;
   // membership_brands.icon 에는 파일명만 들어 있다.
   const imageSrc = `${CATALOG_IMAGE_BASE_PATH}/${icon}`;
   const summary = discountRules?.summary;
 
-  // 임시 처리
-  const handleCardClick = () => {
-    alert(`${name} 상세`);
-  };
-
   return (
     <CatalogCard>
       <button
         type="button"
-        onClick={handleCardClick}
+        onClick={onSelect}
         className="flex w-full flex-1 cursor-pointer items-center gap-5 px-4 py-4 text-left"
       >
         <Image
@@ -41,7 +36,7 @@ export default function MembershipRow({ brand }: MembershipRowProps) {
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div>
             <p className="truncate text-12 text-text-primary">{category}</p>
-            <p className="truncate text-16 font-medium text-text-primary">
+            <p className="truncate text-14 font-medium text-text-primary">
               {name}
             </p>
           </div>

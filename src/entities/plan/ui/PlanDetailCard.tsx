@@ -2,10 +2,10 @@ import { Gauge, MessageCircle, PhoneCall, Share2, Wifi } from 'lucide-react';
 
 import Button from '@/shared/ui/Button';
 
-import BenefitRow from '@/features/join/components/BenefitRow';
-import { getPlanBenefitDetail } from '@/features/join/data/planBenefits';
+import BenefitRow from '@/entities/plan/ui/BenefitRow';
 
 import { formatWon } from '@/shared/utils/formatCurrency';
+import { getPlanBenefitDetail } from '@/entities/plan/config/planBenefits';
 import { parseDataAllowance, parseVoiceSms } from '@/entities/plan/lib/format';
 import type { Plan } from '@/entities/plan/types';
 
@@ -38,7 +38,8 @@ function PlanFeatureRow({
 
 /**
  * 요금제 하나를 펼쳐 보여주는 상세 내용.
- * 대화 말풍선 안(features/chat)과 가입 모달 안(features/join) 양쪽에서 쓰므로
+ * 대화 말풍선 안(features/chat), 가입 절차 안(features/join),
+ * 목록의 상세(features/catalog) 여러 곳에서 쓰므로
  * 폭·배경·바깥 여백은 감싸는 쪽이 정하고 여기서는 안쪽 간격만 갖는다.
  */
 export default function PlanDetailCard({ plan, onJoin }: PlanDetailCardProps) {
@@ -101,7 +102,7 @@ export default function PlanDetailCard({ plan, onJoin }: PlanDetailCardProps) {
           onClick={onJoin}
           appendClassName="mt-[18px]"
         >
-          신청하기
+          채팅에서 가입하기
         </Button>
       )}
 

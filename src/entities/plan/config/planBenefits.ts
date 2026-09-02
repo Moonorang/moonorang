@@ -1,20 +1,6 @@
 import { Gift, MonitorPlay, Shield, Wifi } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 
-// 혜택 행 아이콘의 색 조합. globals.css 토큰 이름과 1:1로 맞춘다
-export type BenefitTone = 'secondary' | 'accent1' | 'accent2' | 'primary';
-
-export interface PlanBenefitItem {
-  icon: LucideIcon;
-  tone: BenefitTone;
-  title: string;
-  subTitle?: string;
-}
-
-export interface PlanBenefitDetail {
-  mainBenefits: PlanBenefitItem[];
-  addOnServices: PlanBenefitItem[];
-}
+import type { PlanBenefitDetail, PlanBenefitItem } from '@/entities/plan/types';
 
 /*
  * plans.benefits 는 문자열 네 개짜리 평면 구조라(media_contents, vip_membership,

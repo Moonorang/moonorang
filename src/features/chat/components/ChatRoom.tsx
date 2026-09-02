@@ -18,6 +18,7 @@ import { useChat } from '@/features/chat/hooks/useChat';
 import { useConditionQuestions } from '@/features/chat/hooks/useConditionQuestions';
 import type { ChatKeywords } from '@/features/chat/types';
 
+import { takePendingChatMessage } from '@/entities/chat';
 import type { Plan } from '@/entities/plan/types';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
 
@@ -83,6 +84,7 @@ export default function ChatRoom({
     messages,
     isStreaming,
     error,
+    isRestored,
     keywords,
     summary,
     joinBlocks,
@@ -113,6 +115,8 @@ export default function ChatRoom({
   const [isAtBottom, setIsAtBottom] = useState(true);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  // 밖에서 밀어 넣은 메시지처럼, 바닥에 있지 않아도 한 번은 끌어내려야 하는 경우
+  const shouldForceScrollRef = useRef(false);
 
   const scrollToBottom = useCallback(() => {
     const element = scrollAreaRef.current;
@@ -127,8 +131,9 @@ export default function ChatRoom({
   // 애니메이션이 새로 시작돼 화면이 덜컹거린다.
   // 단, 사용자가 위로 올려 이전 대화를 읽는 중이면 끌어내리지 않는다.
   useEffect(() => {
-    if (!isAtBottom) return;
+    if (!isAtBottom && !shouldForceScrollRef.current) return;
 
+    shouldForceScrollRef.current = false;
     scrollToBottom();
   }, [messages, joinBlocks, error, isAtBottom, scrollToBottom]);
 
@@ -137,6 +142,26 @@ export default function ChatRoom({
   useEffect(() => {
     if (isAtBottom) pruneVisibleMessages();
   }, [isAtBottom, messages.length, pruneVisibleMessages]);
+
+  // 요금제 목록 등 채팅 밖에서 "이 말로 시작해달라"고 남겨둔 메시지가 있으면 대신 보낸다.
+  // 사용자가 직접 친 것과 똑같이 처리되므로(SuggestionChips 와 같은 경로) 이후 대화가
+  // 그 요금제를 문맥으로 물고 간다.
+  //
+  // isRestored 를 기다리는 이유: 복구는 messages 를 통째로 덮어써서, 그전에 보낸
+  // 메시지는 소리 없이 사라진다. 훅 호출 순서에 기대지 않고 복구 완료를 직접 확인한다.
+  // 한 번만 나가는 것은 takePendingChatMessage 가 꺼내면서 지우는 것으로 보장된다 -
+  // effect 가 다시 돌아도, 새로고침을 해도 두 번째부터는 값이 없다.
+  useEffect(() => {
+    if (!isRestored) return;
+
+    const pendingMessage = takePendingChatMessage();
+    if (!pendingMessage) return;
+
+    // 복구한 대화가 길면 방금 보낸 말이 화면 밖에 생긴다. "사용자가 위를 읽는 중이면
+    // 끌어내리지 않는다"는 기본 규칙의 예외 - 사용자가 직접 시작한 대화라 보여줘야 한다.
+    shouldForceScrollRef.current = true;
+    sendMessage(pendingMessage);
+  }, [isRestored, sendMessage]);
 
   // 3. 이벤트 핸들러
   const handleScroll = () => {

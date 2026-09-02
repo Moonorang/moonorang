@@ -200,6 +200,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
     }
 
     const stored = loadChatState();
+
+    // 저장된 대화가 없어도(첫 방문) 복구는 "끝난" 것이다. 아래 early return 뒤에
+    // 두면 첫 방문자에게만 신호가 안 가서, 이걸 기다리는 쪽이 영영 안 움직인다.
+    setIsRestored(true);
+
     if (!stored) return;
 
     messagesRef.current = stored.messages;
@@ -649,6 +654,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     messages,
     isStreaming,
     error,
+    isRestored,
     keywords,
     summary,
     joinBlocks,
