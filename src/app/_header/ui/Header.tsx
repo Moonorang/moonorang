@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, LogIn, LogOut } from 'lucide-react';
 
 import { cn } from '@/shared/utils/cn';
 
@@ -8,8 +8,9 @@ import { HEADER_LINKS } from '../config/headerLinks';
 
 type HeaderVariant = 'logo' | 'back';
 
+// 항목이 전부 아이콘이라 글자 크기 대신 색과 클릭 영역만 정한다
 const ACTION_CLASS =
-  'text-14 leading-fixed font-medium text-text-primary transition-colors hover:text-action-primary';
+  'flex h-6 w-6 items-center justify-center text-text-primary transition-colors hover:text-action-primary';
 
 interface HeaderProps {
   /** 'logo': 서비스 로고 표시, 'back': 뒤로가기 버튼 표시 */
@@ -70,18 +71,28 @@ export default function Header({
 
       {hasActions && (
         <nav className="flex items-center gap-4">
-          {HEADER_LINKS.map(({ label, href }) => (
-            <Link key={href} href={href} className={ACTION_CLASS}>
-              {label}
+          {HEADER_LINKS.map(({ label, href, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              aria-label={label}
+              className={ACTION_CLASS}
+            >
+              <Icon size={20} strokeWidth={1.5} aria-hidden />
             </Link>
           ))}
 
           <button
             type="button"
             onClick={isLoggedIn ? onLogoutClick : onLoginClick}
+            aria-label={isLoggedIn ? '로그아웃' : '로그인'}
             className={cn(ACTION_CLASS, 'hover:cursor-pointer')}
           >
-            {isLoggedIn ? '로그아웃' : '로그인'}
+            {isLoggedIn ? (
+              <LogOut size={20} strokeWidth={1.5} aria-hidden />
+            ) : (
+              <LogIn size={20} strokeWidth={1.5} aria-hidden />
+            )}
           </button>
         </nav>
       )}
