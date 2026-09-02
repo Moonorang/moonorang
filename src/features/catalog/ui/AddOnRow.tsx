@@ -9,14 +9,11 @@ import type { AddOn } from '@/entities/addOn/types';
 
 interface AddOnRowProps {
   addOn: AddOn;
-  isExpanded: boolean;
-  onToggle: () => void;
 }
 
 // DATA-008: 부가서비스명·월 요금·혜택
 export default function AddOnRow({ addOn }: AddOnRowProps) {
   const { description } = addOn;
-  // const hasDetail = !!description?.guide || !!description?.features?.length;
   // description.icon 값에 맞는 아이콘 (표에 없으면 기본 아이콘)
   const Icon = ADD_ON_ICONS[description?.icon ?? ''] ?? ADD_ON_ICON_FALLBACK;
 
@@ -26,30 +23,7 @@ export default function AddOnRow({ addOn }: AddOnRowProps) {
   };
 
   return (
-    <CatalogCard
-    // 펼침 버튼 대신 카드 전체 클릭으로 대체 (임시)
-    // expandSummary={hasDetail ? '서비스 상세 안내' : undefined}
-    // isExpanded={isExpanded}
-    // onToggle={onToggle}
-    // detail={
-    //   hasDetail ? (
-    //     <div className="flex flex-col gap-2">
-    //       {description?.guide && (
-    //         <p className="text-12 text-text-primary">{description.guide}</p>
-    //       )}
-    //       {!!description?.features?.length && (
-    //         <ul className="flex list-disc flex-col gap-1 pl-4">
-    //           {description.features.map((feature) => (
-    //             <li key={feature} className="text-12 text-text-secondary">
-    //               {feature}
-    //             </li>
-    //           ))}
-    //         </ul>
-    //       )}
-    //     </div>
-    //   ) : undefined
-    // }
-    >
+    <CatalogCard>
       <button
         type="button"
         onClick={handleCardClick}

@@ -59,7 +59,7 @@
   --shadow-default: 0px 4px 10px 0px rgba(181, 181, 181, 0.25);
 
   /* 컨테이너 최대 너비 */
-  --width-container: 402px;
+  --width-container: 768px;
 
   /* 기본 자간 */
   --tracking-tight: -0.04em;

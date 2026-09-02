@@ -7,8 +7,6 @@ import type { MembershipBrand } from '@/entities/membershipBrand/types';
 
 interface MembershipRowProps {
   brand: MembershipBrand;
-  isExpanded: boolean;
-  onToggle: () => void;
 }
 
 // DATA-018: 태그·제휴사명·혜택

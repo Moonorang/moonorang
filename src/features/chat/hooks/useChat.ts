@@ -74,14 +74,26 @@ export function useChat() {
   // messages 중 앞에서부터 몇 턴이 summary에 이미 반영됐는지
   const summarizedTurnCountRef = useRef(0);
 
+  // CHAT-012: 아래 복구가 끝났는지. 복구는 messages를 통째로 덮어쓰므로,
+  // 밖에서 대화를 밀어 넣으려면 이 값이 true가 된 뒤여야 한다.
+  const [isRestored, setIsRestored] = useState(false);
+
   // localStorage 접근은 클라이언트에서만 가능해서(SSR 시 window 없음), 마운트 후
   // 한 번만 복구한다. 초기값을 lazy useState로 곧바로 채우면 서버가 그린 빈 화면과
   // 달라져 하이드레이션이 어긋나므로, 반드시 effect에서 복구해야 한다 - 리스트 안
   // 여러 항목을 매 렌더 다시 계산하는 파생 상태가 아니라, localStorage라는 외부
   // 저장소를 딱 한 번(deps: []) 읽어와 동기화하는 것이라 이 규칙의 취지(반복 렌더로
   // 이어지는 setState)에 해당하지 않는다.
+  /* eslint-disable react-hooks/set-state-in-effect --
+     마운트 후 localStorage를 딱 한 번(deps: []) 읽어와 동기화하는 것으로, 이 규칙이
+     막으려는 "반복 렌더로 이어지는 setState"가 아니다. */
   useEffect(() => {
     const stored = loadChatState();
+
+    // 저장된 대화가 없어도(첫 방문) 복구는 "끝난" 것이다. 아래 early return 뒤에
+    // 두면 첫 방문자에게만 신호가 안 가서, 이걸 기다리는 쪽이 영영 안 움직인다.
+    setIsRestored(true);
+
     if (!stored) return;
 
     messagesRef.current = stored.messages;
@@ -90,15 +102,12 @@ export function useChat() {
     summarizedTurnCountRef.current = stored.summarizedTurnCount;
     joinBlocksRef.current = stored.joinBlocks;
 
-    /* eslint-disable react-hooks/set-state-in-effect --
-       마운트 후 localStorage를 딱 한 번(deps: []) 읽어와 동기화하는 것으로, 이 규칙이
-       막으려는 "반복 렌더로 이어지는 setState"가 아니다. */
     setMessages(stored.messages);
     setKeywords(stored.keywords);
     setSummary(stored.summary);
     setJoinBlocks(stored.joinBlocks);
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const persist = useCallback(() => {
     saveChatState({
@@ -441,6 +450,7 @@ export function useChat() {
     messages,
     isStreaming,
     error,
+    isRestored,
     keywords,
     summary,
     joinBlocks,
