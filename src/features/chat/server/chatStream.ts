@@ -10,11 +10,16 @@ import { getAllPlans } from '@/entities/plan/server/planRepository';
 import { mergeKeywords } from '@/features/chat/lib/mergeKeywords';
 import { createSSESender, type SSESend } from '@/features/chat/lib/sse';
 import { runSavingsAnalysis } from '@/features/chat/server/analyzeSavings';
+import {
+  loadMemberChatContext,
+  persistMemberAiTurn,
+  persistMemberUserMessage,
+} from '@/features/chat/server/memberChat';
 import { streamCompletion, type ToolCallBuilder } from '@/features/chat/server/openaiStream';
 import { runPlanRecommendation } from '@/features/chat/server/recommendPlans';
 import { buildSystemPrompt } from '@/features/chat/server/systemPrompt';
 import { ACTION_TOOLS, parseExtractConditionsArguments } from '@/features/chat/server/tools';
-import type { ChatKeywords, SummarizeTurnMessage } from '@/features/chat/types';
+import type { ChatCardPayload, ChatKeywords, SummarizeTurnMessage } from '@/features/chat/types';
 
 import type { Plan } from '@/entities/plan/types';
 
@@ -142,6 +147,19 @@ export function createChatStream(
 
       try {
         const plans = await getAllPlans();
+
+        // 회원이면 DB(chats/chat_messages/chat_summary)가 유일한 진짜 기록이라,
+        // 클라이언트가 보낸 keywords/summary/recentMessages는 무시하고 여기서
+        // 다시 읽어온다 - 비회원은 그대로 클라이언트 왕복 값을 쓴다(CHAT-011).
+        const memberChat = userId ? await loadMemberChatContext(userId) : null;
+        if (memberChat) {
+          incomingKeywords = memberChat.keywords;
+          summary = memberChat.summary;
+          recentMessages = memberChat.recentMessages;
+          // 응답이 실패해도 사용자가 실제로 보낸 말은 남아있어야 하므로 곧바로 저장한다.
+          await persistMemberUserMessage(memberChat.chatId, message);
+        }
+
         const messages: ChatCompletionMessageParam[] = [
           {
             role: 'system',
@@ -189,11 +207,23 @@ export function createChatStream(
             )
           : incomingKeywords;
 
+        // 회원이면 이번 턴에 실제로 화면에 보낸 카드(recommendation/usage_analysis)를
+        // 그대로 캡처해뒀다가, 나중에 DB에도 같은 스냅샷을 저장한다(CHAT-012 회원판).
+        const capturedCards: ChatCardPayload[] = [];
+        const trackingSend: SSESend = (event) => {
+          if (event.event === 'recommendation') {
+            capturedCards.push({ type: 'recommendation', plans: event.data.plans });
+          } else if (event.event === 'usageAnalysis') {
+            capturedCards.push({ type: 'usage_analysis', data: event.data });
+          }
+          send(event);
+        };
+
         const toolContext: ToolResultContext = {
           plans,
           mergedKeywords,
           userId,
-          send,
+          send: trackingSend,
         };
 
         // 1턴 이후로는 시스템 프롬프트의 "지금까지 파악된 조건"도 mergedKeywords로
@@ -288,13 +318,25 @@ export function createChatStream(
         const needsFollowUpTurn =
           actionConfirmed || (Boolean(extractCall) && !turn1Text);
 
+        let turn2Text = '';
         if (needsFollowUpTurn) {
-          await streamCompletion({
+          ({ text: turn2Text } = await streamCompletion({
             messages: messagesWithTools,
             useTools: false,
             send,
             onStreamCreated: rememberStream,
-          });
+          }));
+        }
+
+        // 회원이면 이번 턴의 AI 최종 응답(1턴+마무리 턴 합친 것)을 저장하고,
+        // keywords도 DB에 반영한다 - 비회원은 client 왕복으로만 들고 있는다(CHAT-011).
+        if (memberChat) {
+          await persistMemberAiTurn(
+            memberChat.chatId,
+            turn1Text + turn2Text,
+            mergedKeywords,
+            capturedCards,
+          );
         }
 
         // 클라이언트가 다음 요청에 그대로 실어 보낼 수 있게 최신 조건을 알려준다

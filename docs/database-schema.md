@@ -99,9 +99,9 @@ DATA-001~002의 요금제 마스터 데이터. **추천 요금제 카드(CARD-01
 | `id` | integer | PK |
 | `user_id` | uuid | FK |
 | `billing_month` | varchar(7) | 집계 월 (예: `2026-05`) |
-| `data_used_mb` | integer | 사용한 데이터 총량(MB) |
+| `data_used_mb` | integer | 사용한 데이터 총량 — 컬럼명과 달리 실제 저장 단위는 GB(`users.remaining_data`/`data_limit`과 같은 함정) |
 
-사용자당 월 1건. **CARD-028 "최근 3개월 데이터 사용량" 개인화 카드**에 직접 쓰인다. 최근 3건을 `billing_month desc`로 조회하면 됨.
+사용자당 월 1건. **CARD-028 "최근 3개월 데이터 사용량" 개인화 카드**에 직접 쓰인다. 최근 3건을 `billing_month desc`로 조회하면 됨. 화면/차트는 MB 기준이라, 조회한 값을 1024배 해서 실제 MB로 변환한 뒤 써야 한다(`entities/user/server/userRepository.ts`의 `getRecentMonthlyUsage`가 이미 처리함).
 
 ### `user_missions` / `point_history` / `user_event_logs`
 

@@ -53,13 +53,13 @@
   --text-32: 32px;
 
   /* Line-height */
-  --leading-fixed: 18px;
+  --leading-fixed: 16px;
 
   /* 기본 그림자 */
   --shadow-default: 0px 4px 10px 0px rgba(181, 181, 181, 0.25);
 
   /* 컨테이너 최대 너비 */
-  --width-container: 402px;
+  --width-container: 768px;
 
   /* 기본 자간 */
   --tracking-tight: -0.04em;

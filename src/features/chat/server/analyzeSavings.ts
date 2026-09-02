@@ -20,24 +20,29 @@ function describeSavingsReason(decision: SavingsDecision): string {
   const usedGb = Math.round((decision.averageUsageMb / 1024) * 10) / 10;
 
   if (decision.type === 'downgrade') {
-    return `최근 3개월 평균 데이터 사용량이 약 ${usedGb}GB로 현재 요금제 제공량보다 여유가 있어요.`;
+    return `최근 3개월 평균 데이터 사용량이 약 ${usedGb}GB로, 지금보다 저렴한 요금제로도 충분히 커버돼요.`;
   }
   if (decision.type === 'upgrade') {
-    return `최근 3개월 평균 데이터 사용량이 약 ${usedGb}GB로 현재 요금제 제공량에 가깝거나 넘어서고 있어요.`;
+    return (
+      `최근 3개월 평균 데이터 사용량이 약 ${usedGb}GB로 현재 요금제 제공량을 넘어서고 있어요. ` +
+      `월 ${decision.additionalMonthlyCost?.toLocaleString()}원만 더 내면 데이터 부족 없이 충분히 쓸 수 있어요.`
+    );
   }
   return `최근 3개월 평균 데이터 사용량(약 ${usedGb}GB)이 현재 요금제에 이미 적합해요.`;
 }
 
 function toSavingsAnalysis(decision: SavingsDecision): SavingsAnalysis {
+  const reason = describeSavingsReason(decision);
+
   if (decision.type === 'keep' || !decision.recommendedPlan) {
-    return { type: 'keep' };
+    return { type: 'keep', reason };
   }
 
   return {
     type: decision.type,
+    reason,
     recommendedPlan: {
       plan: decision.recommendedPlan,
-      reason: describeSavingsReason(decision),
       annualSavings: decision.annualSavings,
     },
   };
@@ -93,6 +98,7 @@ export async function runSavingsAnalysis({
     averageUsageMb: Math.round(trend.averageMb),
     savings: savings && {
       type: savings.type,
+      reason: savings.reason,
       recommendedPlanName: savings.recommendedPlan?.plan.name,
       annualSavings: savings.recommendedPlan?.annualSavings,
     },

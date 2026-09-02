@@ -12,5 +12,7 @@ export interface MembershipBrand {
   id: string;
   name: string;
   category: string;
+  // 목록 카드에 쓰는 브랜드 이미지 파일명 (public/images/catalog 안의 파일)
+  icon: string | null;
   discountRules: MembershipDiscountRules | null;
 }

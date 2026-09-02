@@ -21,6 +21,8 @@ interface PlanCardProps {
   rank?: number;
   // 연간 절감액
   annualSavings?: number;
+  /** 왜 이 요금제를 추천/제안하는지 - 있으면 요금제명 아래에 판단 근거로 보여준다 */
+  reason?: string;
   onViewDetail?: () => void;
   onJoin?: () => void;
   /** 배치 전용 탈출구 (w-full 등). 색상 등 디자인은 이 컴포넌트가 고정한다 */
@@ -46,6 +48,7 @@ export default function PlanCard({
   plan,
   rank,
   annualSavings,
+  reason,
   onViewDetail,
   onJoin,
   appendClassName,
@@ -73,6 +76,8 @@ export default function PlanCard({
           월 {formatWon(plan.monthlyFee)}
         </p>
       </div>
+
+      {reason && <p className="text-12 text-text-secondary">{reason}</p>}
 
       <ul className="flex flex-col gap-1">
         <PlanFeatureRow

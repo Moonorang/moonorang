@@ -20,6 +20,8 @@ interface ChatInputProps {
   disabled?: boolean;
   // CHAT-008: 응답 생성 중 중단 버튼 클릭. disabled(생성 중)일 때만 전송 버튼 자리에 뜬다.
   onStop?: () => void;
+
+  isLocked?: boolean;
   placeholder?: string;
   appendClassName?: string;
 }
@@ -33,10 +35,12 @@ export default function ChatInput({
   onMicClick,
   disabled = false,
   onStop,
+  isLocked = false,
   placeholder = '무너에게 무엇이든 물어보세요!',
   appendClassName,
 }: ChatInputProps) {
-  const canSend = value.trim().length > 0 && !disabled;
+  const isInputDisabled = disabled || isLocked;
+  const canSend = value.trim().length > 0 && !isInputDisabled;
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -83,7 +87,7 @@ export default function ChatInput({
             onChange(event.target.value)
           }
           onKeyDown={handleKeyDown}
-          disabled={disabled}
+          disabled={isInputDisabled}
           placeholder={placeholder}
           className="min-w-0 flex-1 truncate bg-transparent text-12 text-text-primary placeholder:text-text-secondary focus:outline-none disabled:cursor-not-allowed"
         />
@@ -91,7 +95,7 @@ export default function ChatInput({
         <button
           type="button"
           onClick={onMicClick}
-          disabled={disabled}
+          disabled={isInputDisabled}
           aria-label="음성으로 입력"
           className="flex shrink-0 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-action-primary disabled:cursor-not-allowed disabled:opacity-50"
         >

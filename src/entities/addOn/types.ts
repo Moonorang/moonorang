@@ -1,5 +1,7 @@
 // add_ons.description 은 스키마 문서상 텍스트지만 실제 데이터는 jsonb 로 들어와 있다.
 export interface AddOnDescription {
+  // 목록에서 보여줄 아이콘 키 (예: icon_shield)
+  icon?: string;
   guide?: string;
   features?: string[];
 }

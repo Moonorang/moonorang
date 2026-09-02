@@ -6,9 +6,9 @@ import type { ReactNode } from 'react';
 import ConfirmModal from '@/shared/ui/ConfirmModal';
 
 import AiMessage from '@/features/chat/components/AiMessage';
+import ChatConflictModal from '@/features/chat/components/ChatConflictModal';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
-import ConditionEntryChips from '@/features/chat/components/ConditionEntryChips';
 import ConditionQuestionCard from '@/features/chat/components/ConditionQuestionCard';
 import PlanCardCarousel from '@/features/chat/components/PlanCardCarousel';
 import PlusMenu from '@/features/chat/components/PlusMenu';
@@ -20,12 +20,20 @@ import { useChat } from '@/features/chat/hooks/useChat';
 import { useConditionQuestions } from '@/features/chat/hooks/useConditionQuestions';
 import type { ChatKeywords } from '@/features/chat/types';
 
+import { takePendingChatMessage } from '@/entities/chat';
 import type { PlanJoinProgress } from '@/entities/planJoin/types';
 import type { Plan } from '@/entities/plan/types';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
 
 /** 최하단에서 이 거리(px) 이내면 바닥에 있는 것으로 본다 */
 const BOTTOM_THRESHOLD_PX = 24;
+
+/**
+ * AI가 조건(예산·데이터 사용량)을 막 물어본 시점에, 사용자가 이 단어들을 포함해서
+ * 답하면 - LLM 왕복 없이 곧바로 선택형 질문 카드를 연다. 별도 버튼 UI 대신 AI가
+ * 말로 "선택지로 해드릴까요, 텍스트로 하실래요?"라고 물어보고, 그 답을 여기서 감지한다.
+ */
+const CONDITION_CARD_KEYWORDS = ['선택지', '카드', '골라'];
 
 /**
  * 가입 카드와 함께 남기는 안내 문구.
@@ -36,15 +44,18 @@ const PLAN_JOIN_GUIDE = `선택하신 요금제의 상세 내용을 확인해주
 
 interface ChatRoomProps {
   /**
+   * 로그인 여부. features/chat이 features/auth를 직접 참조할 수 없어서 app 레이어가
+   * useAuth로 확인해 내려준다. 아직 확인 전이면 undefined.
+   *
+   * 회원 대화 DB 복구와 비회원 localStorage 복구를 가르는 기준이자,
+   * 로그인에서 로그아웃으로 넘어가는 순간 대화를 비우는 판단에도 쓴다.
+   */
+  isLoggedIn?: boolean;
+  /**
    * 대화 영역 하단에 끼워 넣을 카드 (성향 검사 문항 등).
    * 값이 있으면 떠 있는 것으로 보고 추천 질문 칩을 감춘다.
    */
   overlay?: ReactNode;
-  /**
-   * 로그인 여부. 로그아웃하는 순간 대화를 비우려고 받는다 -
-   * features/auth 를 직접 참조할 수 없어 바깥에서 넣어준다.
-   */
-  isLoggedIn?: boolean;
   /** CHAT-015: 추가 기능 메뉴의 '취미 성향 검사' 진입 */
   onPlanTest?: () => void;
   /**
@@ -83,8 +94,8 @@ interface ChatRoomProps {
 
 /** 채팅 화면 본체 - 대화 내역, 추천 질문 칩, 입력창, 추가 기능 메뉴 */
 export default function ChatRoom({
+  isLoggedIn,
   overlay,
-  isLoggedIn = false,
   onPlanTest,
   renderJoinFlow,
   renderJoinResult,
@@ -99,9 +110,11 @@ export default function ChatRoom({
     messages,
     isStreaming,
     error,
+    isRestored,
     keywords,
     summary,
     joinBlocks,
+    chatConflict,
     sendMessage,
     retry,
     reset,
@@ -111,23 +124,27 @@ export default function ChatRoom({
     setKeywordValue,
     pruneVisibleMessages,
     stopGeneration,
-  } = useChat();
+    keepBothConversations,
+    discardGuestConversation,
+  } = useChat(isLoggedIn);
   const conditionQuestions = useConditionQuestions();
 
   // 조건 수집 카드에서 선택한 답변을 문항이 끝날 때까지 모아뒀다가 한 번에 보낸다
   // (CARD-012: 요약을 하나의 말풍선으로 남김 - 문항마다 따로 쪼개지 않는다)
   const [conditionAnswers, setConditionAnswers] = useState<string[]>([]);
-
-  // "텍스트로 답할게요"를 누르면, 그 시점의 마지막 AI 메시지에 한해서만 칩을 숨긴다.
-  // 다음 AI 메시지가 오면 lastMessageId가 바뀌므로 자동으로 다시 평가된다.
-  const [dismissedEntryChipsFor, setDismissedEntryChipsFor] = useState<
-    string | null
-  >(null);
+  // CARD-011: 조건 수집 카드의 기타(직접 입력)가 열려 있는 동안, 하단 채팅
+  // 입력창도 같이 열어 두면 두 군데에 동시에 타이핑하는 것처럼 보여 혼란스럽다 -
+  // 열려 있는 동안은 채팅 입력창을 막는다. setState 함수는 항상 같은 참조라
+  // ConditionQuestionCard에 그대로 넘겨도 매 렌더마다 새 함수가 되지 않는다.
+  const [isConditionFreeTextEditing, setIsConditionFreeTextEditing] =
+    useState(false);
 
   // 바닥에 있는지 여부 - 자동 스크롤 여부와 버튼 노출을 함께 결정한다
   const [isAtBottom, setIsAtBottom] = useState(true);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  // 밖에서 밀어 넣은 메시지처럼, 바닥에 있지 않아도 한 번은 끌어내려야 하는 경우
+  const shouldForceScrollRef = useRef(false);
 
   // CHAT-014: 대화를 비울 때 가입 카드도, 조건 수집 진행 상태도, 보내지 않고
   // 쓰다 만 입력까지 같이 걷어낸다 - 대화만 사라지고 입력창에 하던 말이 남아 있으면
@@ -136,7 +153,7 @@ export default function ChatRoom({
     reset();
     setValue('');
     setConditionAnswers([]);
-    setDismissedEntryChipsFor(null);
+    setIsConditionFreeTextEditing(false);
   }, [reset]);
 
   const closeResetConfirm = useCallback(() => setIsResetConfirmOpen(false), []);
@@ -165,8 +182,9 @@ export default function ChatRoom({
   // 붙어 그 높이만큼 아래 내용(추천 카드 등)이 밀리는데, messages는 그대로라
   // 이게 없으면 딱 그만큼 덜 내려간 채로 멈춘다.
   useEffect(() => {
-    if (!isAtBottom) return;
+    if (!isAtBottom && !shouldForceScrollRef.current) return;
 
+    shouldForceScrollRef.current = false;
     scrollToBottom();
   }, [messages, joinBlocks, error, isStreaming, isAtBottom, scrollToBottom]);
 
@@ -174,6 +192,10 @@ export default function ChatRoom({
   // 로그인해서 나눈 이야기가 로그아웃 뒤에까지 남아 있으면, 같은 기기를 쓰는
   // 다음 사람에게 그대로 보인다.
   useEffect(() => {
+    // 아직 로그인 여부를 모르는 동안에는 판단하지 않는다 - 확인 전 undefined 를
+    // 로그아웃으로 읽으면 멀쩡한 대화를 지운다.
+    if (isLoggedIn === undefined) return;
+
     if (wasLoggedInRef.current && !isLoggedIn) clearConversation();
 
     wasLoggedInRef.current = isLoggedIn;
@@ -187,6 +209,26 @@ export default function ChatRoom({
 
   const lastMessage = messages[messages.length - 1];
   const lastMessageId = lastMessage?.id;
+
+  // 요금제 목록 등 채팅 밖에서 "이 말로 시작해달라"고 남겨둔 메시지가 있으면 대신 보낸다.
+  // 사용자가 직접 친 것과 똑같이 처리되므로(SuggestionChips 와 같은 경로) 이후 대화가
+  // 그 요금제를 문맥으로 물고 간다.
+  //
+  // isRestored 를 기다리는 이유: 복구는 messages 를 통째로 덮어써서, 그전에 보낸
+  // 메시지는 소리 없이 사라진다. 훅 호출 순서에 기대지 않고 복구 완료를 직접 확인한다.
+  // 한 번만 나가는 것은 takePendingChatMessage 가 꺼내면서 지우는 것으로 보장된다 -
+  // effect 가 다시 돌아도, 새로고침을 해도 두 번째부터는 값이 없다.
+  useEffect(() => {
+    if (!isRestored) return;
+
+    const pendingMessage = takePendingChatMessage();
+    if (!pendingMessage) return;
+
+    // 복구한 대화가 길면 방금 보낸 말이 화면 밖에 생긴다. "사용자가 위를 읽는 중이면
+    // 끌어내리지 않는다"는 기본 규칙의 예외 - 사용자가 직접 시작한 대화라 보여줘야 한다.
+    shouldForceScrollRef.current = true;
+    sendMessage(pendingMessage);
+  }, [isRestored, sendMessage]);
 
   // 3. 이벤트 핸들러
   const handleScroll = () => {
@@ -203,6 +245,18 @@ export default function ChatRoom({
     setValue('');
     // 위로 올려둔 상태에서 보내도 방금 보낸 메시지는 보이게 한다
     setIsAtBottom(true);
+
+    // AI가 방금 조건을 물어보면서 "선택지로 해드릴까요, 텍스트로 하실래요?"라고
+    // 물은 직후라면, 사용자가 선택지를 원한다는 답을 LLM 왕복 없이 바로 감지해서
+    // 카드를 연다 - 버튼 없이 대화만으로 같은 선택을 할 수 있게 하기 위함이다.
+    if (
+      isAwaitingConditionEntryChoice &&
+      CONDITION_CARD_KEYWORDS.some((keyword) => text.includes(keyword))
+    ) {
+      handleOpenConditionQuestions();
+      return;
+    }
+
     sendMessage(text);
   };
 
@@ -223,7 +277,9 @@ export default function ChatRoom({
     setConditionAnswers([]);
 
     if (finalAnswers.length > 0) {
-      sendMessage(`${finalAnswers.join('\n')}\n\n이 조건으로 요금제 추천해주세요.`);
+      sendMessage(
+        `${finalAnswers.join('\n')}\n\n이 조건으로 요금제 추천해주세요.`,
+      );
     }
   };
 
@@ -293,15 +349,18 @@ export default function ChatRoom({
         onNext={conditionQuestions.goToNext}
         onSkip={handleConditionSkip}
         onClose={() => finishConditionQuestions(conditionAnswers)}
+        onFreeTextEditingChange={setIsConditionFreeTextEditing}
       />
     ) : undefined);
 
-  // AI가 방금 조건을 물어본 것으로 보이는 시점에만 진입 칩을 보여준다:
-  // 대화가 시작됐고(환영 메시지 제외), 마지막 메시지가 텍스트만 있는 AI 응답이고,
-  // 예산·데이터 사용량이 아직 둘 다 없을 때. systemPrompt의 "조건이 둘 다 없으면
-  // 먼저 물어보라"는 지침과 같은 조건이라 실제로 되묻는 순간과 맞아떨어진다.
-  // usageAnalysis(절약 상담/사용량 추세) 응답은 조건을 되묻는 상황이 아니라서 제외한다.
-  const shouldShowConditionEntryChips =
+  // AI가 방금 조건을 물어본 것으로 보이는 시점인지: 대화가 시작됐고(환영 메시지
+  // 제외), 마지막 메시지가 텍스트만 있는 AI 응답이고, 예산·데이터 사용량이 아직
+  // 둘 다 없을 때. systemPrompt의 "조건이 둘 다 없으면 먼저 물어보라"는 지침과
+  // 같은 조건이라 실제로 되묻는 순간과 맞아떨어진다. usageAnalysis(절약 상담/
+  // 사용량 추세) 응답은 조건을 되묻는 상황이 아니라서 제외한다.
+  // handleSend가 이 순간의 사용자 답에서 "선택지/카드" 같은 키워드를 감지해
+  // 곧바로 선택형 질문 카드를 열지 판단하는 데 쓴다(버튼 UI 없이).
+  const isAwaitingConditionEntryChoice =
     !isStreaming &&
     !resolvedOverlay &&
     !!lastMessage &&
@@ -309,8 +368,7 @@ export default function ChatRoom({
     !lastMessage.recommendations?.length &&
     !lastMessage.usageAnalysis &&
     !keywords.budget &&
-    !keywords.dataUsageGb &&
-    dismissedEntryChipsFor !== lastMessageId;
+    !keywords.dataUsageGb;
 
   // 4. 렌더링
   return (
@@ -322,7 +380,7 @@ export default function ChatRoom({
         className="flex flex-1 flex-col overflow-y-auto pt-(--height-header) pb-(--height-chat-input)"
       >
         {/* 채팅 내역 영역 */}
-        <div className="flex flex-col gap-6 px-4 py-6">
+        <div className="flex flex-col gap-3 px-4 py-6">
           <AiMessage content={WELCOME_MESSAGE} />
 
           {/*
@@ -398,19 +456,15 @@ export default function ChatRoom({
           {error && <ChatErrorNotice reason={error.reason} onRetry={retry} />}
         </div>
 
-        {/* 메시지 리스트 하단에 칩 버튼 배치 (입력창 위로 떠 있는 듯한 위치) */}
-        {/* 최초 진입 시엔 추천 질문 칩을, AI가 조건을 물어본 시점엔 답변 방식 선택 칩을,
-            오버레이 카드가 떠 있는 동안엔 아무 칩도 안 보여준다. */}
+        {/* 메시지 리스트 하단에 추천 질문 칩 배치 (입력창 위로 떠 있는 듯한 위치) */}
+        {/* 최초 진입 시에만 보여준다 - AI가 조건을 물어본 시점엔 별도 버튼 UI 없이
+            AI 메시지 자체가 "선택지로 해드릴까요, 텍스트로 하실래요?"라고 물어보고,
+            사용자의 다음 답을 handleSend가 감지해 선택형 카드를 열지 판단한다. */}
         {messages.length === 0 && !resolvedOverlay && (
           <div className="mt-auto">
-            <SuggestionChips onSuggest={handleSuggest} />
-          </div>
-        )}
-        {shouldShowConditionEntryChips && (
-          <div className="mt-auto">
-            <ConditionEntryChips
-              onChooseText={() => setDismissedEntryChipsFor(lastMessageId ?? null)}
-              onChooseCard={handleOpenConditionQuestions}
+            <SuggestionChips
+              onSuggest={handleSuggest}
+              onPlanTest={onPlanTest}
             />
           </div>
         )}
@@ -462,7 +516,16 @@ export default function ChatRoom({
         isPlusOpen={isPlusMenuOpen}
         disabled={isStreaming}
         onStop={stopGeneration}
+        isLocked={isConditionFreeTextEditing}
       />
+
+      {chatConflict && (
+        <ChatConflictModal
+          guestMessageCount={chatConflict.guestMessageCount}
+          onKeepBoth={keepBothConversations}
+          onDiscardGuest={discardGuestConversation}
+        />
+      )}
     </div>
   );
 }
