@@ -141,6 +141,23 @@ export const RECOMMEND_SUBSCRIPTIONS_TOOL: ChatCompletionTool = {
   },
 };
 
+/**
+ * CARD-028: "내 주변에 멤버십 쓸 데 있어?"처럼 주변 제휴처를 찾을 때. 인자는 없다 -
+ * 브랜드 목록(membership_brands)과 사용자 위치(요청 바디의 location, LLM이 채우는 값이
+ * 아니다)로 서버(findNearbyMemberships.ts)가 카카오 로컬 API를 호출해 계산한다.
+ */
+export const FIND_NEARBY_MEMBERSHIPS_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'find_nearby_memberships',
+    description:
+      '사용자가 "내 주변에 멤버십 쓸 데 있어?", "근처에 혜택 받을 수 있는 곳 있나요?"처럼 ' +
+      '현재 위치 기준으로 가까운 멤버십 제휴처를 찾아달라고 할 때 호출한다 (인자 없음). ' +
+      '실제 검색은 서버가 카카오 지도로 계산하므로 지점명·거리를 직접 말하지 않는다.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+  },
+};
+
 export const CHAT_TOOLS: ChatCompletionTool[] = [
   EXTRACT_CONDITIONS_TOOL,
   RECOMMEND_PLANS_TOOL,
@@ -148,6 +165,7 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
   SHOW_USAGE_TREND_TOOL,
   RECOMMEND_ADD_ONS_TOOL,
   RECOMMEND_SUBSCRIPTIONS_TOOL,
+  FIND_NEARBY_MEMBERSHIPS_TOOL,
 ];
 
 // extract_conditions를 뺀 "실행" 도구만. 1턴에서 extract_conditions만 부르고 실행 도구를
@@ -159,6 +177,7 @@ export const ACTION_TOOLS: ChatCompletionTool[] = [
   SHOW_USAGE_TREND_TOOL,
   RECOMMEND_ADD_ONS_TOOL,
   RECOMMEND_SUBSCRIPTIONS_TOOL,
+  FIND_NEARBY_MEMBERSHIPS_TOOL,
 ];
 
 // extract_conditions tool call의 JSON 문자열을 파싱한다.

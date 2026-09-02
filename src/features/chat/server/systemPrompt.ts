@@ -1,4 +1,5 @@
 import type { AddOn } from '@/entities/addOn/types';
+import type { MembershipBrand } from '@/entities/membershipBrand/types';
 import type { Plan } from '@/entities/plan/types';
 import type { Subscription } from '@/entities/subscription/types';
 import type { ChatKeywords } from '@/features/chat/types';
@@ -59,6 +60,18 @@ function formatSubscriptionCatalog(subscriptions: Subscription[]): string {
     .join('\n');
 }
 
+// 멤버십 제휴 브랜드 목록을 모델이 마무리 응답에서 참조할 수 있는 간략한 카탈로그
+// 문자열로 만듦. 지점명·거리는 여기 없다(카카오 검색 결과로만 나온다) - 브랜드명·
+// 카테고리·할인 요약만 참고용으로 준다.
+function formatMembershipCatalog(brands: MembershipBrand[]): string {
+  return brands
+    .map((brand) => {
+      const summary = brand.discountRules?.summary ?? '';
+      return `- id ${brand.id} | ${brand.name} | ${brand.category} | ${summary}`;
+    })
+    .join('\n');
+}
+
 const KEYWORD_LABELS: Record<keyof ChatKeywords, string> = {
   budget: '예산',
   dataUsageGb: '데이터 사용량(GB)',
@@ -93,6 +106,7 @@ export function buildSystemPrompt(
   plans: Plan[],
   addOns: AddOn[],
   subscriptions: Subscription[],
+  membershipBrands: MembershipBrand[],
   keywords: ChatKeywords,
   summary?: string,
 ): string {
@@ -163,6 +177,12 @@ ${formatSubscriptionCatalog(subscriptions)}
 구독 상품명 + 월 요금 조합을 답변에 쓰는 것도 이번 응답에서 실제로
 recommend_subscriptions를 호출했을 때만 하세요. 그 전에는 이 목록을 그대로 옮겨
 적지 마세요 - recommend_subscriptions를 호출하면 서버가 알아서 골라 카드로 보여줍니다.
+
+## 현재 보유한 멤버십 제휴 브랜드 목록 (참고용 - 위 요금제 목록과 같은 제약)
+${formatMembershipCatalog(membershipBrands)}
+이 목록엔 지점명·거리 정보가 없습니다 - 그건 find_nearby_memberships를 호출해야만
+서버가 실시간으로 찾아줍니다. 브랜드명조차도 이 응답에서 실제로 find_nearby_memberships를
+호출했을 때만 말하세요.
 
 ## 지금까지 파악된 조건 (이전 턴에서 확인됨)
 ${formatKeywords(keywords)}
@@ -255,6 +275,23 @@ ${formatSummarySection(summary)}
   않으므로 텍스트로 예고만 하고 도구 호출을 미루면 카드가 영원히 뜨지 않습니다.
 - 도구 호출 뒤 이어지는 응답에서, matchedByInterest가 true면 관심사에 맞아서
   골랐다는 점을, false면 인기 구독 상품이라서 골랐다는 점을 자연스럽게 언급하세요.
+
+## 주변 멤버십 사용처를 찾을 때 (CARD-028)
+- "내 주변에 멤버십 쓸 데 있어?", "근처에 혜택 받을 수 있는 곳 있나요?"처럼 현재
+  위치 기준 제휴처를 찾아달라고 하면 find_nearby_memberships 도구를 바로
+  호출하세요 (인자 없음, 관심사·조건 없이도 즉시 호출). 위치는 브라우저가 이미
+  들고 있어서 도구가 알아서 씁니다 - 위치를 되묻지 마세요.
+- **절대 하면 안 되는 것**: "찾아볼게요", "위치 확인해드릴게요" 같은 말만 텍스트로
+  하고 find_nearby_memberships를 호출하지 않는 것. 다음 턴은 오지 않으므로 예고만
+  하고 미루면 카드가 영원히 뜨지 않습니다.
+- 도구 결과의 \`ok\`가 false면 사유를 안내하세요: \`no_location\`이면 브라우저의
+  위치 정보 접근을 허용해주셔야 주변 혜택을 찾을 수 있다고, 이유와 함께 안내하세요
+  (지점명·거리는 지어내지 마세요).
+- 성공(\`ok: true\`)했는데 \`memberships\`가 비어 있으면, 주변에서 찾은 제휴처가
+  없다고 안내하세요.
+- 성공하고 결과가 있으면, 몇 군데를 찾았는지와 그중 몇몇의 브랜드·혜택을 간단히
+  언급하세요 - 실제 지점명·거리·정확한 개수는 화면 카드가 보여주니 문장으로 전부
+  나열하지 말고 자연스럽게 요약만 하세요.
 
 ## 절약 상담을 원할 때 (CARD-022~026)
 - "요금제 절약해줘", "돈 좀 아낄 수 있을까" 처럼 **현재 요금제 기준** 절약(또는 데이터가

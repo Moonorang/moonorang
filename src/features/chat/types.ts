@@ -1,4 +1,5 @@
 import type { AddOn } from '@/entities/addOn/types';
+import type { MembershipBrand } from '@/entities/membershipBrand/types';
 import type { Plan } from '@/entities/plan/types';
 import type { Subscription } from '@/entities/subscription/types';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
@@ -53,6 +54,15 @@ export interface SubscriptionRecommendation {
   adoptionRate: number;
 }
 
+// CARD-028: membership_brands 테이블 + 카카오 로컬 API(키워드 검색)로 찾은 가장
+// 가까운 지점 하나를 합친 형태. 브랜드마다 가장 가까운 지점 1개씩만 담는다.
+export interface NearbyMembership {
+  brand: MembershipBrand;
+  /** 카카오 로컬 API가 찾아준 실제 지점명 (예: "GS25 대치한국점") */
+  placeName: string;
+  distanceMeters: number;
+}
+
 export type ChatErrorReason =
   'runtime_unavailable' | 'timeout' | 'invalid_format';
 
@@ -66,6 +76,8 @@ export type ChatStreamEvent =
       event: 'subscriptionRecommendation';
       data: { subscriptions: SubscriptionRecommendation[] };
     }
+  // CARD-028: 주변 멤버십 사용처 카드
+  | { event: 'nearbyMembership'; data: { memberships: NearbyMembership[] } }
   // 이번 턴까지 반영된 최신 조건 - 클라이언트가 다음 요청에 그대로 실어 보낸다
   | { event: 'keywords'; data: { keywords: ChatKeywords } }
   // CARD-022~026/028 - entities/usage(features/usage와 공유하는 도메인 개념)를 그대로 실어 보낸다
@@ -93,6 +105,12 @@ export interface ChatRequestBody {
    * 다음 요약 직전엔 최대 7턴까지 늘어나는 식으로 오르내린다.
    */
   recentMessages?: SummarizeTurnMessage[];
+  /**
+   * CARD-028 "주변 멤버십 사용처" - 브라우저 Geolocation으로 얻은 현재 위치.
+   * 클라이언트가 매 요청에 실어 보내고(위치를 못 얻었으면 생략), 서버는 저장하지
+   * 않는다 - keywords/summary와 같은 "요청마다 왕복" 방식이다.
+   */
+  location?: { lat: number; lng: number };
 }
 
 /** 요약 대상이 되는 메시지 한 개 - chat completions 메시지보다 가벼운 형태만 필요하다 */
@@ -125,6 +143,8 @@ export interface ChatMessage {
   addOnRecommendations?: AddOnRecommendation[];
   // subscriptionRecommendation 이벤트가 오면 채워짐 (AI 메시지에만 해당)
   subscriptionRecommendations?: SubscriptionRecommendation[];
+  // nearbyMembership 이벤트가 오면 채워짐 (AI 메시지에만 해당)
+  nearbyMemberships?: NearbyMembership[];
   // usageAnalysis 이벤트가 오면 채워짐 (AI 메시지에만 해당)
   usageAnalysis?: UsageAnalysisResult;
 }
@@ -153,4 +173,5 @@ export type ChatCardPayload =
   | { type: 'recommendation'; plans: PlanRecommendation[] }
   | { type: 'add_on_recommendation'; addOns: AddOnRecommendation[] }
   | { type: 'subscription_recommendation'; subscriptions: SubscriptionRecommendation[] }
+  | { type: 'nearby_membership'; memberships: NearbyMembership[] }
   | { type: 'usage_analysis'; data: UsageAnalysisResult };
