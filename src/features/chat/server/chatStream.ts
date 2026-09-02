@@ -485,10 +485,18 @@ export function createChatStream(
         send({
           event: 'error',
           data: {
+            // APIConnectionTimeoutError는 APIError의 하위 타입이라 반드시 먼저 걸러야
+            // 한다. 그 외 APIError(OpenAI가 5xx/4xx로 명시적으로 응답한 경우, 또는
+            // 우리 서버가 OpenAI에 아예 연결하지 못한 경우)는 우리 서버와 사용자
+            // 사이는 멀쩡하고 OpenAI 쪽 문제라 ai_server_error로 구분한다 - 사용자
+            // 네트워크를 의심하게 만드는 안내를 보여주지 않기 위함이다.
+            // APIError가 아닌 예외(우리 코드/DB 쪽 버그 등)만 runtime_unavailable로 남는다.
             reason:
               error instanceof APIConnectionTimeoutError
                 ? 'timeout'
-                : 'runtime_unavailable',
+                : error instanceof APIError
+                  ? 'ai_server_error'
+                  : 'runtime_unavailable',
             message:
               error instanceof APIError
                 ? error.message

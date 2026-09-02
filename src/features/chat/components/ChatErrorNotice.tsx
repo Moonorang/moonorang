@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, WifiOff } from 'lucide-react';
+import { AlertTriangle, Clock, ServerCrash, WifiOff } from 'lucide-react';
 
 import Button from '@/shared/ui/Button';
 
@@ -21,7 +21,13 @@ const REASON_CONTENT: Record<
   runtime_unavailable: {
     icon: WifiOff,
     title: '무너가 지금 응답할 수 없어요',
-    description: '서비스 연결이 원활하지 않아요. 잠시 후 다시 시도해주세요.',
+    description: '서비스 연결이 원활하지 않아요. 네트워크 상태를 확인 후 다시 시도해주세요.',
+  },
+  ai_server_error: {
+    icon: ServerCrash,
+    title: 'AI 서버에 일시적인 문제가 있어요',
+    description:
+      '회원님 네트워크는 정상이에요. 무너의 응답 서버가 잠시 불안정한 상태이니, 잠시 후 다시 시도해주세요.',
   },
   timeout: {
     icon: Clock,

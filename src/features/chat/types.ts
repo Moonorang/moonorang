@@ -67,8 +67,11 @@ export interface NearbyMembership {
   lng: number;
 }
 
+// runtime_unavailable: 우리 서버 자체에 연결이 안 됨(사용자 네트워크 단절 포함).
+// ai_server_error: 우리 서버는 정상이고 OpenAI 쪽에서 에러를 돌려줌 - 사용자
+//   네트워크와는 무관하다는 걸 문구로 구분해서 안내하기 위해 따로 뺐다.
 export type ChatErrorReason =
-  'runtime_unavailable' | 'timeout' | 'invalid_format';
+  'runtime_unavailable' | 'ai_server_error' | 'timeout' | 'invalid_format';
 
 export type ChatStreamEvent =
   | { event: 'token'; data: { delta: string } }
