@@ -16,6 +16,15 @@ import { cn } from '@/shared/utils/cn';
 // PlanCard 가 가진 자기 폭. 인디케이터와 오른쪽 화살표를 카드 끝에 맞추는 데 쓴다
 const CARD_WIDTH = 'w-[80%]';
 
+/**
+ * 카드 사이 간격(px). Tailwind 의 gap-4 와 같은 값이어야 한다.
+ *
+ * 칸 하나가 화면 폭을 통째로 차지해도, 카드에 달린 그림자(shadow-default)는
+ * 제 칸 밖으로 번진다. 간격이 0이면 다음 카드 왼쪽 그림자가 화면 오른쪽 끝에
+ * 옅게 비쳐서 카드가 살짝 보이는 것처럼 된다. 그림자 번짐(10px)보다 넓게 띄운다.
+ */
+const SLIDE_GAP_PX = 16;
+
 // 스크롤이 멎었다고 보는 시간
 const SCROLL_SETTLE_MS = 100;
 
@@ -25,6 +34,14 @@ const SLIDE_DURATION_MS = 320;
 /** 손을 뗀 스와이프처럼 끝에서 감속한다 */
 function easeOutCubic(progress: number): number {
   return 1 - (1 - progress) ** 3;
+}
+
+/**
+ * 카드 한 장을 넘길 때 움직이는 거리 - 칸 하나 폭에 사이 간격을 더한 값이다.
+ * 스냅 지점도 이 간격만큼 밀리므로, 위치 계산은 전부 이 값을 기준으로 해야 한다.
+ */
+function getSlideStep(element: HTMLDivElement): number {
+  return element.clientWidth + SLIDE_GAP_PX;
 }
 
 /** 손으로 미는 스와이프는 다시 스냅이 걸려야 한 장씩 딱 붙는다 */
@@ -90,7 +107,7 @@ export default function PlanCardCarousel({
     cancelSlide();
 
     const startLeft = element.scrollLeft;
-    const distance = index * element.clientWidth - startLeft;
+    const distance = index * getSlideStep(element) - startLeft;
 
     if (distance === 0) return;
 
@@ -122,8 +139,8 @@ export default function PlanCardCarousel({
     if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
 
     settleTimerRef.current = setTimeout(() => {
-      // 칸 하나가 화면 폭과 같으므로 나눈 몫이 곧 카드 번호가 된다
-      const step = element.clientWidth;
+      // 칸 하나가 화면 폭 + 사이 간격이므로, 나눈 몫이 곧 카드 번호가 된다
+      const step = getSlideStep(element);
       const landed = Math.round(element.scrollLeft / step);
 
       // 세게 밀어 여러 장을 지나쳤어도 바로 옆 카드에서 멈춘다
@@ -188,7 +205,7 @@ export default function PlanCardCarousel({
           ref={scrollAreaRef}
           onScroll={handleScroll}
           onPointerDown={cancelSlide}
-          className="flex w-full snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto [&::-webkit-scrollbar]:hidden"
+          className="flex w-full snap-x snap-mandatory [scrollbar-width:none] gap-4 overflow-x-auto [&::-webkit-scrollbar]:hidden"
         >
           {recommendations.map((item) => (
             <div
