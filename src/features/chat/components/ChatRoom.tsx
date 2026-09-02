@@ -9,6 +9,7 @@ import ChatConflictModal from '@/features/chat/components/ChatConflictModal';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
 import ConditionQuestionCard from '@/features/chat/components/ConditionQuestionCard';
+import NearbyMembershipCard from '@/features/chat/components/NearbyMembershipCard';
 import PlanCardCarousel from '@/features/chat/components/PlanCardCarousel';
 import PlusMenu from '@/features/chat/components/PlusMenu';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
@@ -336,6 +337,12 @@ export default function ChatRoom({
                     message.subscriptionRecommendations.length > 0 && (
                       <SubscriptionRecommendationCard
                         recommendations={message.subscriptionRecommendations}
+                      />
+                    )}
+                  {message.nearbyMemberships &&
+                    message.nearbyMemberships.length > 0 && (
+                      <NearbyMembershipCard
+                        memberships={message.nearbyMemberships}
                       />
                     )}
                   {message.usageAnalysis &&

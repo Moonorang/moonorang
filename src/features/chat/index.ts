@@ -9,6 +9,7 @@ export { default as ChatErrorNotice } from './components/ChatErrorNotice';
 export { default as ChatInput } from './components/ChatInput';
 export { default as FloatingChatButton } from './components/FloatingChatButton';
 export { default as FormattedMessage } from './components/FormattedMessage';
+export { default as NearbyMembershipCard } from './components/NearbyMembershipCard';
 export { default as PlanCardCarousel } from './components/PlanCardCarousel';
 export { default as PlusMenu } from './components/PlusMenu';
 export { default as ReadAloudButton } from './components/ReadAloudButton';
@@ -39,6 +40,7 @@ export type {
   PlanRecommendation,
   AddOnRecommendation,
   SubscriptionRecommendation,
+  NearbyMembership,
   SummarizeTurnMessage,
   ChatSummarizeRequestBody,
   ChatSummarizeResponseBody,

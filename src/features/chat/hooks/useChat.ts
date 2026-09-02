@@ -87,6 +87,56 @@ export function useChat(isLoggedIn: boolean | undefined) {
   // CHAT-008: 응답 생성 중단용. 진행 중인 요청이 있을 때만 값이 있다.
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // CARD-028: 브라우저 위치 정보. 페이지 진입 시가 아니라 메시지를 보낼 때 요청한다 -
+  // 채팅을 아예 안 쓰는 사용자에게 미리 위치 권한을 묻지 않기 위함이다. 아직 위치를
+  // 못 얻었으면 메시지를 보낼 때마다 다시 시도한다(이미 얻었으면 재요청 안 함) -
+  // 처음엔 거부했다가 나중에 브라우저 설정에서 허용해도, 다음 메시지에서 자연스럽게
+  // 다시 시도되는 게 COMMON-002의 "재시도 수단"이다. 실패해도 조용히 넘어간다 -
+  // find_nearby_memberships를 실제로 부를 때만 서버가 "위치가 없다"고 안내한다.
+  const locationRef = useRef<{ lat: number; lng: number } | null>(null);
+  // getCurrentPosition은 비동기라, 예전엔 이 결과를 기다리지 않고 곧바로 fetch를
+  // 보내서 - 권한이 이미 허용돼 있어도 매번 위치 없이 요청이 나가는 레이스가 있었다
+  // (locationRef.current가 아직 null인 채로 fetch 본문이 만들어짐). 그래서
+  // runChatRequest가 이 promise를 await해서 요청을 보내기 직전에 위치가 반영되게
+  // 한다. 이미 얻은 뒤(locationRef.current 있음)나 요청이 이미 진행 중일 때는
+  // 새로 묻지 않고 같은 promise/값을 재사용한다.
+  const locationPromiseRef = useRef<Promise<{ lat: number; lng: number } | null> | null>(
+    null,
+  );
+
+  const ensureLocationRequested = useCallback((): Promise<{
+    lat: number;
+    lng: number;
+  } | null> => {
+    if (locationRef.current) return Promise.resolve(locationRef.current);
+    if (locationPromiseRef.current) return locationPromiseRef.current;
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      return Promise.resolve(null);
+    }
+
+    const promise = new Promise<{ lat: number; lng: number } | null>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          locationRef.current = location;
+          resolve(location);
+        },
+        () => {
+          // 거부·타임아웃 등 - promise를 비워서 다음 메시지를 보낼 때 다시
+          // 시도되게 한다(COMMON-002의 "재시도 수단").
+          locationPromiseRef.current = null;
+          resolve(null);
+        },
+        { timeout: 10_000 },
+      );
+    });
+    locationPromiseRef.current = promise;
+    return promise;
+  }, []);
+
   // CHAT-011: 지금까지 파악된 조건. 서버는 DB에 저장하지 않고, 매 요청마다
   // 이 값을 실어 보내고 응답의 keywords 이벤트로 갱신받는 왕복 방식으로 기억한다.
   const [keywords, setKeywords] = useState<ChatKeywords>({});
@@ -424,6 +474,18 @@ export function useChat(isLoggedIn: boolean | undefined) {
         );
       };
 
+      const setAiMessageNearbyMemberships = (
+        nearbyMemberships: ChatMessage['nearbyMemberships'],
+      ) => {
+        updateMessages((prev) =>
+          prev.map((message) =>
+            message.id === aiMessageId
+              ? { ...message, nearbyMemberships }
+              : message,
+          ),
+        );
+      };
+
       const updateKeywords = (next: ChatKeywords) => {
         keywordsRef.current = next;
         setKeywords(next);
@@ -444,6 +506,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
       abortControllerRef.current = abortController;
 
       try {
+        // CARD-028: 요청을 보내기 직전에 위치를 기다린다 - fetch를 먼저 쏘고
+        // 위치는 나중에 오는 레이스가 있으면, 권한이 이미 허용돼 있어도 매번
+        // location 없이 요청이 나간다. 이미 얻었으면(또는 이미 실패했으면)
+        // 즉시 반환되므로 두 번째 메시지부터는 지연이 없다.
+        const location = await ensureLocationRequested();
+
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -457,6 +525,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
               messagesRef.current,
               summarizedTurnCountRef.current,
             ),
+            location: location ?? undefined,
           }),
           signal: abortController.signal,
         });
@@ -494,6 +563,8 @@ export function useChat(isLoggedIn: boolean | undefined) {
               setAiMessageAddOnRecommendations(parsed.data.addOns);
             } else if (parsed?.event === 'subscriptionRecommendation') {
               setAiMessageSubscriptionRecommendations(parsed.data.subscriptions);
+            } else if (parsed?.event === 'nearbyMembership') {
+              setAiMessageNearbyMemberships(parsed.data.memberships);
             } else if (parsed?.event === 'keywords') {
               updateKeywords(parsed.data.keywords);
             } else if (parsed?.event === 'usageAnalysis') {
@@ -529,7 +600,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
         setIsStreaming(false);
       }
     },
-    [updateMessages, persist, summarizeIfNeeded],
+    [updateMessages, persist, summarizeIfNeeded, ensureLocationRequested],
   );
 
   /** CHAT-008: 응답 생성 중, 사용자가 직접 중단한다. */
@@ -554,6 +625,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
       lastUserTextRef.current = trimmed;
       lastAiMessageIdRef.current = aiMessageId;
+
+      // CARD-028: 위치 요청은 runChatRequest가 fetch 직전에 기다린다(레이스 방지) -
+      // 여기서는 따로 시작하지 않는다.
 
       // AI 메시지를 빈 content로 먼저 넣어둔다 - AiMessage 가 이 상태를
       // "첫 토큰 대기 중"으로 알아서 표시한다 (isStreaming + content.length===0).
@@ -586,6 +660,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
               recommendations: undefined,
               addOnRecommendations: undefined,
               subscriptionRecommendations: undefined,
+              nearbyMemberships: undefined,
               usageAnalysis: undefined,
             }
           : message,
