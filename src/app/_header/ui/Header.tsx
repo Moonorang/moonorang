@@ -16,6 +16,8 @@ interface HeaderProps {
   variant?: HeaderVariant;
   /** 뒤로가기 버튼 선택 시. 어디로 보낼지는 상위(AppHeader)가 정한다 */
   onBackClick?: () => void;
+  /** 뒤로가기 버튼의 스크린리더 라벨. 화면에 따라 '이동'이 아닐 수 있다 */
+  backLabel?: string;
   /** 가입 흐름처럼 이탈을 막아야 하는 화면에서는 false */
   hasActions?: boolean;
   /** HEADER-002: 로그인 여부에 따라 우측 항목을 분기한다 */
@@ -30,6 +32,7 @@ interface HeaderProps {
 export default function Header({
   variant = 'logo',
   onBackClick,
+  backLabel = '이전 화면으로 이동',
   hasActions = true,
   isLoggedIn = false,
   onLoginClick,
@@ -47,7 +50,7 @@ export default function Header({
         <button
           type="button"
           onClick={onBackClick}
-          aria-label="이전 화면으로 이동"
+          aria-label={backLabel}
           className="flex h-6 w-6 items-center justify-center text-text-secondary transition-colors hover:cursor-pointer hover:text-text-primary"
         >
           <ChevronLeft size={24} strokeWidth={1.5} aria-hidden="true" />
