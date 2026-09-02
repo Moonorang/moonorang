@@ -408,11 +408,28 @@ export default function ChatRoom({
             const isMessageStreaming =
               isStreaming && message.id === lastMessageId;
 
+            // 생성이 끝났는데도(스트리밍 중이 아닌데도) 내용도 카드도 아무것도 없는
+            // AI 메시지 - 응답을 하나도 못 받은 채 실패한 자리다. 이럴 땐 빈 말풍선을
+            // 그리는 대신 통째로 숨긴다 - 실패 사유는 밑에 있는 ChatErrorNotice가
+            // 이미 전달하므로, 빈 말풍선은 정보 없이 자리만 차지하는 노이즈다.
+            // 스트리밍 중(아직 첫 토큰을 기다리는 중)일 때는 그대로 두어 타이핑
+            // 표시가 나오게 한다 - 지금 만들어지는 중이라는 신호는 필요하다.
+            const isEmptyAiPlaceholder =
+              message.role === 'ai' &&
+              !isMessageStreaming &&
+              message.content.length === 0 &&
+              !message.recommendations?.length &&
+              !message.addOnRecommendations?.length &&
+              !message.subscriptionRecommendations?.length &&
+              !message.nearbyMemberships?.length &&
+              !message.usageAnalysis &&
+              !message.isJoinResult;
+
             return (
               <Fragment key={message.id}>
                 {message.role === 'user' ? (
                   <UserMessage content={message.content} />
-                ) : (
+                ) : isEmptyAiPlaceholder ? null : (
                   <AiMessage
                     content={message.content}
                     isStreaming={isMessageStreaming}
