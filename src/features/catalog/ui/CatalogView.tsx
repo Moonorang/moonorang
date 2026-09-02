@@ -1,5 +1,6 @@
 'use client';
 
+import AddOnDetailModal from '@/features/catalog/ui/AddOnDetailModal';
 import AddOnRow from '@/features/catalog/ui/AddOnRow';
 import CatalogTabs from '@/features/catalog/ui/CatalogTabs';
 import EmptyNotice from '@/features/catalog/ui/EmptyNotice';
@@ -9,6 +10,7 @@ import PlanRow from '@/features/catalog/ui/PlanRow';
 import SubscriptionRow from '@/features/catalog/ui/SubscriptionRow';
 
 import { CATALOG_EMPTY_MESSAGES } from '@/features/catalog/constants';
+import { useAddOnDetail } from '@/features/catalog/hooks/useAddOnDetail';
 import { useCatalogTabs } from '@/features/catalog/hooks/useCatalogTabs';
 import { usePlanDetail } from '@/features/catalog/hooks/usePlanDetail';
 import type { CatalogData } from '@/features/catalog/types';
@@ -27,6 +29,7 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
   const { activeTab, panelId, handleTabChange } = useCatalogTabs();
   const { selectedPlan, openPlanDetail, closePlanDetail, goToJoin } =
     usePlanDetail();
+  const addOnDetail = useAddOnDetail();
 
   // 2. 렌더링
   const items = catalog[activeTab];
@@ -55,7 +58,11 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
 
             {activeTab === 'addOns' &&
               catalog.addOns.map((addOn) => (
-                <AddOnRow key={addOn.id} addOn={addOn} />
+                <AddOnRow
+                  key={addOn.id}
+                  addOn={addOn}
+                  onSelect={() => addOnDetail.openAddOnDetail(addOn)}
+                />
               ))}
 
             {activeTab === 'subscriptions' &&
@@ -78,6 +85,12 @@ export default function CatalogView({ catalog }: CatalogViewProps) {
         plan={selectedPlan}
         onClose={closePlanDetail}
         onJoin={goToJoin}
+      />
+
+      <AddOnDetailModal
+        addOn={addOnDetail.selectedAddOn}
+        onClose={addOnDetail.closeAddOnDetail}
+        onJoin={addOnDetail.goToJoin}
       />
     </main>
   );

@@ -9,24 +9,21 @@ import type { AddOn } from '@/entities/addOn/types';
 
 interface AddOnRowProps {
   addOn: AddOn;
+  /** DATA-009: 카드를 누르면 상세 모달을 연다 */
+  onSelect: () => void;
 }
 
 // DATA-008: 부가서비스명·월 요금·혜택
-export default function AddOnRow({ addOn }: AddOnRowProps) {
+export default function AddOnRow({ addOn, onSelect }: AddOnRowProps) {
   const { description } = addOn;
   // description.icon 값에 맞는 아이콘 (표에 없으면 기본 아이콘)
   const Icon = ADD_ON_ICONS[description?.icon ?? ''] ?? ADD_ON_ICON_FALLBACK;
-
-  // 임시 처리
-  const handleCardClick = () => {
-    alert(`${addOn.title} 상세`);
-  };
 
   return (
     <CatalogCard>
       <button
         type="button"
-        onClick={handleCardClick}
+        onClick={onSelect}
         className="flex w-full flex-1 cursor-pointer flex-col justify-between px-4 py-3 text-left"
       >
         <div className="flex w-full items-center gap-2">
