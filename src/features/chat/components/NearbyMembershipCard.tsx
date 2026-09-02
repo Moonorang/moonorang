@@ -174,7 +174,10 @@ export default function NearbyMembershipCard({
     <div className="flex w-[80%] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default">
       <h3 className="text-14 font-bold text-text-primary">내 주변 혜택</h3>
 
-      <NearbyMembershipMap memberships={memberships} userLocation={userLocation} />
+      <NearbyMembershipMap
+        memberships={memberships}
+        userLocation={userLocation}
+      />
 
       <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
         {memberships.map((item) => (
@@ -189,7 +192,7 @@ export default function NearbyMembershipCard({
         isFullWidth
         onClick={() => router.push('/catalog?tab=memberships')}
       >
-        내 주변 혜택 알아보기
+        혜택 더 알아보기
       </Button>
     </div>
   );
