@@ -21,7 +21,8 @@ export interface MemberChatHistory {
 
 interface PendingJoinMarker {
   target: JoinTarget;
-  afterMessageId: string;
+  /** null 이면 대화 맨 앞 - 앞에 아무 메시지도 없이 카드부터 시작한 대화다 */
+  afterMessageId: string | null;
   /** CARD-046: 절차를 어디까지 밟았는지 */
   progress?: JoinProgress;
   /** CARD-043: 결제까지 마쳤는지 */
@@ -31,7 +32,7 @@ interface PendingJoinMarker {
 /**
  * DB 행을 화면이 바로 쓸 수 있는 모양으로 되돌린다 - chatStream.ts가 저장할 때 쓴
  * 규칙(카드 마커 행)을 그대로 반대로 읽는다.
- * - join_flow 마커: 그 앞의 "OO 요금제 가입할래" 사용자 행을 대화에서 빼서 가입
+ * - join_flow 마커: 그 앞의 "OO 가입할래" 사용자 행을 대화에서 빼서 가입
  *   카드 자리로 돌린다 (라이브 화면에서 joinBlocks가 렌더되는 방식과 동일).
  *   진행 상태·완료 여부도 이 마커에 실려 있어 그대로 되살린다.
  * - join_result/recommendation/usage_analysis 마커: 바로 앞 AI 메시지에 그대로 붙인다.
@@ -47,16 +48,15 @@ function splitRows(rows: DbChatMessage[]): {
     const card = row.role === 'ai' ? tryParseCardPayload(row.content) : null;
 
     if (card?.type === 'join_flow') {
+      // 바로 앞의 "OO 가입할래" 사용자 행은 카드가 스스로 그리므로 대화에서 뺀다
       messages.pop();
-      const afterMessage = messages[messages.length - 1];
-      if (afterMessage) {
-        joinMarkers.push({
-          target: { kind: card.kind, itemId: card.itemId },
-          afterMessageId: afterMessage.id,
-          progress: card.progress,
-          isCompleted: card.isCompleted,
-        });
-      }
+      joinMarkers.push({
+        target: { kind: card.kind, itemId: card.itemId },
+        // 그러고도 앞에 남은 메시지가 없으면 이 카드가 대화의 시작이다
+        afterMessageId: messages[messages.length - 1]?.id ?? null,
+        progress: card.progress,
+        isCompleted: card.isCompleted,
+      });
       continue;
     }
 

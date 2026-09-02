@@ -40,15 +40,17 @@ export async function POST(request: Request) {
     .json()
     .catch(() => null)) as MigrateRequestBody | null;
   const messages = Array.isArray(body?.messages) ? body.messages : [];
+  const joinBlocks = Array.isArray(body?.joinBlocks) ? body.joinBlocks : [];
 
-  if (messages.length === 0) {
+  // 말도 카드도 없으면 옮길 것이 없다 - 카드만 있는 대화는 승계 대상이다
+  if (messages.length === 0 && joinBlocks.length === 0) {
     return NextResponse.json({ ok: true });
   }
 
   try {
     await migrateGuestChat(user.id, {
       messages,
-      joinBlocks: Array.isArray(body?.joinBlocks) ? body.joinBlocks : [],
+      joinBlocks,
       keywords: body?.keywords ?? {},
       summary: body?.summary,
     });

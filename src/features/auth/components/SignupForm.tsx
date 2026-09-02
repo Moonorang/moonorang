@@ -15,6 +15,7 @@ import GenderToggle from '@/features/auth/components/GenderToggle';
 import {
   formatBirth,
   formatContact,
+  fromIsoBirth,
 } from '@/features/auth/lib/formatUserInput';
 import {
   signupSchema,
@@ -65,16 +66,23 @@ export default function SignupForm({
   const selectedGender = useWatch({ control, name: 'gender' });
 
   // 2. 부수 효과
-  // AUTH-008: 요금제 가입 도중 넘어온 경우, 본인 확인에 입력했던 이름·연락처를
-  // 초기값으로 채운다. 카카오 닉네임(defaultName)보다 이쪽이 실제 이름이라 덮어쓴다.
+  // AUTH-008: 요금제 가입 도중 넘어온 경우, 본인 확인에서 받은 값을 초기값으로
+  // 채운다. 이름은 카카오 닉네임(defaultName)보다 이쪽이 실제 이름이라 덮어쓴다.
+  // 생년월일·성별은 주민등록번호에서 갈라낸 값이라 사용자가 다시 칠 이유가 없다.
   // sessionStorage 는 서버에서 읽을 수 없어 defaultValues 로는 못 넣고, 붙은 뒤에 채운다.
+  //
+  // 이러고 나면 남는 필수 항목은 '현재 사용 중인 요금제' 하나뿐이다 - 그 값만은
+  // 가입 절차에 없어서(가입할 요금제와 다른 값이다) 여기서 물어야 한다.
   useEffect(() => {
     const prefill = loadSignupPrefill();
     if (!prefill) return;
 
     if (prefill.name) setValue('name', prefill.name);
-    if (prefill.mobileNum)
+    if (prefill.mobileNum) {
       setValue('contact', formatContact(prefill.mobileNum));
+    }
+    if (prefill.birth) setValue('birth', fromIsoBirth(prefill.birth));
+    if (prefill.gender) setValue('gender', prefill.gender);
   }, [setValue]);
 
   // 3. 이벤트 핸들러

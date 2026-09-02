@@ -344,10 +344,33 @@ export default function ChatRoom({
   // 끼워 넣으면 화면은 맨 아래에 있는데 카드는 저 위에 생겨서 눌러도 아무것도
   // 안 나온 것처럼 보인다. 방금 보낸 말처럼 아래에 이어 붙여야 흐름이 안 끊긴다.
   const handleJoin = (plan: Plan) => {
-    if (!lastMessageId) return;
-
     setIsAtBottom(true);
-    addJoinBlock({ kind: 'plan', item: plan }, lastMessageId);
+    // 아직 주고받은 말이 없으면(목록에서 바로 넘어온 경우) 대화 맨 앞에 붙인다
+    addJoinBlock({ kind: 'plan', item: plan }, lastMessageId ?? null);
+  };
+
+  /**
+   * 가입 카드 한 장 - 사용자 말풍선 + 안내 말풍선 + 그 안의 절차 카드.
+   * 대화 맨 앞(afterMessageId 가 null)과 특정 메시지 뒤, 두 자리에서 같은 모양으로
+   * 그려야 해서 함수로 빼뒀다.
+   */
+  const renderJoinBlock = (block: JoinBlock) => {
+    const target = getJoinBlockTarget(block);
+
+    return (
+      <Fragment key={getJoinKey(target)}>
+        <UserMessage content={getJoinBlockMessage(block)} />
+        <AiMessage content={JOIN_GUIDE[block.kind]}>
+          {renderJoinFlow?.(block, {
+            isCompleted: Boolean(block.isCompleted),
+            progress: block.progress,
+            onProgressChange: (progress) => saveJoinProgress(target, progress),
+            onComplete: (resultMessage) =>
+              completeJoinBlock(target, resultMessage),
+          })}
+        </AiMessage>
+      </Fragment>
+    );
   };
 
   // features/test 오버레이(부모가 넘김)와 조건 수집 카드(이 컴포넌트가 직접 엶)를
@@ -411,6 +434,14 @@ export default function ChatRoom({
             </div>
           )}
 
+          {/*
+            아직 주고받은 말이 없을 때 띄운 가입 카드 - 붙을 메시지가 없어서
+            환영 메시지 바로 뒤, 대화가 시작되기 전 자리에 그린다.
+          */}
+          {joinBlocks
+            .filter((block) => block.afterMessageId === null)
+            .map(renderJoinBlock)}
+
           {messages.map((message) => {
             // 이 메시지가 아직 생성 중인지. 카드를 이 값으로 잠가둔다 - 서버는 카드
             // 데이터를 마무리 텍스트보다 먼저 내보내는데(chatStream.ts 2턴), 그대로
@@ -470,25 +501,7 @@ export default function ChatRoom({
                 {/* 이 메시지 뒤에 띄운 가입 카드 - 대화 순서를 그대로 지킨다 */}
                 {joinBlocks
                   .filter((block) => block.afterMessageId === message.id)
-                  .map((block) => {
-                    const target = getJoinBlockTarget(block);
-
-                    return (
-                      <Fragment key={getJoinKey(target)}>
-                        <UserMessage content={getJoinBlockMessage(block)} />
-                        <AiMessage content={JOIN_GUIDE[block.kind]}>
-                          {renderJoinFlow?.(block, {
-                            isCompleted: Boolean(block.isCompleted),
-                            progress: block.progress,
-                            onProgressChange: (progress) =>
-                              saveJoinProgress(target, progress),
-                            onComplete: (resultMessage) =>
-                              completeJoinBlock(target, resultMessage),
-                          })}
-                        </AiMessage>
-                      </Fragment>
-                    );
-                  })}
+                  .map(renderJoinBlock)}
               </Fragment>
             );
           })}

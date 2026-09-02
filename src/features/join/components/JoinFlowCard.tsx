@@ -27,6 +27,11 @@ import type { CardValues } from '@/features/join/lib/cardSchema';
 import type { IdentityValues } from '@/features/join/lib/identitySchema';
 
 import type { JoinProgress } from '@/entities/join/types';
+import {
+  clearPendingJoinPayment,
+  hasPendingJoinPayment,
+  savePendingJoinPayment,
+} from '@/entities/join';
 import type { Plan } from '@/entities/plan/types';
 import { saveSignupPrefill } from '@/entities/user/lib/signupPrefill';
 import type { Gender } from '@/entities/user/types';
@@ -124,9 +129,10 @@ export default function JoinFlowCard({
   const cardRef = useRef<HTMLDivElement>(null);
   // 카드가 처음 붙는 순간은 ChatRoom 이 최하단으로 끌어내리는 시점이라 건드리지 않는다
   const isFirstRenderRef = useRef(true);
-  const payingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 첫 그리기에서는 방금 복구한 값을 그대로 되돌려 보내는 셈이라 알리지 않는다
   const isFirstProgressRef = useRef(true);
+  // 회원가입을 마치고 돌아와 결제를 이어간 적이 있는지 - 한 번만 이어간다
+  const hasResumedPaymentRef = useRef(false);
 
   // 2. 부수 효과
   // 단계마다 카드 높이가 크게 달라서(상세 카드 ↔ 약관), 스크롤 위치를 그대로 두면
@@ -142,13 +148,6 @@ export default function JoinFlowCard({
 
     cardRef.current?.scrollIntoView({ block: 'start' });
   }, [stepIndex]);
-
-  // 결제 중에 카드가 사라지면(대화 초기화 등) 타이머만 남아 없는 화면을 바꾸려 든다
-  useEffect(() => {
-    return () => {
-      if (payingTimerRef.current) clearTimeout(payingTimerRef.current);
-    };
-  }, []);
 
   // CARD-046: 어디까지 왔는지가 달라질 때마다 대화 쪽에 알려 함께 저장하게 한다.
   // onProgressChange 는 매 렌더 새로 만들어지지만, 받는 쪽이 같은 값이면 저장을
@@ -178,6 +177,8 @@ export default function JoinFlowCard({
   const handlePrev = () => {
     // 단계를 옮기면 회원가입 안내는 접는다 - 다시 오면 결제 정보부터 본다
     setIsSignupRequired(false);
+    // 결제하기를 물렀다는 뜻이므로, 돌아왔을 때 저절로 결제되지 않게 표식을 거둔다
+    clearPendingJoinPayment();
     setStepIndex(prevStepIndex);
   };
 
@@ -202,10 +203,16 @@ export default function JoinFlowCard({
    * 되돌리고 사유를 보여준다 - 다시 시도는 결제하기를 한 번 더 누르면 된다.
    */
   const finishPayment = async () => {
+    // 서버 액션이 아예 실패(네트워크 끊김 등)하면 예외로 튀는데, 그대로 두면
+    // 처리 중 화면에 갇힌다. 사유를 보여주고 결제 정보로 되돌린다(COMMON-002).
     const { errorMessage } = await completeJoin({
       planId: plan.id,
       gender: gender ?? undefined,
       birth: birth ?? undefined,
+    }).catch((error: unknown) => {
+      console.error('[join] 가입 완료 처리 실패', error);
+
+      return { errorMessage: '가입을 완료하지 못했어요. 다시 시도해 주세요.' };
     });
 
     setIsPaying(false);
@@ -214,6 +221,10 @@ export default function JoinFlowCard({
       setPaymentError(errorMessage);
       return;
     }
+
+    // CARD-044: 회원가입을 거쳐 이어온 결제라면 그 표식을 여기서 거둔다 -
+    // 실제로 끝난 시점이 여기다.
+    clearPendingJoinPayment();
 
     onComplete?.();
   };
@@ -232,24 +243,71 @@ export default function JoinFlowCard({
     // 카카오를 다녀와도 CARD-046 진행 상태 덕에 이 자리에서 다시 시작한다.
     if (!isLoggedIn) {
       // AUTH-008: 회원가입 추가 정보 화면이 방금 입력한 값을 초기값으로 쓰게 넘겨둔다.
-      // 이어가기(CARD-046)로 돌아온 경우엔 입력값이 없으니 덮어쓰지 않는다.
-      if (identity.name) {
-        saveSignupPrefill({
-          name: identity.name,
-          mobileNum: identity.mobileNum,
-        });
-      }
+      // 이어가기(CARD-046)로 돌아온 경우엔 이름·연락처가 비어 있는데, 성별·생년월일은
+      // 진행 상태에 남아 있어 여전히 넘길 것이 있다 - 그래서 이름 유무로 막지 않는다.
+      saveSignupPrefill({
+        name: identity.name,
+        mobileNum: identity.mobileNum,
+        gender: gender ?? undefined,
+        birth: birth ?? undefined,
+      });
+
+      // CARD-044: 회원이 되어 돌아오면 이 카드가 결제를 이어서 끝낸다.
+      // 최종 확인은 방금 이 누름으로 이미 받았으므로 또 묻지 않는다.
+      savePendingJoinPayment({ kind: 'plan', itemId: plan.id });
 
       setIsSignupRequired(true);
       return;
     }
 
     setIsPaying(true);
-    payingTimerRef.current = setTimeout(
-      () => void finishPayment(),
-      PAYMENT_DELAY_MS,
-    );
   };
+
+  /*
+   * 아래 두 효과만 3번(이벤트 핸들러) 뒤에 있는 이유는 finishPayment/handlePayment 를
+   * 불러야 해서다.
+   *
+   * 결제 처리 시간을 흉내내는 타이머. 핸들러 안에서 setTimeout 을 걸지 않고 이
+   * 효과가 갖고 있는 이유는, 그래야 화면이 다시 붙어도 타이머가 같이 되살아나기
+   * 때문이다 - 카드는 결제 도중에도 다시 그려질 수 있고(개발 모드의 효과 이중 실행,
+   * 대화 승계로 카드가 붙는 자리가 바뀌는 경우), 핸들러가 건 타이머는 그때 정리만
+   * 되고 다시 걸리지 않아 '처리 중' 화면에 갇힌다. isPaying 이 참인 동안 타이머가
+   * 있어야 한다는 사실을 상태로 표현하면 그 갇힘이 생기지 않는다.
+   */
+  useEffect(() => {
+    if (!isPaying) return;
+
+    const timer = setTimeout(() => void finishPayment(), PAYMENT_DELAY_MS);
+
+    // 결제 중에 카드가 사라지면(대화 초기화 등) 없는 화면을 바꾸려 드는 걸 막는다
+    return () => clearTimeout(timer);
+    // finishPayment 는 매 렌더 새로 만들어져서 넣으면 타이머가 계속 다시 걸린다.
+    // 이 효과가 봐야 하는 것은 '결제 중인가' 하나뿐이다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPaying]);
+
+  /*
+   * CARD-044: 카카오 회원가입을 마치고 돌아온 경우, 남겨둔 표식을 보고 결제를
+   * 이어서 끝낸다. 사용자는 회원가입 전에 이미 결제하기를 눌렀으므로 같은 버튼을
+   * 또 누르게 하지 않는다.
+   *
+   * isLoggedIn 이 참이 된 뒤에야 확인한다 - 로그인 여부를 확인하는 동안에는
+   * 거짓이라, 그때 실행하면 회원가입 안내로 되돌아가 버린다.
+   */
+  useEffect(() => {
+    if (!isLoggedIn || isCompleted || isPaying) return;
+    if (hasResumedPaymentRef.current) return;
+    if (!hasPendingJoinPayment({ kind: 'plan', itemId: plan.id })) return;
+
+    hasResumedPaymentRef.current = true;
+
+    /* eslint-disable-next-line react-hooks/set-state-in-effect --
+       sessionStorage(외부 저장소)에 남은 표식을 읽어와 그때 시작하는 동작이라,
+       이 규칙이 막으려는 "반복 렌더로 이어지는 setState"가 아니다. 표식은 결제를
+       마칠 때 거둬지고 ref 로도 한 번 더 잠가서 거듭 실행되지 않는다
+       (useChat 의 하이드레이션과 같은 상황). */
+    handlePayment();
+  });
 
   // 4. 렌더링
   const submitLabel = step.submitLabel;

@@ -51,7 +51,7 @@ interface MemberChatHistoryResponse {
  * keepBothConversations(이어서 보기) / discardGuestConversation(게스트 대화 버리기).
  */
 export interface ChatConflict {
-  /** 로그인 전 게스트로 나눈 메시지 개수 - 모달 문구에 사용 */
+  /** 로그인 전 게스트로 나눈 대화 조각 수(메시지 + 가입 카드) - 모달 문구에 사용 */
   guestMessageCount: number;
 }
 
@@ -256,8 +256,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
       // 안에서 감지할 수 없다. 그래서 회원으로 확인될 때마다 localStorage에 아직
       // 안 옮겨진 게스트 대화가 남아있는지를 직접 확인한다.
       const guestStored = loadChatState();
+      // 주고받은 말이 하나도 없어도 가입 카드가 떠 있으면 승계해야 한다 - 목록에서
+      // 바로 카드를 열고 결제하기를 눌러 카카오로 넘어간 경우가 정확히 그 모양이라,
+      // 여기서 빠뜨리면 돌아왔을 때 카드와 진행 상태가 통째로 사라진다(CARD-046).
       const hasGuestConversation = Boolean(
-        guestStored && guestStored.messages.length > 0,
+        guestStored &&
+        (guestStored.messages.length > 0 || guestStored.joinBlocks.length > 0),
       );
 
       fetch('/api/chat/history')
@@ -276,7 +280,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
             // 여기서는 isRestored를 올리지 않는다 - 아직 화면을 어느 쪽으로도
             // 확정하지 않은 상태라, 지금 메시지를 밀어 넣으면 사용자가 고른 대화가
             // 그 위에 덮어써진다. keepBoth/discard 쪽에서 올린다.
-            setChatConflict({ guestMessageCount: guestStored.messages.length });
+            setChatConflict({
+              // 가입 카드도 말풍선 두 개로 그려지므로 한 조각으로 센다 - 말은 없고
+              // 카드만 있는 대화에서 "0개"라고 묻지 않기 위함이다
+              guestMessageCount:
+                guestStored.messages.length + guestStored.joinBlocks.length,
+            });
             return;
           }
 
@@ -466,8 +475,10 @@ export function useChat(isLoggedIn: boolean | undefined) {
     // 걷어낸 메시지에 붙어있던 가입 카드는 그릴 자리가 없어졌으므로 같이 버린다 -
     // 안 그러면 화면에 안 보이는 채로 저장분에만 계속 쌓인다.
     const visibleIds = new Set(result.messages.map((message) => message.id));
-    const nextJoinBlocks = joinBlocksRef.current.filter((block) =>
-      visibleIds.has(block.afterMessageId),
+    const nextJoinBlocks = joinBlocksRef.current.filter(
+      // 맨 앞에 붙은 카드(null)는 특정 메시지에 매여 있지 않아 걷어낼 이유가 없다
+      (block) =>
+        block.afterMessageId === null || visibleIds.has(block.afterMessageId),
     );
     if (nextJoinBlocks.length !== joinBlocksRef.current.length) {
       joinBlocksRef.current = nextJoinBlocks;
@@ -731,12 +742,13 @@ export function useChat(isLoggedIn: boolean | undefined) {
   /**
    * CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다.
    * afterMessageId 는 누른 시점의 마지막 메시지 - 카드가 대화 끝에 이어 붙는다.
+   * 아직 주고받은 말이 없으면 null 로, 대화 맨 앞에 붙는다.
    * 같은 요금제를 또 눌러도 카드가 여러 장 쌓이지 않게 무시한다. 회원이면 서버에도
    * 같은 자리를 남겨서(POST /api/chat/join), 나중에 복구했을 때 이 카드가 그대로
    * 다시 보이게 한다.
    */
   const addJoinBlock = useCallback(
-    (item: JoinBlockItem, afterMessageId: string) => {
+    (item: JoinBlockItem, afterMessageId: string | null) => {
       const target = { kind: item.kind, itemId: item.item.id };
       const key = getJoinKey(target);
 

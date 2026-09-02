@@ -2,6 +2,11 @@
 export type { JoinKind, JoinProgress, JoinTarget } from './types';
 export { getJoinKey, isSameJoinTarget } from './lib/joinKey';
 export {
+  clearPendingJoinPayment,
+  hasPendingJoinPayment,
+  savePendingJoinPayment,
+} from './lib/pendingPayment';
+export {
   buildAddOnJoinMessage,
   buildPlanJoinMessage,
   buildSubscriptionJoinMessage,
