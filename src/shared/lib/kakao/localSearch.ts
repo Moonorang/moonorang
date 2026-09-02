@@ -13,6 +13,9 @@ export interface KakaoPlace {
   /** 중심 좌표(x,y를 준 요청)로부터의 거리(m). 응답에 원래 문자열로 오는 걸 숫자로 바꿔둔다 */
   distanceMeters: number;
   placeUrl: string;
+  /** 이 지점 자체의 좌표(위도/경도). 지도에 핀을 찍을 때 쓴다 */
+  lat: number;
+  lng: number;
 }
 
 interface KakaoKeywordSearchDocument {
@@ -21,6 +24,10 @@ interface KakaoKeywordSearchDocument {
   road_address_name: string;
   distance: string;
   place_url: string;
+  /** 경도(longitude) - 카카오 응답은 x가 경도, y가 위도다 */
+  x: string;
+  /** 위도(latitude) */
+  y: string;
 }
 
 interface KakaoKeywordSearchResponse {
@@ -92,6 +99,8 @@ export async function searchPlacesByKeyword({
       roadAddressName: document.road_address_name,
       distanceMeters: Number(document.distance),
       placeUrl: document.place_url,
+      lat: Number(document.y),
+      lng: Number(document.x),
     }));
   } catch (error) {
     console.error(`[kakao] 장소 검색 요청 실패 (${query}):`, error);

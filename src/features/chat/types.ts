@@ -61,6 +61,9 @@ export interface NearbyMembership {
   /** 카카오 로컬 API가 찾아준 실제 지점명 (예: "GS25 대치한국점") */
   placeName: string;
   distanceMeters: number;
+  /** 지점 좌표 - 미니 지도에 핀을 찍을 때 씀(NearbyMembershipCard) */
+  lat: number;
+  lng: number;
 }
 
 export type ChatErrorReason =

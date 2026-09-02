@@ -93,7 +93,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
   // 처음엔 거부했다가 나중에 브라우저 설정에서 허용해도, 다음 메시지에서 자연스럽게
   // 다시 시도되는 게 COMMON-002의 "재시도 수단"이다. 실패해도 조용히 넘어간다 -
   // find_nearby_memberships를 실제로 부를 때만 서버가 "위치가 없다"고 안내한다.
+  // ref는 runChatRequest가 요청 직전에 최신값을 동기로 읽기 위한 것이고, state는
+  // NearbyMembershipCard의 미니 지도가 "내 위치" 핀을 찍을 수 있게 화면에 내려주기
+  // 위한 것 - 둘이 항상 같은 값을 가리키도록 같이 갱신한다.
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   // getCurrentPosition은 비동기라, 예전엔 이 결과를 기다리지 않고 곧바로 fetch를
   // 보내서 - 권한이 이미 허용돼 있어도 매번 위치 없이 요청이 나가는 레이스가 있었다
   // (locationRef.current가 아직 null인 채로 fetch 본문이 만들어짐). 그래서
@@ -117,12 +121,13 @@ export function useChat(isLoggedIn: boolean | undefined) {
     const promise = new Promise<{ lat: number; lng: number } | null>((resolve) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const location = {
+          const nextLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          locationRef.current = location;
-          resolve(location);
+          locationRef.current = nextLocation;
+          setLocation(nextLocation);
+          resolve(nextLocation);
         },
         () => {
           // 거부·타임아웃 등 - promise를 비워서 다음 메시지를 보낼 때 다시
@@ -755,6 +760,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     messages,
     isStreaming,
     error,
+    location,
     keywords,
     summary,
     joinBlocks,

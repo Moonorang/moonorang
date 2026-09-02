@@ -86,6 +86,7 @@ export default function ChatRoom({
     messages,
     isStreaming,
     error,
+    location,
     keywords,
     summary,
     joinBlocks,
@@ -343,6 +344,7 @@ export default function ChatRoom({
                     message.nearbyMemberships.length > 0 && (
                       <NearbyMembershipCard
                         memberships={message.nearbyMemberships}
+                        userLocation={location}
                       />
                     )}
                   {message.usageAnalysis &&

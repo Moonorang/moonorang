@@ -64,6 +64,8 @@ export async function runFindNearbyMemberships(
         brand,
         placeName: place.placeName,
         distanceMeters: place.distanceMeters,
+        lat: place.lat,
+        lng: place.lng,
       };
     }),
   );
