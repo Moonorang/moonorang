@@ -36,7 +36,7 @@ export default function MembershipRow({ brand, onSelect }: MembershipRowProps) {
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div>
             <p className="truncate text-12 text-text-primary">{category}</p>
-            <p className="truncate text-16 font-medium text-text-primary">
+            <p className="truncate text-14 font-medium text-text-primary">
               {name}
             </p>
           </div>

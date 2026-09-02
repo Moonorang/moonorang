@@ -31,47 +31,54 @@ export default function MembershipDetailCard({
   const instructions = discountRules?.detail?.instructions ?? [];
 
   return (
-    <div className="flex flex-col">
-      <h3 className="text-12 font-medium text-text-primary">제휴사 상세정보</h3>
+    // 섹션 사이 간격이 본문 ↔ 버튼과 같아서 컨테이너 하나로 끝난다
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
+        <h3 className="text-14 font-medium text-text-primary">
+          제휴사 상세정보
+        </h3>
 
-      {/* 로고는 목록 카드와 같은 크기·모양으로 둔다 - 목록에서 상세로 들어와도 같은 것으로 읽힌다 */}
-      <div className="mt-5 flex items-center gap-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <p className="truncate text-12 text-text-secondary">{category}</p>
-          <p className="truncate text-16 font-medium text-text-primary">
-            {name}
-          </p>
+        {/* 로고는 목록 카드와 같은 크기·모양으로 둔다 - 목록에서 상세로 들어와도 같은 것으로 읽힌다 */}
+        <div className="flex items-center gap-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <p className="truncate text-12 text-text-secondary">{category}</p>
+            <p className="truncate text-14 font-medium text-text-primary">
+              {name}
+            </p>
+          </div>
+
+          <Image
+            src={imageSrc}
+            alt=""
+            width={60}
+            height={60}
+            className="h-[60px] w-[60px] shrink-0 rounded-full border border-border-default object-cover"
+          />
         </div>
-
-        <Image
-          src={imageSrc}
-          alt=""
-          width={60}
-          height={60}
-          className="h-[60px] w-[60px] shrink-0 rounded-full border border-border-default object-cover"
-        />
       </div>
 
       {summary && (
-        <>
-          <h4 className="mt-6 text-12 font-medium text-text-primary">혜택</h4>
-          <p className="mt-2.5 text-12 leading-fixed whitespace-pre-line text-text-primary">
-            {summary}
-          </p>
-          {providedCount && (
-            <p className="mt-1 text-10 leading-fixed text-text-secondary">
-              {providedCount}
+        <section className="flex flex-col gap-2">
+          <h4 className="text-12 font-medium text-text-primary">혜택</h4>
+
+          {/* 제공 횟수는 요약에 딸린 보조 줄이라 한 덩어리로 묶어 더 붙인다 */}
+          <div className="flex flex-col gap-1">
+            <p className="text-12 leading-fixed whitespace-pre-line text-text-primary">
+              {summary}
             </p>
-          )}
-        </>
+            {providedCount && (
+              <p className="text-10 leading-fixed text-text-secondary">
+                {providedCount}
+              </p>
+            )}
+          </div>
+        </section>
       )}
 
       {instructions.length > 0 && (
-        <>
-          <h4 className="mt-6 text-12 font-medium text-text-primary">
-            이용 방법
-          </h4>
-          <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-4">
+        <section className="flex flex-col gap-2">
+          <h4 className="text-12 font-medium text-text-primary">이용 방법</h4>
+          <ul className="flex list-disc flex-col gap-1.5 pl-4">
             {instructions.map((instruction) => (
               <li
                 key={instruction}
@@ -81,7 +88,7 @@ export default function MembershipDetailCard({
               </li>
             ))}
           </ul>
-        </>
+        </section>
       )}
 
       {onConfirm && (
@@ -91,7 +98,6 @@ export default function MembershipDetailCard({
           size="lg"
           isFullWidth
           onClick={onConfirm}
-          appendClassName="mt-6"
         >
           확인
         </Button>
