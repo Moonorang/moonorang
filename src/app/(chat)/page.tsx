@@ -57,7 +57,7 @@ export default function ChatPage() {
             // 확인 중에는 undefined - 카드가 '비회원'으로 단정하고 로그인 안내를
             // 띄웠다가 곧 지우는 깜빡임을 막는다
             isLoggedIn: isAuthLoading ? undefined : isLoggedIn,
-            renderSignup: () => <KakaoLoginButton />,
+            renderSignup: () => <KakaoLoginButton size="compact" />,
             isCompleted,
             progress,
             onProgressChange,
