@@ -7,7 +7,6 @@ import { TrendingUp } from 'lucide-react';
 import PlanCard from '@/entities/plan/ui/PlanCard';
 import PlanDetailModal from '@/entities/plan/ui/PlanDetailModal';
 
-import UsageAnalysisCard from '@/features/usage/components/UsageAnalysisCard';
 import UsageTrendChart from '@/features/usage/components/UsageTrendChart';
 import {
   formatGbLabel,
@@ -17,6 +16,7 @@ import {
 import { cn } from '@/shared/utils/cn';
 import { parseVoiceSms } from '@/entities/plan/lib/format';
 import type { Plan } from '@/entities/plan/types';
+import UsageSnapshotCard from '@/entities/usage/ui/UsageSnapshotCard';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
 
 interface UsageAnalysisSectionProps {
@@ -30,8 +30,9 @@ interface UsageAnalysisSectionProps {
  * CARD-022~028 - 채팅 안에서 사용량 분석 카드 + 3개월 추세 + (있으면) 절약 대안
  * 요금제까지 한 번에 조립한다. usageAnalysis 이벤트 하나를 그대로 받아 그린다.
  *
- * UsageAnalysisCard/UsageTrendChart는 이 도메인(usage)의 표현만 맡고, 이 컴포넌트가
- * entities/usage 데이터를 그 컴포넌트들의 props 모양으로 변환하는 조립을 담당한다.
+ * UsageSnapshotCard(entities/usage, 마이페이지와 공용)/UsageTrendChart는 표현만
+ * 맡고, 이 컴포넌트가 entities/usage 데이터를 그 컴포넌트들의 props 모양으로
+ * 변환하는 조립을 담당한다.
  *
  * DATA-003 상세 보기는 바깥으로 올리지 않고 여기서 직접 연다 - 목록에서 쓰는 것과
  * 같은 모달(entities/plan)이라 이 컴포넌트만으로 완결되고, 채팅 추천 카드
@@ -45,7 +46,7 @@ export default function UsageAnalysisSection({
   // 열려 있는 상세. null 이면 닫힌 상태
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
-  const { currentPlan, remainingDataGb, dataLimitGb, trend, savings } = data;
+  const { currentPlan, billingMonth, remainingDataGb, dataLimitGb, trend, savings } = data;
   // 잔여량 배지는 "부가통화 300분" 같은 덧붙는 설명 없이 기본 제공량만 무제한으로
   // 보여준다(요금제 상세 문구는 parseVoiceSms를 그대로 쓰는 PlanCard 쪽 몫).
   const { sms } = parseVoiceSms(currentPlan.voiceSms);
@@ -65,13 +66,15 @@ export default function UsageAnalysisSection({
 
   return (
     <div className={cn('flex w-full flex-col gap-4', appendClassName)}>
-      <UsageAnalysisCard
+      <UsageSnapshotCard
         currentPlanName={currentPlan.name}
         currentPlanPrice={currentPlan.monthlyFee}
+        billingMonth={billingMonth}
         dataRemaining={formatGbLabel(remainingDataGb)}
         voiceRemaining={voiceRemaining}
         smsRemaining={smsRemaining}
         remainingPercentage={remainingPercentage}
+        isUnlimitedData={dataLimitGb === null}
       />
 
       {/* "내 요금제 정보 알려줘"처럼 현재 상태만 물었을 땐 trend 자체가 없다 -

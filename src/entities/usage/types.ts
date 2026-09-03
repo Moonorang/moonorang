@@ -33,6 +33,8 @@ export interface SavingsAnalysis {
 
 export interface UsageAnalysisResult {
   currentPlan: Plan;
+  /** 이용 요금이 어느 달 것인지 (예: 8) - shared/utils/getSeoulMonth로 구한 값 */
+  billingMonth: number;
   remainingDataGb: number;
   dataLimitGb: number | null;
   /** "내 요금제 정보 알려줘"처럼 현재 상태만 물었을 땐 없음(최근 3개월 사용 이력이

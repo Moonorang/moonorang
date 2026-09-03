@@ -46,7 +46,7 @@ export default function AddOnSummaryCard({
       </h2>
 
       <div className="mt-1 flex items-center justify-between gap-2">
-        <p className="text-14 text-text-primary">{title}</p>
+        <p className="text-14 font-medium text-text-primary">{title}</p>
 
         {/* 접을 게 있을 때만 - 항목이 하나뿐이면 펼쳐도 보여줄 게 없다 */}
         {restAddOns.length > 0 && (
@@ -85,7 +85,7 @@ export default function AddOnSummaryCard({
         <CircleDollarSign size={14} strokeWidth={1.5} aria-hidden />
         {billingMonth}월 이용 요금
       </p>
-      <p className="mt-1 text-14 text-action-primary">
+      <p className="mt-1 text-14 font-medium text-action-primary">
         {formatWon(totalFee)}원
       </p>
     </section>

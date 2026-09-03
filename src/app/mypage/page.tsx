@@ -8,17 +8,9 @@ import UsageSummaryCard from '@/features/mypage/components/UsageSummaryCard';
 import { getUserActiveAddOns } from '@/entities/addOn/server/addOnRepository';
 import { getUserProfile } from '@/entities/user/server/userRepository';
 
-const MYPAGE_PATH = '/mypage';
+import { getSeoulMonth } from '@/shared/utils/getSeoulMonth';
 
-/** 요금이 어느 달 것인지 - 서버가 어느 지역에 있든 한국 기준으로 센다 */
-function getSeoulMonth(): number {
-  return Number(
-    new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Seoul',
-      month: 'numeric',
-    }).format(new Date()),
-  );
-}
+const MYPAGE_PATH = '/mypage';
 
 /**
  * PERSONAL-001~005: 마이페이지.
@@ -47,11 +39,13 @@ export default async function MyPage() {
   return (
     <main className="mx-auto flex w-full max-w-(--width-container) flex-col gap-4 px-4 pt-(--height-header) pb-10">
       <div className="mt-4 flex items-baseline justify-between gap-2">
-        <h1 className="text-14 font-medium text-text-primary">
+        <h1 className="text-16 font-semibold text-text-primary">
           {profile.name ?? '고객'}님
         </h1>
         {profile.contact && (
-          <p className="text-12 text-text-primary">{profile.contact}</p>
+          <p className="text-16 font-semibold text-text-primary">
+            {profile.contact}
+          </p>
         )}
       </div>
 

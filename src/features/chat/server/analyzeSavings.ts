@@ -5,6 +5,8 @@ import { buildUsageTrend } from '@/features/chat/lib/buildUsageTrend';
 import { decideSavings, type SavingsDecision } from '@/features/chat/lib/selectSavingsPlan';
 import type { SSESend } from '@/features/chat/lib/sse';
 
+import { getSeoulMonth } from '@/shared/utils/getSeoulMonth';
+
 interface RunSavingsAnalysisParams {
   /** 로그인 안 했으면 null - CARD-023: 절약 상담은 로그인 사용자 전용 */
   userId: string | null;
@@ -84,6 +86,7 @@ export async function runSavingsAnalysis({
       event: 'usageAnalysis',
       data: {
         currentPlan: profile.currentPlan,
+        billingMonth: getSeoulMonth(),
         remainingDataGb: profile.remainingDataGb,
         dataLimitGb: profile.dataLimitGb,
       },
@@ -121,6 +124,7 @@ export async function runSavingsAnalysis({
     event: 'usageAnalysis',
     data: {
       currentPlan: profile.currentPlan,
+      billingMonth: getSeoulMonth(),
       remainingDataGb: profile.remainingDataGb,
       dataLimitGb: profile.dataLimitGb,
       trend,

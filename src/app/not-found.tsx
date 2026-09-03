@@ -44,6 +44,7 @@ const usageAnalysisDemo: UsageAnalysisResult = {
       tethering_sharing: '60GB',
     },
   },
+  billingMonth: 8,
   remainingDataGb: 85,
   dataLimitGb: 120,
   trend: {
