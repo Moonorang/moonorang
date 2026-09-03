@@ -6,11 +6,15 @@ import {
   requireMember,
 } from '@/features/auth/server';
 import { migrateGuestChat } from '@/features/chat/server/migrateGuestChat';
-import type { ChatKeywords, ChatMessage, PlanJoinBlock } from '@/features/chat/types';
+import type {
+  ChatKeywords,
+  ChatMessage,
+  JoinBlock,
+} from '@/features/chat/types';
 
 interface MigrateRequestBody {
   messages?: ChatMessage[];
-  joinBlocks?: PlanJoinBlock[];
+  joinBlocks?: JoinBlock[];
   keywords?: ChatKeywords;
   summary?: string;
 }
@@ -32,17 +36,21 @@ export async function POST(request: Request) {
 
   const user = guard.user;
 
-  const body = (await request.json().catch(() => null)) as MigrateRequestBody | null;
+  const body = (await request
+    .json()
+    .catch(() => null)) as MigrateRequestBody | null;
   const messages = Array.isArray(body?.messages) ? body.messages : [];
+  const joinBlocks = Array.isArray(body?.joinBlocks) ? body.joinBlocks : [];
 
-  if (messages.length === 0) {
+  // 말도 카드도 없으면 옮길 것이 없다 - 카드만 있는 대화는 승계 대상이다
+  if (messages.length === 0 && joinBlocks.length === 0) {
     return NextResponse.json({ ok: true });
   }
 
   try {
     await migrateGuestChat(user.id, {
       messages,
-      joinBlocks: Array.isArray(body?.joinBlocks) ? body.joinBlocks : [],
+      joinBlocks,
       keywords: body?.keywords ?? {},
       summary: body?.summary,
     });
@@ -50,6 +58,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[api/chat/migrate] 승계 실패:', error);
-    return NextResponse.json({ error: '대화를 이어받지 못했습니다.' }, { status: 500 });
+    return NextResponse.json(
+      { error: '대화를 이어받지 못했습니다.' },
+      { status: 500 },
+    );
   }
 }

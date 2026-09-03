@@ -1,27 +1,30 @@
 'use client';
 
-import AddOnDetailModal from '@/features/catalog/ui/AddOnDetailModal';
 import AddOnRow from '@/features/catalog/ui/AddOnRow';
 import CatalogTabs from '@/features/catalog/ui/CatalogTabs';
 import EmptyNotice from '@/features/catalog/ui/EmptyNotice';
 import MembershipDetailModal from '@/features/catalog/ui/MembershipDetailModal';
 import MembershipRow from '@/features/catalog/ui/MembershipRow';
-import PlanDetailModal from '@/features/catalog/ui/PlanDetailModal';
 import PlanRow from '@/features/catalog/ui/PlanRow';
-import SubscriptionDetailModal from '@/features/catalog/ui/SubscriptionDetailModal';
 import SubscriptionRow from '@/features/catalog/ui/SubscriptionRow';
 
 import { CATALOG_EMPTY_MESSAGES } from '@/features/catalog/constants';
 import { useCatalogDetail } from '@/features/catalog/hooks/useCatalogDetail';
 import { useCatalogTabs } from '@/features/catalog/hooks/useCatalogTabs';
+import type { CatalogData, CatalogTab } from '@/features/catalog/types';
+
 import {
   buildAddOnJoinMessage,
   buildPlanJoinMessage,
   buildSubscriptionJoinMessage,
-} from '@/features/catalog/lib/joinMessage';
-import type { CatalogData, CatalogTab } from '@/features/catalog/types';
-
+} from '@/entities/join';
+import type { AddOn } from '@/entities/addOn/types';
+import AddOnDetailModal from '@/entities/addOn/ui/AddOnDetailModal';
 import type { MembershipBrand } from '@/entities/membershipBrand/types';
+import PlanDetailModal from '@/entities/plan/ui/PlanDetailModal';
+import SubscriptionDetailModal from '@/entities/subscription/ui/SubscriptionDetailModal';
+import type { Plan } from '@/entities/plan/types';
+import type { Subscription } from '@/entities/subscription/types';
 
 interface CatalogViewProps {
   catalog: CatalogData;
@@ -37,9 +40,23 @@ interface CatalogViewProps {
 export default function CatalogView({ catalog, initialTab }: CatalogViewProps) {
   // 1. 상태 및 훅
   const { activeTab, panelId, handleTabChange } = useCatalogTabs(initialTab);
-  const planDetail = useCatalogDetail(buildPlanJoinMessage);
-  const addOnDetail = useCatalogDetail(buildAddOnJoinMessage);
-  const subscriptionDetail = useCatalogDetail(buildSubscriptionJoinMessage);
+  // 세 종류 모두 채팅에서 곧바로 가입 카드를 연다 - 상세에서 이미 고른 상품이라
+  // 모델에게 무슨 뜻인지 다시 판단하게 할 이유가 없다
+  const planDetail = useCatalogDetail<Plan>(buildPlanJoinMessage, (plan) => ({
+    kind: 'plan',
+    item: plan,
+  }));
+  const addOnDetail = useCatalogDetail<AddOn>(
+    buildAddOnJoinMessage,
+    (addOn) => ({
+      kind: 'addOn',
+      item: addOn,
+    }),
+  );
+  const subscriptionDetail = useCatalogDetail<Subscription>(
+    buildSubscriptionJoinMessage,
+    (subscription) => ({ kind: 'subscription', item: subscription }),
+  );
   // 멤버십은 가입 대상이 아니라 열고 닫는 것만 쓴다
   const membershipDetail = useCatalogDetail<MembershipBrand>();
 

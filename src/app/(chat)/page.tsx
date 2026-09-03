@@ -4,9 +4,16 @@ import KakaoLoginButton from '@/features/auth/components/KakaoLoginButton';
 import { getDisplayName } from '@/features/auth/lib/getDisplayName';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import ChatRoom from '@/features/chat/components/ChatRoom';
+import AddOnJoinFlowCard from '@/features/join/components/AddOnJoinFlowCard';
 import JoinCompleteCard from '@/features/join/components/JoinCompleteCard';
 import JoinFlowCard from '@/features/join/components/JoinFlowCard';
-import { buildJoinResultMessage } from '@/features/join/lib/joinResultMessage';
+import SubscriptionJoinFlowCard from '@/features/join/components/SubscriptionJoinFlowCard';
+import { JOIN_COMPLETE_MESSAGE } from '@/features/join/data/complete';
+import {
+  buildAddOnJoinResultMessage,
+  buildJoinResultMessage,
+  buildSubscriptionJoinResultMessage,
+} from '@/features/join/lib/joinResultMessage';
 import TestLoadingModal from '@/features/test/components/TestLoadingModal';
 import TestQuestionCard from '@/features/test/components/TestQuestionCard';
 import { useTestFlow } from '@/features/test/hooks/useTestFlow';
@@ -41,24 +48,73 @@ export default function ChatPage() {
         isLoggedIn={isAuthLoading ? undefined : isLoggedIn}
         onPlanTest={test.openTest}
         renderJoinFlow={(
-          plan,
+          block,
           { isCompleted, progress, onProgressChange, onComplete },
-        ) => (
-          <JoinFlowCard
-            plan={plan}
-            isLoggedIn={isLoggedIn}
-            renderSignup={() => <KakaoLoginButton />}
-            isCompleted={isCompleted}
-            progress={progress}
-            onProgressChange={onProgressChange}
-            onComplete={() =>
-              onComplete(
-                buildJoinResultMessage({ planName: plan.name, customerName }),
-              )
-            }
-          />
+        ) => {
+          // 종류마다 카드도 결과 문구도 달라서 여기서 가른다 - features/chat 은
+          // 어떤 카드가 붙는지 모르고 자리만 잡아준다.
+          const shared = {
+            // 확인 중에는 undefined - 카드가 '비회원'으로 단정하고 로그인 안내를
+            // 띄웠다가 곧 지우는 깜빡임을 막는다
+            isLoggedIn: isAuthLoading ? undefined : isLoggedIn,
+            renderSignup: () => <KakaoLoginButton size="compact" />,
+            isCompleted,
+            progress,
+            onProgressChange,
+          };
+
+          if (block.kind === 'subscription') {
+            return (
+              <SubscriptionJoinFlowCard
+                {...shared}
+                subscription={block.item}
+                onComplete={() =>
+                  onComplete(
+                    buildSubscriptionJoinResultMessage({
+                      subscriptionName: block.item.name,
+                      customerName,
+                    }),
+                  )
+                }
+              />
+            );
+          }
+
+          if (block.kind === 'addOn') {
+            return (
+              <AddOnJoinFlowCard
+                {...shared}
+                addOn={block.item}
+                onComplete={() =>
+                  onComplete(
+                    buildAddOnJoinResultMessage({
+                      addOnName: block.item.title,
+                      customerName,
+                    }),
+                  )
+                }
+              />
+            );
+          }
+
+          return (
+            <JoinFlowCard
+              {...shared}
+              plan={block.item}
+              onComplete={() =>
+                onComplete(
+                  buildJoinResultMessage({
+                    planName: block.item.name,
+                    customerName,
+                  }),
+                )
+              }
+            />
+          );
+        }}
+        renderJoinResult={(kind) => (
+          <JoinCompleteCard message={JOIN_COMPLETE_MESSAGE[kind]} />
         )}
-        renderJoinResult={() => <JoinCompleteCard />}
         renderUsageAnalysis={(data, { onJoin }) => (
           <UsageAnalysisSection data={data} onJoin={onJoin} />
         )}

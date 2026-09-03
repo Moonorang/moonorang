@@ -1,5 +1,9 @@
 import { serializeCardPayload } from '@/features/chat/lib/chatCard';
 import {
+  getJoinBlockMessage,
+  getJoinBlockTarget,
+} from '@/features/chat/lib/joinBlock';
+import {
   getChatSummary,
   getOrCreateActiveChat,
   insertMessages,
@@ -7,11 +11,15 @@ import {
   upsertChatSummary,
 } from '@/features/chat/server/chatRepository';
 import { mergeSummaries } from '@/features/chat/server/summarizeConversation';
-import type { ChatKeywords, ChatMessage, PlanJoinBlock } from '@/features/chat/types';
+import type {
+  ChatKeywords,
+  ChatMessage,
+  JoinBlock,
+} from '@/features/chat/types';
 
 interface MigrateGuestChatParams {
   messages: ChatMessage[];
-  joinBlocks: PlanJoinBlock[];
+  joinBlocks: JoinBlock[];
   keywords: ChatKeywords;
   /** 게스트일 때 이미 요약돼있던 이전 대화 - 있으면 DB 쪽에도 이어서 남긴다 */
   summary?: string;
@@ -26,11 +34,39 @@ export async function migrateGuestChat(
   userId: string,
   { messages, joinBlocks, keywords, summary }: MigrateGuestChatParams,
 ): Promise<void> {
-  if (messages.length === 0) return;
+  // 말은 없고 가입 카드만 있는 대화도 승계 대상이다(useChat 의 hasGuestConversation 과 같은 이유)
+  if (messages.length === 0 && joinBlocks.length === 0) return;
 
   const chat = await getOrCreateActiveChat(userId);
 
   const rows: { role: 'user' | 'ai'; content: string }[] = [];
+
+  /**
+   * 가입 카드 한 장을 DB 행 두 줄(사용자 말풍선 + 마커)로 펼친다.
+   *
+   * CARD-046: 진행 상태를 함께 실어야 한다. 비회원으로 절차를 밟다가 결제 단계에서
+   * 카카오 회원가입으로 넘어가는 길(CARD-044)이 정확히 이 경로라, 여기서 progress 를
+   * 빠뜨리면 돌아왔을 때 카드는 뜨는데 첫 단계부터 다시 시작하게 된다.
+   *
+   * isCompleted 는 싣지 않는다 - 결제는 회원만 할 수 있어서(JoinFlowCard 의
+   * handlePayment) 비회원 카드가 완료 상태인 경우가 없다.
+   */
+  const pushJoinBlockRows = (block: JoinBlock) => {
+    rows.push({ role: 'user', content: getJoinBlockMessage(block) });
+    rows.push({
+      role: 'ai',
+      content: serializeCardPayload({
+        type: 'join_flow',
+        ...getJoinBlockTarget(block),
+        ...(block.progress ? { progress: block.progress } : {}),
+      }),
+    });
+  };
+
+  // 대화 맨 앞에 붙은 카드가 먼저다 - 앞설 메시지가 없어서 아래 반복문에 안 걸린다
+  for (const block of joinBlocks) {
+    if (block.afterMessageId === null) pushJoinBlockRows(block);
+  }
 
   for (const message of messages) {
     rows.push({ role: message.role, content: message.content });
@@ -88,11 +124,7 @@ export async function migrateGuestChat(
     for (const block of joinBlocks) {
       if (block.afterMessageId !== message.id) continue;
 
-      rows.push({ role: 'user', content: `${block.plan.name} 요금제 가입할래` });
-      rows.push({
-        role: 'ai',
-        content: serializeCardPayload({ type: 'join_flow', planId: block.plan.id }),
-      });
+      pushJoinBlockRows(block);
     }
   }
 
@@ -119,7 +151,9 @@ export async function migrateGuestChat(
       ? await mergeSummaries(existingSummary.summary, summary)
       : summary;
 
-    tasks.push(upsertChatSummary(chat.id, mergedSummary, Number(lastMessage.id)));
+    tasks.push(
+      upsertChatSummary(chat.id, mergedSummary, Number(lastMessage.id)),
+    );
   }
 
   await Promise.all(tasks);

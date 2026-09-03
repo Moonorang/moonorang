@@ -19,6 +19,8 @@ interface PlanDetailModalProps {
  * 그대로 돌아와야 하기 때문이다.
  *
  * 바닥과 헤더는 Modal 이 깔고, 이 화면은 그 위에 올릴 카드 한 장을 맡는다.
+ *
+ * 목록(features/catalog)과 채팅 추천 카드(features/chat)가 같이 써서 entities 에 둔다.
  */
 export default function PlanDetailModal({
   plan,

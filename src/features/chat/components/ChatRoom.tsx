@@ -21,10 +21,15 @@ import UserMessage from '@/features/chat/components/UserMessage';
 import { WELCOME_MESSAGE } from '@/features/chat/constants';
 import { useChat } from '@/features/chat/hooks/useChat';
 import { useConditionQuestions } from '@/features/chat/hooks/useConditionQuestions';
-import type { ChatKeywords } from '@/features/chat/types';
+import {
+  getJoinBlockMessage,
+  getJoinBlockTarget,
+} from '@/features/chat/lib/joinBlock';
+import type { ChatKeywords, JoinBlock } from '@/features/chat/types';
 
 import { takePendingChatMessage } from '@/entities/chat';
-import type { PlanJoinProgress } from '@/entities/planJoin/types';
+import { getJoinKey } from '@/entities/join';
+import type { JoinItem, JoinKind, JoinProgress } from '@/entities/join/types';
 import type { Plan } from '@/entities/plan/types';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
 
@@ -42,8 +47,14 @@ const CONDITION_CARD_KEYWORDS = ['선택지', '카드', '골라'];
  * 가입 카드와 함께 남기는 안내 문구.
  * 문구가 매번 달라지면 안 되고 대화 문맥도 아니라서 모델을 거치지 않고 여기서 만든다.
  */
-const PLAN_JOIN_GUIDE = `선택하신 요금제의 상세 내용을 확인해주세요!
-선택하신 요금제가 맞으신가요?`;
+const JOIN_GUIDE: Record<JoinKind, string> = {
+  plan: `선택하신 요금제의 상세 내용을 확인해주세요!
+선택하신 요금제가 맞으신가요?`,
+  addOn: `선택하신 부가서비스의 상세 내용을 확인해주세요!
+선택하신 부가서비스가 맞으신가요?`,
+  subscription: `선택하신 구독 상품의 상세 내용을 확인해주세요!
+선택하신 구독 상품이 맞으신가요?`,
+};
 
 interface ChatRoomProps {
   /**
@@ -71,11 +82,11 @@ interface ChatRoomProps {
    * CARD-046: 진행 상태는 대화와 함께 저장했다가 카드가 다시 뜰 때 돌려준다.
    */
   renderJoinFlow?: (
-    plan: Plan,
+    block: JoinBlock,
     options: {
       isCompleted: boolean;
-      progress?: PlanJoinProgress;
-      onProgressChange: (progress: PlanJoinProgress) => void;
+      progress?: JoinProgress;
+      onProgressChange: (progress: JoinProgress) => void;
       onComplete: (resultMessage: string) => void;
     },
   ) => ReactNode;
@@ -83,7 +94,7 @@ interface ChatRoomProps {
    * CARD-043: 가입을 마친 메시지의 말풍선 아래에 붙는 축하 카드.
    * 사용량 분석 카드와 같은 이유로 슬롯으로 받는다.
    */
-  renderJoinResult?: () => ReactNode;
+  renderJoinResult?: (kind: JoinKind) => ReactNode;
   /**
    * CARD-022~028: usageAnalysis 이벤트가 온 메시지에 끼워 넣는 사용량 분석/절약 카드.
    * features/usage도 다른 feature라 직접 참조 못 해 슬롯으로 받는다. onJoin은 이 화면이
@@ -171,6 +182,11 @@ export default function ChatRoom({
   // 로그인 상태였는지 - 로그아웃으로 넘어가는 순간을 알아채려고 들고 있는다
   const wasLoggedInRef = useRef(false);
 
+  // 높이가 뒤늦게 바뀌는 것을 지켜볼 대상 - 스크롤 칸이 아니라 그 안의 내용이다
+  const contentRef = useRef<HTMLDivElement>(null);
+  // ResizeObserver 콜백은 렌더 밖에서 돌아서 state 를 그대로 읽으면 낡은 값을 본다
+  const isAtBottomRef = useRef(true);
+
   const scrollToBottom = useCallback(() => {
     const element = scrollAreaRef.current;
     if (!element) return;
@@ -192,6 +208,33 @@ export default function ChatRoom({
     shouldForceScrollRef.current = false;
     scrollToBottom();
   }, [messages, joinBlocks, error, isStreaming, isAtBottom, scrollToBottom]);
+
+  useEffect(() => {
+    isAtBottomRef.current = isAtBottom;
+  }, [isAtBottom]);
+
+  /*
+   * 위 효과는 '무엇이 바뀌었는지'를 보고 도는데, 뒤늦게 높이만 바뀌는 경우가 있다 -
+   * 가입 카드가 "이용 중인지 확인하고 있어요" 한 줄에서 절차 화면으로 바뀌는 순간이
+   * 그렇다. 그건 카드 안의 상태라 messages 도 joinBlocks 도 그대로여서 위 효과가
+   * 다시 돌지 않고, 먼저 내려간 스크롤이 늘어난 만큼 모자란 채로 남는다.
+   *
+   * 그래서 내용의 높이 자체를 지켜보고, 최하단을 보고 있었으면 다시 붙여준다.
+   * 늦게 자리를 잡는 것들(이미지, 지도, 차트)도 같은 이유로 여기서 해결된다.
+   */
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+
+    // 스크롤을 옮겨도 높이는 안 바뀌므로 이 관찰이 스스로를 다시 부르지는 않는다
+    const observer = new ResizeObserver(() => {
+      if (isAtBottomRef.current) scrollToBottom();
+    });
+
+    observer.observe(content);
+
+    return () => observer.disconnect();
+  }, [scrollToBottom]);
 
   // CHAT-011/012: 로그아웃하면 대화를 화면에서도 브라우저 저장분에서도 비운다.
   // 로그인해서 나눈 이야기가 로그아웃 뒤에까지 남아 있으면, 같은 기기를 쓰는
@@ -226,14 +269,23 @@ export default function ChatRoom({
   useEffect(() => {
     if (!isRestored) return;
 
-    const pendingMessage = takePendingChatMessage();
-    if (!pendingMessage) return;
+    const pending = takePendingChatMessage();
+    if (!pending) return;
 
     // 복구한 대화가 길면 방금 보낸 말이 화면 밖에 생긴다. "사용자가 위를 읽는 중이면
     // 끌어내리지 않는다"는 기본 규칙의 예외 - 사용자가 직접 시작한 대화라 보여줘야 한다.
     shouldForceScrollRef.current = true;
-    sendMessage(pendingMessage);
-  }, [isRestored, sendMessage]);
+
+    // 상세에서 이미 고른 상품이면 모델을 거치지 않고 그 자리에서 카드를 연다.
+    // 말풍선은 카드가 스스로 그리므로(getJoinBlockMessage) 문장을 따로 보내지 않는다 -
+    // 보내면 같은 말이 두 번 남는다.
+    if (pending.join) {
+      addJoinBlock(pending.join, lastMessageId ?? null);
+      return;
+    }
+
+    sendMessage(pending.text);
+  }, [isRestored, sendMessage, addJoinBlock, lastMessageId]);
 
   // 3. 이벤트 핸들러
   const handleScroll = () => {
@@ -333,11 +385,43 @@ export default function ChatRoom({
   // 몇 마디 더 물어본 뒤에 신청하기를 누르는 일이 흔한데, 그때 추천 카드 자리에
   // 끼워 넣으면 화면은 맨 아래에 있는데 카드는 저 위에 생겨서 눌러도 아무것도
   // 안 나온 것처럼 보인다. 방금 보낸 말처럼 아래에 이어 붙여야 흐름이 안 끊긴다.
-  const handleJoin = (plan: Plan) => {
-    if (!lastMessageId) return;
-
+  const handleJoinItem = (item: JoinItem) => {
     setIsAtBottom(true);
-    addJoinBlock(plan, lastMessageId);
+    // 아직 주고받은 말이 없으면(목록에서 바로 넘어온 경우) 대화 맨 앞에 붙인다
+    addJoinBlock(item, lastMessageId ?? null);
+  };
+
+  // 요금제 전용 진입점 - 추천 캐러셀과 사용량 분석 카드가 Plan 을 그대로 넘긴다
+  const handleJoin = (plan: Plan) =>
+    handleJoinItem({ kind: 'plan', item: plan });
+
+  /**
+   * 가입 카드 한 장 - 사용자 말풍선 + 안내 말풍선 + 그 안의 절차 카드.
+   * 대화 맨 앞(afterMessageId 가 null)과 특정 메시지 뒤, 두 자리에서 같은 모양으로
+   * 그려야 해서 함수로 빼뒀다.
+   */
+  const renderJoinBlock = (block: JoinBlock) => {
+    const target = getJoinBlockTarget(block);
+
+    return (
+      <Fragment key={getJoinKey(target)}>
+        <UserMessage content={getJoinBlockMessage(block)} />
+        <AiMessage content={JOIN_GUIDE[block.kind]}>
+          {renderJoinFlow?.(block, {
+            isCompleted: Boolean(block.isCompleted),
+            progress: block.progress,
+            onProgressChange: (progress) => saveJoinProgress(target, progress),
+            onComplete: (resultMessage) => {
+              // 마치는 순간 카드가 대화 끝으로 옮겨간다(completeJoinBlock) -
+              // 위로 올라가 중간 카드를 진행하던 중이면 그 자리에서 카드가 사라지므로,
+              // 최하단을 보고 있는 것으로 쳐서 따라 내려간다(handleJoin 과 같은 방식)
+              setIsAtBottom(true);
+              completeJoinBlock(target, resultMessage);
+            },
+          })}
+        </AiMessage>
+      </Fragment>
+    );
   };
 
   // features/test 오버레이(부모가 넘김)와 조건 수집 카드(이 컴포넌트가 직접 엶)를
@@ -388,7 +472,7 @@ export default function ChatRoom({
         className="flex flex-1 flex-col overflow-y-auto pt-(--height-header) pb-(--height-chat-input)"
       >
         {/* 채팅 내역 영역 */}
-        <div className="flex flex-col gap-3 px-4 py-6">
+        <div ref={contentRef} className="flex flex-col gap-3 px-4 py-6">
           <AiMessage content={WELCOME_MESSAGE} />
 
           {/*
@@ -403,6 +487,14 @@ export default function ChatRoom({
               <span className="h-px flex-1 bg-border-light" />
             </div>
           )}
+
+          {/*
+            아직 주고받은 말이 없을 때 띄운 가입 카드 - 붙을 메시지가 없어서
+            환영 메시지 바로 뒤, 대화가 시작되기 전 자리에 그린다.
+          */}
+          {joinBlocks
+            .filter((block) => block.afterMessageId === null)
+            .map(renderJoinBlock)}
 
           {messages.map((message) => {
             // 이 메시지가 아직 생성 중인지. 카드를 이 값으로 잠가둔다 - 서버는 카드
@@ -451,6 +543,9 @@ export default function ChatRoom({
                       message.addOnRecommendations.length > 0 && (
                         <AddOnRecommendationCard
                           recommendations={message.addOnRecommendations}
+                          onJoin={(addOn) =>
+                            handleJoinItem({ kind: 'addOn', item: addOn })
+                          }
                         />
                       )}
                     {!isMessageStreaming &&
@@ -458,6 +553,12 @@ export default function ChatRoom({
                       message.subscriptionRecommendations.length > 0 && (
                         <SubscriptionRecommendationCard
                           recommendations={message.subscriptionRecommendations}
+                          onJoin={(subscription) =>
+                            handleJoinItem({
+                              kind: 'subscription',
+                              item: subscription,
+                            })
+                          }
                         />
                       )}
                     {!isMessageStreaming &&
@@ -472,30 +573,15 @@ export default function ChatRoom({
                       renderUsageAnalysis?.(message.usageAnalysis, {
                         onJoin: handleJoin,
                       })}
-                    {message.isJoinResult && renderJoinResult?.()}
+                    {message.joinResultKind &&
+                      renderJoinResult?.(message.joinResultKind)}
                   </AiMessage>
                 )}
 
                 {/* 이 메시지 뒤에 띄운 가입 카드 - 대화 순서를 그대로 지킨다 */}
                 {joinBlocks
                   .filter((block) => block.afterMessageId === message.id)
-                  .map((block) => (
-                    <Fragment key={block.plan.id}>
-                      <UserMessage
-                        content={`${block.plan.name} 요금제 가입할래`}
-                      />
-                      <AiMessage content={PLAN_JOIN_GUIDE}>
-                        {renderJoinFlow?.(block.plan, {
-                          isCompleted: Boolean(block.isCompleted),
-                          progress: block.progress,
-                          onProgressChange: (progress) =>
-                            saveJoinProgress(block.plan.id, progress),
-                          onComplete: (resultMessage) =>
-                            completeJoinBlock(block.plan.id, resultMessage),
-                        })}
-                      </AiMessage>
-                    </Fragment>
-                  ))}
+                  .map(renderJoinBlock)}
               </Fragment>
             );
           })}

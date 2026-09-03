@@ -1,10 +1,18 @@
+'use client';
+
+import { useState } from 'react';
+
 import { TrendingUp } from 'lucide-react';
 
 import PlanCard from '@/entities/plan/ui/PlanCard';
+import PlanDetailModal from '@/entities/plan/ui/PlanDetailModal';
 
 import UsageAnalysisCard from '@/features/usage/components/UsageAnalysisCard';
 import UsageTrendChart from '@/features/usage/components/UsageTrendChart';
-import { formatGbLabel, toUnlimitedLabel } from '@/features/usage/lib/formatUsage';
+import {
+  formatGbLabel,
+  toUnlimitedLabel,
+} from '@/features/usage/lib/formatUsage';
 
 import { cn } from '@/shared/utils/cn';
 import { parseVoiceSms } from '@/entities/plan/lib/format';
@@ -13,8 +21,8 @@ import type { UsageAnalysisResult } from '@/entities/usage/types';
 
 interface UsageAnalysisSectionProps {
   data: UsageAnalysisResult;
+  /** 신청하기 - 대안 요금제 카드와 그 상세에서 함께 쓴다 */
   onJoin?: (plan: Plan) => void;
-  onViewDetail?: (plan: Plan) => void;
   appendClassName?: string;
 }
 
@@ -24,13 +32,19 @@ interface UsageAnalysisSectionProps {
  *
  * UsageAnalysisCard/UsageTrendChart는 이 도메인(usage)의 표현만 맡고, 이 컴포넌트가
  * entities/usage 데이터를 그 컴포넌트들의 props 모양으로 변환하는 조립을 담당한다.
+ *
+ * DATA-003 상세 보기는 바깥으로 올리지 않고 여기서 직접 연다 - 목록에서 쓰는 것과
+ * 같은 모달(entities/plan)이라 이 컴포넌트만으로 완결되고, 채팅 추천 카드
+ * (PlanCardCarousel)도 같은 방식이다.
  */
 export default function UsageAnalysisSection({
   data,
   onJoin,
-  onViewDetail,
   appendClassName,
 }: UsageAnalysisSectionProps) {
+  // 열려 있는 상세. null 이면 닫힌 상태
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+
   const { currentPlan, remainingDataGb, dataLimitGb, trend, savings } = data;
   // 잔여량 배지는 "부가통화 300분" 같은 덧붙는 설명 없이 기본 제공량만 무제한으로
   // 보여준다(요금제 상세 문구는 parseVoiceSms를 그대로 쓰는 PlanCard 쪽 몫).
@@ -43,7 +57,10 @@ export default function UsageAnalysisSection({
   const usagePercentage = dataLimitGb
     ? Math.min(
         100,
-        Math.max(0, Math.round(((dataLimitGb - remainingDataGb) / dataLimitGb) * 100)),
+        Math.max(
+          0,
+          Math.round(((dataLimitGb - remainingDataGb) / dataLimitGb) * 100),
+        ),
       )
     : 0;
 
@@ -78,17 +95,30 @@ export default function UsageAnalysisSection({
       {recommendedPlan && (
         <div className="flex flex-col gap-2">
           <h3 className="px-1 text-14 font-bold text-text-primary">
-            {savings?.type === 'upgrade' ? '이런 요금제는 어때요?' : '이렇게 바꾸면 절약돼요'}
+            {savings?.type === 'upgrade'
+              ? '이런 요금제는 어때요?'
+              : '이렇게 바꾸면 절약돼요'}
           </h3>
           <PlanCard
             plan={recommendedPlan.plan}
             annualSavings={recommendedPlan.annualSavings}
             reason={savings?.reason}
-            onViewDetail={() => onViewDetail?.(recommendedPlan.plan)}
+            onViewDetail={() => setSelectedPlan(recommendedPlan.plan)}
             onJoin={() => onJoin?.(recommendedPlan.plan)}
           />
         </div>
       )}
+
+      {/* DATA-003: 상세보기를 누르면 목록에서와 같은 상세가 화면을 덮으며 들어온다 */}
+      <PlanDetailModal
+        plan={selectedPlan}
+        onClose={() => setSelectedPlan(null)}
+        onJoin={(plan) => {
+          // 가입 카드는 대화 맨 끝에 붙으므로, 화면을 덮고 있는 상세를 먼저 걷어낸다
+          setSelectedPlan(null);
+          onJoin?.(plan);
+        }}
+      />
     </div>
   );
 }

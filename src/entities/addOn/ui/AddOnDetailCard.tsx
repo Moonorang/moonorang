@@ -16,6 +16,9 @@ interface AddOnDetailCardProps {
 /**
  * 부가서비스 하나를 펼쳐 보여주는 상세 내용.
  * 폭·배경·바깥 여백은 감싸는 쪽이 정하고 여기서는 안쪽 간격만 갖는다.
+ *
+ * 목록 상세(features/catalog)와 가입 절차 1단계(features/join)가 같은 내용을
+ * 보여줘서 entities 에 둔다 - entities/plan 의 PlanDetailCard 와 같은 자리다.
  */
 export default function AddOnDetailCard({
   addOn,

@@ -7,12 +7,14 @@ import { ChevronRight } from 'lucide-react';
 import CheckBox from '@/shared/ui/CheckBox';
 
 import JoinStepLayout from '@/features/join/components/JoinStepLayout';
-import { JOIN_TERMS } from '@/features/join/data/terms';
+import type { JoinTerm } from '@/features/join/data/terms';
 import { hasAgreedRequiredTerms } from '@/features/join/lib/terms';
 
 import { cn } from '@/shared/utils/cn';
 
 interface TermsStepProps {
+  /** 동의받을 약관 목록 - 요금제와 부가서비스가 서로 다른 목록을 쓴다 */
+  terms: JoinTerm[];
   submitLabel: string;
   /** 동의한 약관 id 들. 이전 단계로 다녀와도 유지되도록 카드가 들고 있다 */
   agreedIds: string[];
@@ -44,6 +46,7 @@ function scrollAncestorToBottom(element: HTMLElement | null): void {
 
 /** CARD-034: 2단계 - 약관 동의. 필수 약관을 모두 받아야 다음으로 넘어간다 */
 export default function TermsStep({
+  terms,
   submitLabel,
   agreedIds,
   onAgreedIdsChange,
@@ -54,7 +57,7 @@ export default function TermsStep({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const isAllAgreed = agreedIds.length === JOIN_TERMS.length;
+  const isAllAgreed = agreedIds.length === terms.length;
 
   // 2. 부수 효과
   // 약관을 펼치면 카드가 상세 영역 높이만큼 길어지는데, 스크롤 위치는 그대로라
@@ -68,7 +71,7 @@ export default function TermsStep({
 
   // 3. 이벤트 핸들러
   const handleAllToggle = (isChecked: boolean) => {
-    onAgreedIdsChange(isChecked ? JOIN_TERMS.map((term) => term.id) : []);
+    onAgreedIdsChange(isChecked ? terms.map((term) => term.id) : []);
   };
 
   const handleTermToggle = (id: string, isChecked: boolean) => {
@@ -88,7 +91,7 @@ export default function TermsStep({
     <JoinStepLayout
       submitLabel={submitLabel}
       onSubmit={onNext}
-      isSubmitDisabled={!hasAgreedRequiredTerms(agreedIds)}
+      isSubmitDisabled={!hasAgreedRequiredTerms(terms, agreedIds)}
     >
       <div className="pt-4">
         {/* 전체 동의 - 두 줄 문구를 감싸는 테두리 상자 */}
@@ -113,7 +116,7 @@ export default function TermsStep({
         </div>
 
         <ul ref={listRef} className="mt-4 flex flex-col gap-3">
-          {JOIN_TERMS.map((term) => {
+          {terms.map((term) => {
             const isExpanded = expandedId === term.id;
 
             return (

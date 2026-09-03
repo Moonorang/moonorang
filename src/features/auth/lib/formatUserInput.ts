@@ -22,3 +22,8 @@ export function formatBirth(value: string): string {
 export function toIsoBirth(value: string): string {
   return value.replaceAll('.', '-');
 }
+
+// 2001-11-11 → 2001.11.11 (가입 절차에서 받아온 값을 입력 칸 형식으로)
+export function fromIsoBirth(value: string): string {
+  return value.replaceAll('-', '.');
+}

@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import CarouselIndicator from '@/shared/ui/CarouselIndicator';
 
 import PlanCard from '@/entities/plan/ui/PlanCard';
+import PlanDetailModal from '@/entities/plan/ui/PlanDetailModal';
 
 import type { Plan } from '@/entities/plan/types';
 import type { PlanRecommendation } from '@/features/chat/types';
@@ -67,6 +68,8 @@ export default function PlanCardCarousel({
 }: PlanCardCarouselProps) {
   // 1. 상태 및 훅
   const [activeIndex, setActiveIndex] = useState(0);
+  // CARD-019 '요금제 상세 보기' - 열려 있는 상세. null 이면 닫힌 상태
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   // 렌더와 무관하게 최신 위치를 읽어야 해서 ref 로도 들고 있는다
@@ -218,6 +221,7 @@ export default function PlanCardCarousel({
                 rank={item.rank}
                 annualSavings={item.annualSavings}
                 onJoin={onJoin ? () => onJoin(item.plan) : undefined}
+                onViewDetail={() => setSelectedPlan(item.plan)}
               />
             </div>
           ))}
@@ -264,6 +268,17 @@ export default function PlanCardCarousel({
           onSelect={handleSelectIndex}
         />
       </div>
+
+      {/* DATA-003: 상세보기를 누르면 목록에서와 같은 상세가 화면을 덮으며 들어온다 */}
+      <PlanDetailModal
+        plan={selectedPlan}
+        onClose={() => setSelectedPlan(null)}
+        onJoin={(plan) => {
+          // 가입 카드는 대화 맨 끝에 붙으므로, 화면을 덮고 있는 상세를 먼저 걷어낸다
+          setSelectedPlan(null);
+          onJoin?.(plan);
+        }}
+      />
     </div>
   );
 }

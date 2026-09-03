@@ -12,7 +12,13 @@ interface KakaoLoginButtonProps {
   nextPath?: string;
   /** 콜백이 실패해 되돌아왔을 때 URL 에 붙어 오는 사유 코드 */
   errorCode?: string;
-  appendClassName?: string;
+  /**
+   * 'full'  - 주어진 폭을 다 쓴다. 로그인 화면처럼 이것이 그 화면의 주된 행동일 때.
+   * 'compact' - 폭에 상한을 두고 가운데 세운다. 대화 속 카드처럼 다른 내용 사이에
+   *   끼어 있을 때 - 버튼 그림이 가로로 긴 비율(600x90)이라 폭을 다 쓰면 넓은
+   *   화면에서 세로로도 같이 커져 카드를 뒤덮는다.
+   */
+  size?: 'full' | 'compact';
 }
 
 /**
@@ -24,9 +30,10 @@ interface KakaoLoginButtonProps {
 export default function KakaoLoginButton({
   nextPath,
   errorCode,
-  appendClassName,
+  size = 'full',
 }: KakaoLoginButtonProps) {
   // 1. 상태 및 훅
+  const isCompact = size === 'compact';
   const { signInWithKakao } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
@@ -54,13 +61,18 @@ export default function KakaoLoginButton({
 
   // 3. 렌더링
   return (
-    <div className={cn('flex w-full flex-col gap-3', appendClassName)}>
+    <div className="flex w-full flex-col gap-3">
       <button
         type="button"
         onClick={handleKakaoLoginClick}
         disabled={isSubmitting}
         aria-label="카카오로 로그인"
-        className="w-full hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+        className={cn(
+          'w-full hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60',
+          // 256px 상한은 같은 카드에 서는 다른 버튼(JoinStepLayout 의 size="lg",
+          // 높이 38px)과 키를 맞춘 값이다 - 600:90 비율에서 256px 이면 38.4px 이다.
+          isCompact && 'max-w-64 self-center',
+        )}
       >
         <Image
           src="/images/kakao_login.png"
@@ -68,7 +80,9 @@ export default function KakaoLoginButton({
           width={600}
           height={90}
           className="h-auto w-full"
-          priority
+          // 로그인 화면에서는 이 그림이 첫 화면의 주된 요소라 미리 받아둔다.
+          // 대화 속 카드에서는 조건부로 잠깐 뜨는 것이라 미리 받을 이유가 없다.
+          priority={!isCompact}
         />
       </button>
 
