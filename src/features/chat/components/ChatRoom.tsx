@@ -377,7 +377,10 @@ export default function ChatRoom({
 
   // 4. 렌더링
   return (
-    <div className="flex h-dvh flex-col bg-background-subtle">
+    // COMMON-006: 폭을 768px로 제한하고 중앙 정렬한다. relative로 두는 이유는
+    // 아래 PlusMenu의 absolute 팝업이 뷰포트가 아니라 이 폭 제한된 컬럼 기준으로
+    // 자리잡게 하기 위함이다(안 그러면 넓은 화면에서 컬럼과 팝업 위치가 어긋난다).
+    <div className="relative mx-auto flex h-dvh w-full max-w-(--width-container) flex-col bg-background-subtle">
       {/* height-header, height-chat-input 만큼 여백을 준다 (메시지가 가려지지 않도록) */}
       <div
         ref={scrollAreaRef}
@@ -537,8 +540,15 @@ export default function ChatRoom({
         입력창 높이만큼 띄우고(pb-2 로 8px 간격), 전송 버튼과 같은 px-4 기준에 맞춘다.
       */}
       {!isAtBottom && (
-        <div className="fixed right-4 bottom-(--height-chat-input) z-(--z-chat-input) pb-2">
-          <ScrollToBottomButton onClick={scrollToBottom} />
+        // 헤더/입력창과 같은 폭 제한 컬럼 기준으로 우측에 붙인다 - fixed는 relative
+        // 부모(위 루트 div)가 아니라 뷰포트 기준이라, 폭을 그냥 맞추면 넓은 화면에서
+        // 컬럼 오른쪽 끝이 아니라 뷰포트 오른쪽 끝에 붙어버린다. 그래서 이 감싸는
+        // div 자체를 컬럼 폭으로 맞춰 늘린 뒤(pointer-events-none), 그 안에서
+        // 버튼만 오른쪽 정렬한다(pointer-events-auto로 다시 클릭 가능하게).
+        <div className="pointer-events-none fixed inset-x-0 bottom-(--height-chat-input) z-(--z-chat-input) mx-auto flex w-full max-w-(--width-container) justify-end px-4 pb-2">
+          <div className="pointer-events-auto">
+            <ScrollToBottomButton onClick={scrollToBottom} />
+          </div>
         </div>
       )}
 
