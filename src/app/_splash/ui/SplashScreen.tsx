@@ -77,28 +77,31 @@ export default function SplashScreen() {
     <div
       role="presentation"
       className={cn(
-        'fixed inset-0 z-(--z-splash) bg-background-default transition-opacity ease-out',
+        'fixed inset-0 z-(--z-splash) bg-[#FDF3CB] transition-opacity ease-out',
         phase === 'leaving'
           ? 'opacity-0 duration-300'
           : 'opacity-100 duration-0',
       )}
     >
-      <Image
-        src="/images/splash.png"
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover"
-      />
+      <div className="mx-auto flex h-full max-w-(--width-container) items-center justify-center">
+        <Image
+          src="/images/splash.png"
+          alt=""
+          width={853}
+          height={1844}
+          priority
+          sizes="100vw"
+          className="h-full w-auto object-contain"
+        />
+      </div>
 
       {/* 건너뛰기 버튼 */}
       <Button
         variant="main"
-        radius="full"
+        radius="sm"
         size="xl"
         onClick={handleSkip}
-        appendClassName="absolute right-4 bottom-8"
+        appendClassName="absolute bottom-8 left-1/2 -translate-x-1/2"
       >
         건너뛰기
       </Button>
