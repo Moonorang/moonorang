@@ -39,6 +39,13 @@ import type { UsageAnalysisResult } from '@/entities/usage/types';
 const BOTTOM_THRESHOLD_PX = 24;
 
 /**
+ * 사용자가 스크롤을 직접 움직인 뒤, 이어지는 scroll 이벤트를 그 조작의 결과로 보는 시간.
+ * 휠 한 번에도 관성으로 이벤트가 여러 번 이어지므로 한 번의 조작을 다 덮을 만큼은
+ * 잡되, 그 뒤에 카드가 커지며 생기는 이벤트까지 삼키지 않을 만큼 짧게 둔다.
+ */
+const USER_SCROLL_WINDOW_MS = 700;
+
+/**
  * AI가 조건(예산·데이터 사용량)을 막 물어본 시점에, 사용자가 이 단어들을 포함해서
  * 답하면 - LLM 왕복 없이 곧바로 선택형 질문 카드를 연다. 별도 버튼 UI 대신 AI가
  * 말로 "선택지로 해드릴까요, 텍스트로 하실래요?"라고 물어보고, 그 답을 여기서 감지한다.
@@ -193,29 +200,27 @@ export default function ChatRoom({
   const isAtBottomRef = useRef(true);
 
   /*
-   * scrollToBottom 이 스스로 일으킨 scroll 이벤트인지 표시해 둔다.
+   * 사용자가 스크롤을 직접 움직인 마지막 시각.
    *
-   * scrollTop 을 코드로 바꾸면 브라우저가 scroll 이벤트를 한 번 더 일으키는데,
-   * 그 이벤트가 도착하는 시점에 카드·지도·이미지처럼 뒤늦게 커지는 내용이 아직 다
-   * 안 자랐으면 handleScroll 이 "바닥이 아니다"로 잘못 읽어 isAtBottom 을 false 로
-   * 굳혀버린다. 한 번 굳으면 아래 ResizeObserver 도 따라 내려가지 않아서, 가입 카드가
-   * "이용 중인지 확인하고 있어요" 한 줄에서 절차 화면으로 커질 때 중간에서 멈춘다.
+   * scroll 이벤트만 봐서는 누가 움직였는지 알 수 없다. 우리가 부른 scrollToBottom 도,
+   * 브라우저의 스크롤 앵커링(내용 높이가 바뀔 때 보던 자리를 유지하려는 기능)도 같은
+   * 이벤트를 일으킨다. 그걸 사용자의 뜻으로 읽으면, 카드가 뒤늦게 커지는 순간
+   * "바닥이 아니다"로 잘못 판단해 isAtBottom 을 꺼버리고 - 한 번 꺼지면 아래
+   * ResizeObserver 도 따라 내려가지 않아 가입 카드 중간에서 화면이 멈춘다.
    *
-   * 그래서 그 한 번은 판단 자료로 쓰지 않고 건너뛴다.
+   * 그래서 휠·터치·키보드 같은 실제 조작이 있었던 동안만 "위를 보고 있다"고 인정한다.
    */
-  const isProgrammaticScrollRef = useRef(false);
+  const lastUserScrollAtRef = useRef(0);
+
+  const markUserScroll = () => {
+    lastUserScrollAtRef.current = Date.now();
+  };
 
   const scrollToBottom = useCallback(() => {
     const element = scrollAreaRef.current;
     if (!element) return;
 
-    // 실제로 움직였을 때만 표시한다. 이미 바닥이면 scroll 이벤트가 안 와서, 그냥
-    // 켜두면 표시가 남아 있다가 다음에 사용자가 올린 스크롤 한 번을 잡아먹는다.
-    // scrollTop 대입은 그 자리에서 반영되므로(넘치면 최대값으로 잘린다) 바로 비교한다.
-    const before = element.scrollTop;
     element.scrollTop = element.scrollHeight;
-
-    if (element.scrollTop !== before) isProgrammaticScrollRef.current = true;
   }, []);
 
   // 2. 부수 효과
@@ -316,16 +321,21 @@ export default function ChatRoom({
     const element = scrollAreaRef.current;
     if (!element) return;
 
-    // 우리가 방금 옮긴 스크롤이면 판단하지 않는다 - 사용자가 올린 게 아니고,
-    // 아직 안 자란 내용 때문에 "바닥이 아니다"로 잘못 읽힐 수 있다(위 주석 참고)
-    if (isProgrammaticScrollRef.current) {
-      isProgrammaticScrollRef.current = false;
+    const distanceToBottom =
+      element.scrollHeight - element.scrollTop - element.clientHeight;
+
+    // 바닥으로 돌아온 것은 누가 옮겼든 사실이므로 그대로 받아들인다
+    if (distanceToBottom <= BOTTOM_THRESHOLD_PX) {
+      setIsAtBottom(true);
       return;
     }
 
-    const distanceToBottom =
-      element.scrollHeight - element.scrollTop - element.clientHeight;
-    setIsAtBottom(distanceToBottom <= BOTTOM_THRESHOLD_PX);
+    // 바닥에서 벗어난 것은 사용자가 직접 움직였을 때만 인정한다(위 주석 참고).
+    // 카드가 뒤늦게 커져서 생긴 거리 차이로는 자동 스크롤을 끄지 않는다.
+    const isUserDriven =
+      Date.now() - lastUserScrollAtRef.current < USER_SCROLL_WINDOW_MS;
+
+    if (isUserDriven) setIsAtBottom(false);
   };
 
   const handleSend = () => {
@@ -500,7 +510,21 @@ export default function ChatRoom({
       <div
         ref={scrollAreaRef}
         onScroll={handleScroll}
-        className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto pt-(--height-header) pb-(--height-chat-input)"
+        /*
+          휠·터치·키보드는 "사용자가 직접 움직였다"는 신호다 - handleScroll 은 이 신호가
+          있었을 때만 자동 스크롤을 끈다. 클릭(pointerdown)은 넣지 않는다: 카드 안의
+          버튼을 누르는 것도 클릭이라, 그걸 조작으로 세면 신청하기 직후의 자동 스크롤이
+          바로 꺼져버린다.
+        */
+        onWheel={markUserScroll}
+        onTouchMove={markUserScroll}
+        onKeyDown={markUserScroll}
+        /*
+          [overflow-anchor:none]: 브라우저가 내용 높이 변화에 맞춰 스크롤을 스스로
+          되돌리는 기능(스크롤 앵커링)을 끈다. 켜져 있으면 카드가 커질 때 우리가 맞춰둔
+          바닥 위치를 브라우저가 다시 위로 끌어올려, 자동 스크롤과 계속 부딪힌다.
+        */
+        className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto pt-(--height-header) pb-(--height-chat-input) [overflow-anchor:none]"
       >
         {/*
           복구가 아직 안 끝났다(주로 회원 - 서버에서 대화를 받아오는 1~2초 구간).
