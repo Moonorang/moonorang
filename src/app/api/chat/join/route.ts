@@ -19,10 +19,9 @@ import {
   buildAddOnJoinMessage,
   buildPlanJoinMessage,
   buildSubscriptionJoinMessage,
+  isJoinKind,
 } from '@/entities/join';
-import type { JoinKind, JoinProgress, JoinTarget } from '@/entities/join/types';
-
-const JOIN_KINDS: JoinKind[] = ['plan', 'addOn', 'subscription'];
+import type { JoinProgress, JoinTarget } from '@/entities/join/types';
 
 /** 요청 바디에서 어떤 상품에 대한 카드인지를 읽어낸다. 모양이 안 맞으면 null */
 function parseJoinTarget(body: unknown): JoinTarget | null {
@@ -30,10 +29,10 @@ function parseJoinTarget(body: unknown): JoinTarget | null {
 
   const { kind, itemId } = body as { kind?: unknown; itemId?: unknown };
 
-  if (!JOIN_KINDS.includes(kind as JoinKind)) return null;
+  if (!isJoinKind(kind)) return null;
   if (typeof itemId !== 'number' || !Number.isInteger(itemId)) return null;
 
-  return { kind: kind as JoinKind, itemId };
+  return { kind, itemId };
 }
 
 /**

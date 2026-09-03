@@ -1,3 +1,4 @@
+import { isJoinKind } from '@/entities/join';
 import type { Plan } from '@/entities/plan/types';
 
 import { CHAT_STORAGE_KEY } from '@/features/chat/constants';
@@ -31,7 +32,10 @@ function normalizeJoinBlock(stored: unknown): JoinBlock | null {
 
   const block = stored as Partial<JoinBlock> & Partial<LegacyJoinBlock>;
 
-  if (block.kind === 'plan' && block.item) {
+  // 종류를 여기 적어두지 않고 entities/join 의 목록으로 가린다 - 예전에 'plan' 만
+  // 통과시키도록 적어뒀다가 부가서비스·구독을 더할 때 같이 못 고쳐서, 비회원이
+  // 띄운 그 카드들이 복구 때마다 조용히 사라진 적이 있다.
+  if (isJoinKind(block.kind) && block.item) {
     return block as JoinBlock;
   }
 
@@ -42,8 +46,8 @@ function normalizeJoinBlock(stored: unknown): JoinBlock | null {
     return { ...rest, kind: 'plan', item: plan };
   }
 
-  // 알 수 없는 모양(앞으로 늘어날 종류를 예전 버전이 읽는 경우)은 버린다 -
-  // 그릴 방법이 없는 카드를 들고 있어봐야 저장분에만 남는다
+  // 그래도 모르겠는 모양은 버린다 - 그릴 방법이 없는 카드를 들고 있어봐야
+  // 저장분에만 남는다
   return null;
 }
 
