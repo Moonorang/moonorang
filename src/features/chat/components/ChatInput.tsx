@@ -89,7 +89,7 @@ export default function ChatInput({
           onKeyDown={handleKeyDown}
           disabled={isInputDisabled}
           placeholder={placeholder}
-          className="min-w-0 flex-1 truncate bg-transparent text-12 text-text-primary placeholder:text-text-secondary focus:outline-none disabled:cursor-not-allowed"
+          className="min-w-0 flex-1 truncate bg-transparent text-14 text-text-primary placeholder:text-text-secondary focus:outline-none disabled:cursor-not-allowed"
         />
 
         <button

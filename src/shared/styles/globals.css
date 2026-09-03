@@ -53,7 +53,7 @@
   --text-32: 32px;
 
   /* Line-height */
-  --leading-fixed: 16px;
+  --leading-fixed: 18px;
 
   /* 기본 그림자 */
   --shadow-default: 0px 4px 10px 0px rgba(181, 181, 181, 0.25);
@@ -62,7 +62,7 @@
   --width-container: 768px;
 
   /* 기본 자간 */
-  --tracking-tight: -0.04em;
+  --tracking-tight: -0.02em;
 }
 
 /* 폰트 */
