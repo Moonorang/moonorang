@@ -328,7 +328,7 @@ function NearbyMembershipMapModal({
       aria-label="내 주변 혜택 지도"
       className="fixed inset-0 z-(--z-modal) flex flex-col bg-background-page"
     >
-      <div className="mx-auto flex h-full w-full max-w-(--width-container) flex-col bg-background-default">
+      <div className="mx-auto flex h-full w-full max-w-(--width-container) min-w-(--width-container-min) flex-col bg-background-default">
         {/* 로그인 화면 등 다른 흐름 화면과 같은 뒤로가기 전용 헤더 모양(제목·우측
             아이콘 없음) - Header.tsx의 variant="back"을 그대로 흉내낸다. 그
             컴포넌트 자체는 fixed 포지션이라 이 모달(이미 fixed) 안에 그대로

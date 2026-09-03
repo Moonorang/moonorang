@@ -9,7 +9,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { next, error } = await searchParams;
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-(--width-container) flex-col items-center bg-background-subtle px-4 pt-(--height-header)">
+    <div className="mx-auto flex min-h-dvh w-full max-w-(--width-container) min-w-(--width-container-min) flex-col items-center bg-background-subtle px-4 pt-(--height-header)">
       <h1 className="mt-16 mb-8 text-32 font-bold text-text-primary">로그인</h1>
 
       <KakaoLoginButton nextPath={resolveNextPath(next)} errorCode={error} />

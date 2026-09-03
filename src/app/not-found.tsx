@@ -162,7 +162,7 @@ export default function NotFoundPage() {
     // 중앙 정렬한다 - 이게 없으면 데모 박스들 때문에 페이지가 화면보다 넓어져 가로
     // 스크롤이 생기고, 스크롤을 밀어둔 채로 모달(fixed inset-0, 화면 기준 정중앙)을
     // 열면 문서 기준으로는 오른쪽에 쏠려 보이는 착시가 생긴다.
-    <div className="mx-auto min-h-dvh max-w-(--width-container) bg-background-subtle px-4 pt-(--height-header)">
+    <div className="mx-auto min-h-dvh max-w-(--width-container) min-w-(--width-container-min) bg-background-subtle px-4 pt-(--height-header)">
       {/* 예시 1. 기본 형태 */}
       <div className="flex items-center gap-4">
         <LogIn />
@@ -362,10 +362,9 @@ export default function NotFoundPage() {
       <div className="m-5 w-90 rounded-md bg-background-subtle p-4">
         <UsageAnalysisSection data={usageAnalysisDemo} onJoin={() => {}} />
       </div>
-      <br />
-      내 주변 혜택 카드 (임시 데모 데이터 - 실제 검색 결과가 0건이면 카드 자체가
-      안 뜨므로, 여기서는 가짜 3곳으로 항상 채워둠. 미니 지도를 눌러야 전체
-      모달이 뜸)
+      <br />내 주변 혜택 카드 (임시 데모 데이터 - 실제 검색 결과가 0건이면 카드
+      자체가 안 뜨므로, 여기서는 가짜 3곳으로 항상 채워둠. 미니 지도를 눌러야
+      전체 모달이 뜸)
       <div className="m-5 w-90 rounded-md bg-background-subtle p-4">
         <NearbyMembershipCard
           memberships={nearbyMembershipDemo}
@@ -498,8 +497,9 @@ export default function NotFoundPage() {
         <ScrollToBottomButton onClick={() => {}} />
       </div>
       <br />
-      모달 3종 (ConfirmModal 통일 버전 - CHAT-014 대화 초기화 / AUTH-004 가입 이탈 /
-      로그인 시 회원·게스트 대화 충돌. 셋 다 내부적으로 같은 ConfirmModal을 씀)
+      모달 3종 (ConfirmModal 통일 버전 - CHAT-014 대화 초기화 / AUTH-004 가입
+      이탈 / 로그인 시 회원·게스트 대화 충돌. 셋 다 내부적으로 같은
+      ConfirmModal을 씀)
       <div className="m-5 flex flex-wrap items-center gap-2">
         <Button variant="outline" onClick={() => setIsResetModalOpen(true)}>
           1. ConfirmModal (대화 초기화)
@@ -514,10 +514,10 @@ export default function NotFoundPage() {
           variant={isExitDialogExiting ? 'main' : 'ghost'}
           onClick={() => setIsExitDialogExiting((prev) => !prev)}
         >
-          2번의 &quot;나가는 중...&quot; 상태 미리보기: {isExitDialogExiting ? 'ON' : 'OFF'}
+          2번의 &quot;나가는 중...&quot; 상태 미리보기:{' '}
+          {isExitDialogExiting ? 'ON' : 'OFF'}
         </Button>
       </div>
-
       <ConfirmModal
         isOpen={isResetModalOpen}
         title="대화를 초기화할까요?"
@@ -526,7 +526,6 @@ export default function NotFoundPage() {
         onConfirm={() => setIsResetModalOpen(false)}
         onCancel={() => setIsResetModalOpen(false)}
       />
-
       {isExitDialogOpen && (
         <ExitSignupDialog
           isExiting={isExitDialogExiting}
@@ -534,7 +533,6 @@ export default function NotFoundPage() {
           onConfirm={() => setIsExitDialogOpen(false)}
         />
       )}
-
       {isChatConflictOpen && (
         <ChatConflictModal
           guestMessageCount={3}

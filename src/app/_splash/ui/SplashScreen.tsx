@@ -95,7 +95,7 @@ export default function SplashScreen() {
           : 'opacity-100 duration-0',
       )}
     >
-      <div className="mx-auto flex h-full max-w-(--width-container) items-center justify-center bg-[#FDF3CB]">
+      <div className="mx-auto flex h-full max-w-(--width-container) min-w-(--width-container-min) items-center justify-center bg-[#FDF3CB]">
         <Image
           src="/images/splash.png"
           alt=""

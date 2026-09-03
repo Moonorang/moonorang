@@ -89,7 +89,7 @@ export default function TutorialModal() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 24 }}
               transition={{ type: 'tween', ease: 'easeOut', duration: 0.25 }}
-              className="pointer-events-auto flex h-full w-full max-w-(--width-container) flex-col bg-background-subtle"
+              className="pointer-events-auto flex h-full w-full max-w-(--width-container) min-w-(--width-container-min) flex-col bg-background-subtle"
             >
               {/* 진행 표시줄 + 건너뛰기 */}
               <div className="flex items-center justify-end p-4">

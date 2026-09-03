@@ -67,7 +67,7 @@ export default function ChatInput({
       onSubmit={handleSubmit}
       className={cn(
         'fixed inset-x-0 bottom-0 z-(--z-chat-input)',
-        'mx-auto flex w-full max-w-(--width-container) items-center gap-2',
+        'mx-auto flex w-full max-w-(--width-container) min-w-(--width-container-min) items-center gap-2',
         'border-t border-border-default bg-background-default px-4 py-2',
         appendClassName,
       )}

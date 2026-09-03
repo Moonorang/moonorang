@@ -55,7 +55,7 @@ export default function FloatingChatButton() {
     // 헤더/입력창과 같은 이유 - fixed는 뷰포트 기준이라, 그냥 right-4로 두면 넓은
     // 화면에서 최대 너비 컬럼 밖(뷰포트 오른쪽 끝)으로 나가버린다. 감싸는 div를
     // 컬럼 폭으로 맞춘 뒤(pointer-events-none) 그 안에서 우측 정렬한다.
-    <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 mx-auto flex w-full max-w-(--width-container) justify-end px-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 mx-auto flex w-full max-w-(--width-container) min-w-(--width-container-min) justify-end px-4">
       <div className="pointer-events-auto flex items-center gap-2">
         <AnimatePresence>
           {isTooltipVisible && (
