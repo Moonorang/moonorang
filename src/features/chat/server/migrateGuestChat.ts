@@ -3,6 +3,7 @@ import {
   getJoinBlockMessage,
   getJoinBlockTarget,
 } from '@/features/chat/lib/joinBlock';
+import { mergeKeywords } from '@/features/chat/lib/mergeKeywords';
 import {
   getChatSummary,
   getOrCreateActiveChat,
@@ -132,8 +133,15 @@ export async function migrateGuestChat(
 
   const tasks: Promise<unknown>[] = [];
 
+  // 회원 쪽에 이미 있던 조건을 게스트 값으로 덮어쓰지 않고 병합한다 - 아래 요약과
+  // 같은 이유다. 이 경로는 두 대화를 "이어서 보기"로 합치는 자리인데, 대화만 이어
+  // 붙이고 조건은 게스트 것으로 갈아치우면 로그아웃 전에 말해둔 예산·데이터 사용량·
+  // 관심사가 통째로 사라진다. 병합 규칙은 chat-api-design.md §2.5 그대로 -
+  // 예산 같은 스칼라는 최신값(게스트)이 이기고, interests 는 합집합으로 쌓인다.
   if (Object.keys(keywords).length > 0) {
-    tasks.push(updateChatKeywords(chat.id, keywords));
+    tasks.push(
+      updateChatKeywords(chat.id, mergeKeywords(chat.keywords, keywords)),
+    );
   }
 
   // 게스트 때 이미 요약돼있던 구간이 있으면, 방금 넣은 마지막 메시지를 기준점으로
