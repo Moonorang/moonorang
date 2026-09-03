@@ -62,7 +62,10 @@ export default function PlanCard({
   return (
     <div
       className={cn(
-        'flex w-[80%] flex-col gap-2 rounded-md bg-background-default p-4 shadow-default',
+        // ChatBubble과 같은 이유 - 모바일에서는 부모 폭의 80%로 자연스럽게 줄어들되,
+        // 넓은 화면에서는 400px을 절대 상한으로 건다. PlanCardCarousel의 CARD_WIDTH,
+        // 화살표 위치와 반드시 같은 값이어야 한다.
+        'flex w-[min(80%,400px)] flex-col gap-2 rounded-md bg-background-default p-4 shadow-default',
         appendClassName,
       )}
     >
