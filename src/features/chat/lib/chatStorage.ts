@@ -1,0 +1,69 @@
+import { CHAT_STORAGE_KEY } from '@/features/chat/constants';
+import type {
+  ChatKeywords,
+  ChatMessage,
+  PlanJoinBlock,
+} from '@/features/chat/types';
+
+export interface StoredChatState {
+  messages: ChatMessage[];
+  /** 오래된 대화 압축 요약 - 화면엔 안 보이고 다음 요청의 시스템 프롬프트에만 실린다 */
+  summary: string;
+  /** messages 중 앞에서부터 몇 턴이 이미 summary에 반영됐는지 */
+  summarizedTurnCount: number;
+  keywords: ChatKeywords;
+  /** CARD-029: 대화 중간에 띄운 가입 카드들 - 메시지와 같이 복구해야 순서가 유지된다 */
+  joinBlocks: PlanJoinBlock[];
+}
+
+/**
+ * CHAT-011/012: 비회원 대화를 서버 DB가 아니라 브라우저에만 저장하고, 다른 화면에
+ * 갔다 돌아와도 복구한다. localStorage는 프라이빗 모드·용량 초과 등으로 언제든
+ * 실패할 수 있어서, 실패해도 대화 자체는 안 막히게 전부 조용히 무시한다 -
+ * 저장/복구가 안 될 뿐 채팅 기능엔 지장이 없어야 한다(NFR-006과 같은 취지).
+ */
+export function saveChatState(state: StoredChatState): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // 저장 실패 - 다음 방문 때 복구가 안 될 뿐, 지금 대화엔 지장 없음
+  }
+}
+
+export function loadChatState(): StoredChatState | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Partial<StoredChatState> | null;
+    if (!parsed || !Array.isArray(parsed.messages)) return null;
+
+    return {
+      messages: parsed.messages,
+      summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+      summarizedTurnCount:
+        typeof parsed.summarizedTurnCount === 'number' ? parsed.summarizedTurnCount : 0,
+      keywords:
+        parsed.keywords && typeof parsed.keywords === 'object' ? parsed.keywords : {},
+      // 이 필드가 없던 시절에 저장된 값도 그대로 복구돼야 한다 - 없으면 빈 배열
+      joinBlocks: Array.isArray(parsed.joinBlocks) ? parsed.joinBlocks : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** CHAT-014: 대화 초기화 시 로컬 저장분도 같이 지운다 */
+export function clearChatState(): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.removeItem(CHAT_STORAGE_KEY);
+  } catch {
+    // 무시
+  }
+}

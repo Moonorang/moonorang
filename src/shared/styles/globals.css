@@ -1,0 +1,102 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Action */
+  --color-action-primary: #f86e7b;
+  --color-action-primary-light: #ffedef;
+  --color-action-secondary: #f6c740;
+  --color-action-secondary-light: #fff3d0;
+
+  /* Accent (목록/아이콘 구분용) */
+  --color-accent-1: #a6cf4f;
+  --color-accent-1-light: #e3f6ba;
+  --color-accent-2: #77b2ff;
+  --color-accent-2-light: #ddecff;
+  --color-accent-3: #f298c2;
+
+  /* Background */
+  --color-background-default: #ffffff;
+  --color-background-subtle: #f8f8f8;
+
+  /* Text */
+  --color-text-primary: #4a4a4a;
+  --color-text-secondary: #aaaaaa;
+
+  /* Border */
+  --color-border-default: #dddddd;
+  --color-border-light: #f0f0f0;
+
+  /* Status */
+  --color-status-success: #16a34a;
+  --color-status-info: #2563eb;
+  --color-status-warning: #f59e0b;
+  --color-status-error: #dc2626;
+
+  /* Gradient */
+  --color-gradient-from: #ffa7b0;
+  --color-gradient-to: #ffd96e;
+
+  /* 모서리 반경 (radius) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* 폰트 사이즈 */
+  --text-10: 10px;
+  --text-12: 12px;
+  --text-14: 14px;
+  --text-16: 16px;
+  --text-18: 18px;
+  --text-20: 20px;
+  --text-32: 32px;
+
+  /* Line-height */
+  --leading-fixed: 16px;
+
+  /* 기본 그림자 */
+  --shadow-default: 0px 4px 10px 0px rgba(181, 181, 181, 0.25);
+
+  /* 컨테이너 최대 너비 */
+  --width-container: 768px;
+
+  /* 기본 자간 */
+  --tracking-tight: -0.04em;
+}
+
+/* 폰트 */
+@theme inline {
+  --font-sans: var(--font-noto-sans-kr);
+  --font-display: var(--font-display-local, var(--font-noto-sans-kr));
+}
+
+:root {
+  --z-header: 100;
+  --z-chat-input: 200;
+  --z-bottom-sheet: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  /* 앱 진입 시 잠깐 뜨는 인트로 화면 - 다른 모든 레이어(헤더/모달/토스트) 위에 떠야 한다 */
+  --z-splash: 600;
+
+  /* 헤더/입력창 고정 높이 */
+  --height-header: 50px;
+  --height-chat-input: 58px;
+}
+
+body {
+  background: var(--color-background-subtle);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans), sans-serif;
+  letter-spacing: -0.04em;
+}
+
+/* 가로 스크롤 영역(추천 질문 칩, 요금제 캐러셀 등)에서 스크롤바만 숨긴다 */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
