@@ -54,15 +54,14 @@ export default function UsageAnalysisSection({
   const smsRemaining = toUnlimitedLabel(sms);
   const recommendedPlan = savings?.recommendedPlan;
 
-  const usagePercentage = dataLimitGb
+  // 도넛 차트는 "남은 만큼"을 색칠해서 강조한다 - 바로 위 "잔여량" 뱃지들과 같은
+  // 초점(얼마나 남았는지)으로 맞추기 위함이다. 무제한 요금제는 다 남은 것으로 본다.
+  const remainingPercentage = dataLimitGb
     ? Math.min(
         100,
-        Math.max(
-          0,
-          Math.round(((dataLimitGb - remainingDataGb) / dataLimitGb) * 100),
-        ),
+        Math.max(0, Math.round((remainingDataGb / dataLimitGb) * 100)),
       )
-    : 0;
+    : 100;
 
   return (
     <div className={cn('flex w-full flex-col gap-4', appendClassName)}>
@@ -72,7 +71,7 @@ export default function UsageAnalysisSection({
         dataRemaining={formatGbLabel(remainingDataGb)}
         voiceRemaining={voiceRemaining}
         smsRemaining={smsRemaining}
-        usagePercentage={usagePercentage}
+        remainingPercentage={remainingPercentage}
       />
 
       {/* "내 요금제 정보 알려줘"처럼 현재 상태만 물었을 땐 trend 자체가 없다 -

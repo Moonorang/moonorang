@@ -2,30 +2,24 @@ import {
   Smartphone,
   ChevronDown,
   CircleDollarSign,
-  Pencil,
   Wifi,
   PhoneCall,
   MessageCircle,
 } from 'lucide-react';
 
-import Button from '@/shared/ui/Button';
 import { cn } from '@/shared/utils/cn';
 import { formatWon } from '@/shared/utils/formatCurrency';
 
 interface UsageAnalysisCardProps {
   currentPlanName: string;
   currentPlanPrice: number;
-  // 이용 중인 부가서비스 정보가 없는 문맥(예: 채팅 절약 상담)에서는 이 구획 자체를 생략한다 -
-  // 실제 가입 내역 없이 값을 지어내지 않기 위함(NFR-003~004와 같은 취지).
   addonsName?: string;
   addonsPrice?: number;
   dataRemaining: string;
   voiceRemaining: string;
   smsRemaining: string;
-  usagePercentage: number;
-  // 알림 설정 정보가 없는 문맥에서는 이 구획도 생략한다.
-  dataAlertLimit?: string;
-  onEditAlert?: () => void;
+  /** 도넛 차트에서 색칠해 강조하는 값 - "얼마나 남았는지" 기준(잔여 비율) */
+  remainingPercentage: number;
   appendClassName?: string;
 }
 
@@ -37,16 +31,13 @@ export default function UsageAnalysisCard({
   dataRemaining,
   voiceRemaining,
   smsRemaining,
-  usagePercentage,
-  dataAlertLimit,
-  onEditAlert,
+  remainingPercentage,
   appendClassName,
 }: UsageAnalysisCardProps) {
-  // SVG 도넛 차트를 위한 둘레 계산 (반지름 r=24)
   const radius = 24;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset =
-    circumference - (usagePercentage / 100) * circumference;
+    circumference - (remainingPercentage / 100) * circumference;
 
   return (
     <div
@@ -57,22 +48,22 @@ export default function UsageAnalysisCard({
     >
       <div className="flex items-center gap-1.5 px-1">
         <Smartphone size={16} className="text-text-primary" aria-hidden />
-        <h3 className="text-14 font-bold text-text-primary">사용량 분석</h3>
+        <h3 className="text-16 font-semibold text-text-primary">사용량 분석</h3>
       </div>
 
       {/* 현재 요금제 */}
       <div className="flex flex-col gap-1 rounded-lg bg-background-subtle p-4">
-        <div className="flex items-center justify-between text-10 text-text-secondary">
+        <div className="flex items-center justify-between text-12 text-text-secondary">
           <span>현재 요금제</span>
           <span className="flex items-center gap-1">
             <CircleDollarSign size={12} aria-hidden /> 8월 이용 요금
           </span>
         </div>
         <div className="flex items-end justify-between">
-          <span className="text-14 font-bold text-text-primary">
+          <span className="text-14 font-semibold text-text-primary">
             {currentPlanName}
           </span>
-          <span className="text-14 font-bold text-action-primary">
+          <span className="text-14 font-semibold text-action-primary">
             {formatWon(currentPlanPrice)}원
           </span>
         </div>
@@ -84,12 +75,12 @@ export default function UsageAnalysisCard({
           <div className="flex items-center justify-between text-10 text-text-secondary">
             <span>이용중인 부가서비스</span>
             <span className="flex items-center gap-1">
-              <CircleDollarSign size={12} aria-hidden /> 8월 이용 요금
+              <CircleDollarSign size={12} aria-hidden /> 월 이용 요금
             </span>
           </div>
           <div className="flex items-end justify-between">
             <div className="flex items-center gap-1">
-              <span className="text-14 font-bold text-text-primary">
+              <span className="text-14 font-semibold text-text-primary">
                 {addonsName}
               </span>
               <ChevronDown
@@ -98,7 +89,7 @@ export default function UsageAnalysisCard({
                 aria-hidden
               />
             </div>
-            <span className="text-14 font-bold text-action-primary">
+            <span className="text-14 font-semibold text-action-primary">
               {formatWon(addonsPrice)}원
             </span>
           </div>
@@ -107,7 +98,7 @@ export default function UsageAnalysisCard({
 
       {/* 남은 사용량 */}
       <div className="flex flex-col gap-4 rounded-lg bg-background-subtle p-4">
-        <h4 className="text-center text-12 font-bold text-text-primary">
+        <h4 className="text-left text-14 font-semibold text-text-primary">
           남은 사용량
         </h4>
 
@@ -129,7 +120,7 @@ export default function UsageAnalysisCard({
                 cx="30"
                 cy="30"
                 r={radius}
-                className="fill-none stroke-action-secondary"
+                className="fill-none stroke-action-primary"
                 strokeWidth="6"
                 strokeDasharray={circumference}
                 strokeDashoffset={strokeDashoffset}
@@ -137,58 +128,38 @@ export default function UsageAnalysisCard({
               />
             </svg>
             <div className="absolute flex flex-col items-center justify-center">
-              <span className="text-14 font-bold text-text-primary">
-                {usagePercentage}%
+              <span className="text-14 font-semibold text-text-primary">
+                {remainingPercentage}%
               </span>
-              <span className="text-10 text-text-secondary">사용중</span>
+              <span className="text-10 font-medium text-text-secondary">
+                남음
+              </span>
             </div>
           </div>
 
           {/* 잔여량 뱃지 */}
           <div className="flex flex-1 flex-col gap-1.5">
-            <div className="flex items-center justify-between rounded-sm bg-accent-2-light px-2 py-1 text-10 font-bold text-accent-2">
+            <div className="flex items-center justify-between rounded-sm bg-accent-2-light px-2 py-1 text-12 font-medium text-accent-2">
               <span className="flex items-center gap-1">
-                <Wifi size={12} /> 데이터
+                <Wifi size={12} strokeWidth={2.5} /> 데이터
               </span>
               <span>{dataRemaining}</span>
             </div>
-            <div className="flex items-center justify-between rounded-sm bg-accent-1-light px-2 py-1 text-10 font-bold text-accent-1">
+            <div className="flex items-center justify-between rounded-sm bg-accent-1-light px-2 py-1 text-12 font-medium text-accent-1">
               <span className="flex items-center gap-1">
-                <PhoneCall size={12} /> 음성
+                <PhoneCall size={12} strokeWidth={2.5} /> 음성
               </span>
               <span>{voiceRemaining}</span>
             </div>
-            <div className="flex items-center justify-between rounded-sm bg-action-secondary-light px-2 py-1 text-10 font-bold text-action-secondary">
+            <div className="flex items-center justify-between rounded-sm bg-action-secondary-light px-2 py-1 text-12 font-medium text-action-secondary">
               <span className="flex items-center gap-1">
-                <MessageCircle size={12} /> SMS
+                <MessageCircle size={12} strokeWidth={2.5} /> SMS
               </span>
               <span>{smsRemaining}</span>
             </div>
           </div>
         </div>
       </div>
-
-      {/* 데이터 알림 설정 - 설정값이 있을 때만 표시 */}
-      {dataAlertLimit !== undefined && (
-        <div className="flex items-center justify-between rounded-lg bg-background-subtle p-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-10 text-text-secondary">
-              현재 데이터 제한 알림 설정
-            </span>
-            <span className="text-14 font-bold text-text-primary">
-              {dataAlertLimit} 남았을 때
-            </span>
-          </div>
-          <Button
-            variant="outline"
-            radius="full"
-            gap="sm"
-            onClick={onEditAlert}
-          >
-            <Pencil size={12} /> 수정하기
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
