@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import ChatAvatar from '@/features/chat/components/ChatAvatar';
 import ChatBubble from '@/features/chat/components/ChatBubble';
 import FormattedMessage from '@/features/chat/components/FormattedMessage';
-import ReadAloudButton from '@/features/chat/components/ReadAloudButton';
 import TypingIndicator from '@/features/chat/components/TypingIndicator';
 
 import { cn } from '@/shared/utils/cn';
@@ -30,11 +29,7 @@ export default function AiMessage({
       <ChatAvatar />
 
       <div className="flex w-full flex-col items-start gap-2">
-        {/* 답변이 다 나온 뒤에만 읽어주기를 붙인다 - 말풍선 우측 하단 */}
-        <ChatBubble
-          variant="ai"
-          footer={!isStreaming && <ReadAloudButton text={content} />}
-        >
+        <ChatBubble variant="ai">
           {isWaitingForFirstToken ? (
             <TypingIndicator />
           ) : (

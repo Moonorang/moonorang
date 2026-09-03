@@ -13,7 +13,6 @@ export { default as FormattedMessage } from './components/FormattedMessage';
 export { default as NearbyMembershipCard } from './components/NearbyMembershipCard';
 export { default as PlanCardCarousel } from './components/PlanCardCarousel';
 export { default as PlusMenu } from './components/PlusMenu';
-export { default as ReadAloudButton } from './components/ReadAloudButton';
 export { default as ScrollToBottomButton } from './components/ScrollToBottomButton';
 export { default as SubscriptionRecommendationCard } from './components/SubscriptionRecommendationCard';
 export { default as SuggestionChips } from './components/SuggestionChips';
