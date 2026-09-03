@@ -88,13 +88,14 @@ export default function SplashScreen() {
     <div
       role="presentation"
       className={cn(
-        'fixed inset-0 z-(--z-splash) bg-[#FDF3CB] transition-opacity ease-out',
+        // COMMON-006: 다른 화면과 같은 규칙 - 최대 너비 컬럼 바깥은 검은색
+        'fixed inset-0 z-(--z-splash) bg-background-page transition-opacity ease-out',
         phase === 'leaving'
           ? 'opacity-0 duration-300'
           : 'opacity-100 duration-0',
       )}
     >
-      <div className="mx-auto flex h-full max-w-(--width-container) items-center justify-center">
+      <div className="mx-auto flex h-full max-w-(--width-container) items-center justify-center bg-[#FDF3CB]">
         <Image
           src="/images/splash.png"
           alt=""
