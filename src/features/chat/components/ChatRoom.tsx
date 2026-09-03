@@ -552,7 +552,7 @@ export default function ChatRoom({
       <ConfirmModal
         isOpen={isResetConfirmOpen}
         title="대화를 초기화할까요?"
-        description="지금까지 나눈 대화와 진행 중인 가입 카드가 모두 사라져요. 되돌릴 수 없어요."
+        description="지금까지 나눈 대화와 수집한 키워드가 모두 사라져요. 되돌릴 수 없어요."
         confirmLabel="초기화"
         onConfirm={handleResetConfirm}
         onCancel={closeResetConfirm}
