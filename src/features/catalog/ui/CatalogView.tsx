@@ -1,14 +1,11 @@
 'use client';
 
-import AddOnDetailModal from '@/features/catalog/ui/AddOnDetailModal';
 import AddOnRow from '@/features/catalog/ui/AddOnRow';
 import CatalogTabs from '@/features/catalog/ui/CatalogTabs';
 import EmptyNotice from '@/features/catalog/ui/EmptyNotice';
 import MembershipDetailModal from '@/features/catalog/ui/MembershipDetailModal';
 import MembershipRow from '@/features/catalog/ui/MembershipRow';
-import PlanDetailModal from '@/features/catalog/ui/PlanDetailModal';
 import PlanRow from '@/features/catalog/ui/PlanRow';
-import SubscriptionDetailModal from '@/features/catalog/ui/SubscriptionDetailModal';
 import SubscriptionRow from '@/features/catalog/ui/SubscriptionRow';
 
 import { CATALOG_EMPTY_MESSAGES } from '@/features/catalog/constants';
@@ -22,7 +19,10 @@ import {
   buildSubscriptionJoinMessage,
 } from '@/entities/join';
 import type { AddOn } from '@/entities/addOn/types';
+import AddOnDetailModal from '@/entities/addOn/ui/AddOnDetailModal';
 import type { MembershipBrand } from '@/entities/membershipBrand/types';
+import PlanDetailModal from '@/entities/plan/ui/PlanDetailModal';
+import SubscriptionDetailModal from '@/entities/subscription/ui/SubscriptionDetailModal';
 import type { Plan } from '@/entities/plan/types';
 import type { Subscription } from '@/entities/subscription/types';
 

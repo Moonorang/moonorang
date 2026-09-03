@@ -29,7 +29,7 @@ import type { ChatKeywords, JoinBlock } from '@/features/chat/types';
 
 import { takePendingChatMessage } from '@/entities/chat';
 import { getJoinKey } from '@/entities/join';
-import type { JoinKind, JoinProgress } from '@/entities/join/types';
+import type { JoinItem, JoinKind, JoinProgress } from '@/entities/join/types';
 import type { Plan } from '@/entities/plan/types';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
 
@@ -352,11 +352,15 @@ export default function ChatRoom({
   // 몇 마디 더 물어본 뒤에 신청하기를 누르는 일이 흔한데, 그때 추천 카드 자리에
   // 끼워 넣으면 화면은 맨 아래에 있는데 카드는 저 위에 생겨서 눌러도 아무것도
   // 안 나온 것처럼 보인다. 방금 보낸 말처럼 아래에 이어 붙여야 흐름이 안 끊긴다.
-  const handleJoin = (plan: Plan) => {
+  const handleJoinItem = (item: JoinItem) => {
     setIsAtBottom(true);
     // 아직 주고받은 말이 없으면(목록에서 바로 넘어온 경우) 대화 맨 앞에 붙인다
-    addJoinBlock({ kind: 'plan', item: plan }, lastMessageId ?? null);
+    addJoinBlock(item, lastMessageId ?? null);
   };
+
+  // 요금제 전용 진입점 - 추천 캐러셀과 사용량 분석 카드가 Plan 을 그대로 넘긴다
+  const handleJoin = (plan: Plan) =>
+    handleJoinItem({ kind: 'plan', item: plan });
 
   /**
    * 가입 카드 한 장 - 사용자 말풍선 + 안내 말풍선 + 그 안의 절차 카드.
@@ -481,6 +485,9 @@ export default function ChatRoom({
                       message.addOnRecommendations.length > 0 && (
                         <AddOnRecommendationCard
                           recommendations={message.addOnRecommendations}
+                          onJoin={(addOn) =>
+                            handleJoinItem({ kind: 'addOn', item: addOn })
+                          }
                         />
                       )}
                     {!isMessageStreaming &&
@@ -488,6 +495,12 @@ export default function ChatRoom({
                       message.subscriptionRecommendations.length > 0 && (
                         <SubscriptionRecommendationCard
                           recommendations={message.subscriptionRecommendations}
+                          onJoin={(subscription) =>
+                            handleJoinItem({
+                              kind: 'subscription',
+                              item: subscription,
+                            })
+                          }
                         />
                       )}
                     {!isMessageStreaming &&

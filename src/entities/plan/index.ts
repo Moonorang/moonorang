@@ -9,3 +9,4 @@ export {
   parseVoiceSms,
 } from './lib/format';
 export type { Plan, PlanBenefits, PlanOption } from './types';
+export { default as PlanDetailModal } from './ui/PlanDetailModal';
