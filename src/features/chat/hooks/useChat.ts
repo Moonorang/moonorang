@@ -110,12 +110,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
   // CHAT-008: 응답 생성 중단용. 진행 중인 요청이 있을 때만 값이 있다.
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // CARD-028: 브라우저 위치 정보. 페이지 진입 시가 아니라 메시지를 보낼 때 요청한다 -
-  // 채팅을 아예 안 쓰는 사용자에게 미리 위치 권한을 묻지 않기 위함이다. 아직 위치를
-  // 못 얻었으면 메시지를 보낼 때마다 다시 시도한다(이미 얻었으면 재요청 안 함) -
-  // 처음엔 거부했다가 나중에 브라우저 설정에서 허용해도, 다음 메시지에서 자연스럽게
-  // 다시 시도되는 게 COMMON-002의 "재시도 수단"이다. 실패해도 조용히 넘어간다 -
-  // find_nearby_memberships를 실제로 부를 때만 서버가 "위치가 없다"고 안내한다.
+  // CARD-028: 브라우저 위치 정보. 아무 메시지에나 미리 물어보지 않고, 서버가
+  // "지금 이 요청에 실제로 위치가 필요했다"고 알려준 순간(locationNeeded 이벤트 -
+  // find_nearby_memberships가 위치 없이 불렸을 때만 온다)에만 권한을 요청한다.
+  // 그 전까지 메시지는 그냥 location 없이(undefined) 나간다. 처음엔 거부했다가
+  // 나중에 브라우저 설정에서 허용해도, 그다음 주변 혜택을 다시 물어볼 때 자연스럽게
+  // 다시 시도되는 게 COMMON-002의 "재시도 수단"이다.
   // ref는 runChatRequest가 요청 직전에 최신값을 동기로 읽기 위한 것이고, state는
   // NearbyMembershipCard의 미니 지도가 "내 위치" 핀을 찍을 수 있게 화면에 내려주기
   // 위한 것 - 둘이 항상 같은 값을 가리키도록 같이 갱신한다.
@@ -123,12 +123,10 @@ export function useChat(isLoggedIn: boolean | undefined) {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
     null,
   );
-  // getCurrentPosition은 비동기라, 예전엔 이 결과를 기다리지 않고 곧바로 fetch를
-  // 보내서 - 권한이 이미 허용돼 있어도 매번 위치 없이 요청이 나가는 레이스가 있었다
-  // (locationRef.current가 아직 null인 채로 fetch 본문이 만들어짐). 그래서
-  // runChatRequest가 이 promise를 await해서 요청을 보내기 직전에 위치가 반영되게
-  // 한다. 이미 얻은 뒤(locationRef.current 있음)나 요청이 이미 진행 중일 때는
-  // 새로 묻지 않고 같은 promise/값을 재사용한다.
+  // locationNeeded 이벤트가 응답 하나 안에서 여러 번 오거나, 사용자가 아직 권한
+  // 대화상자에 답하기 전에 또 주변 혜택을 물어봐도 getCurrentPosition을 중복 호출하지
+  // 않도록 진행 중인 promise를 재사용한다. 이미 얻은 뒤(locationRef.current 있음)면
+  // 아예 다시 묻지 않는다.
   const locationPromiseRef = useRef<Promise<{
     lat: number;
     lng: number;
@@ -156,9 +154,21 @@ export function useChat(isLoggedIn: boolean | undefined) {
             setLocation(nextLocation);
             resolve(nextLocation);
           },
-          () => {
-            // 거부·타임아웃 등 - promise를 비워서 다음 메시지를 보낼 때 다시
+          (positionError) => {
+            // 브라우저 권한을 "허용"해도 이 콜백으로 올 수 있다 - 권한과 실제 위치
+            // 취득은 별개라, OS 자체의 위치 서비스가 꺼져 있으면(Windows 설정 ->
+            // 개인정보 및 보안 -> 위치) code 2(POSITION_UNAVAILABLE)로 실패한다.
+            // 원인 구분 없이 조용히 넘어가면 "허용했는데 왜 안 되는지" 못 알아채므로
+            // 콘솔에 남긴다. resolve(null)로 promise를 비워서 다음에 다시
             // 시도되게 한다(COMMON-002의 "재시도 수단").
+            const reason =
+              positionError.code === positionError.PERMISSION_DENIED
+                ? '권한 거부'
+                : positionError.code === positionError.POSITION_UNAVAILABLE
+                  ? '위치를 가져올 수 없음(OS 위치 서비스가 꺼져 있을 수 있음)'
+                  : '시간 초과';
+            console.warn(`[chat] 위치 정보 요청 실패 - ${reason}:`, positionError.message);
+
             locationPromiseRef.current = null;
             resolve(null);
           },
@@ -580,11 +590,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
       abortControllerRef.current = abortController;
 
       try {
-        // CARD-028: 요청을 보내기 직전에 위치를 기다린다 - fetch를 먼저 쏘고
-        // 위치는 나중에 오는 레이스가 있으면, 권한이 이미 허용돼 있어도 매번
-        // location 없이 요청이 나간다. 이미 얻었으면(또는 이미 실패했으면)
-        // 즉시 반환되므로 두 번째 메시지부터는 지연이 없다.
-        const location = await ensureLocationRequested();
+        // CARD-028: 여기서는 권한을 요청하지 않는다 - 이미 얻어둔 값(locationRef)이
+        // 있으면 그걸 실어 보내고, 없으면 그냥 undefined로 보낸다. 이번 메시지가
+        // 실제로 위치가 필요한 요청이었다면, 서버가 locationNeeded 이벤트로 알려주고
+        // 그때 가서야 권한을 요청한다(아래 스트림 처리 부분).
+        const location = locationRef.current;
 
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -644,6 +654,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
               );
             } else if (parsed?.event === 'nearbyMembership') {
               setAiMessageNearbyMemberships(parsed.data.memberships);
+            } else if (parsed?.event === 'locationNeeded') {
+              // 이번 요청이 실제로 위치가 필요했는데 없었다는 신호 - 그제서야
+              // 브라우저 권한을 요청한다. 지금 이 응답에 자동으로 반영되진 않고
+              // (이미 흘러가는 중), 다음에 다시 물어보거나 재시도할 때 실린다.
+              void ensureLocationRequested();
             } else if (parsed?.event === 'keywords') {
               updateKeywords(parsed.data.keywords);
             } else if (parsed?.event === 'usageAnalysis') {

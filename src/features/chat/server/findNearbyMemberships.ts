@@ -46,6 +46,9 @@ export async function runFindNearbyMemberships(
   brands: MembershipBrand[],
 ): Promise<unknown> {
   if (!location) {
+    // 클라이언트가 이 신호를 받아야 그제서야 위치 권한을 요청한다(CARD-028) -
+    // 첫 메시지부터 미리 물어보지 않기 위해, 실제로 필요해진 이 순간에만 보낸다.
+    send({ event: 'locationNeeded', data: {} });
     return { ok: false, reason: 'no_location' as const };
   }
 

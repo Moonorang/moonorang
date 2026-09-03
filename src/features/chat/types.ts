@@ -108,6 +108,9 @@ export type ChatStreamEvent =
     }
   // CARD-028: 주변 멤버십 사용처 카드
   | { event: 'nearbyMembership'; data: { memberships: NearbyMembership[] } }
+  // CARD-028: find_nearby_memberships가 위치 없이 호출됐을 때 - 이 신호를 받은
+  // 클라이언트가 그제서야 브라우저 위치 권한을 요청한다(처음부터 미리 묻지 않음).
+  | { event: 'locationNeeded'; data: Record<string, never> }
   // 이번 턴까지 반영된 최신 조건 - 클라이언트가 다음 요청에 그대로 실어 보낸다
   | { event: 'keywords'; data: { keywords: ChatKeywords } }
   // CARD-022~026/028 - entities/usage(features/usage와 공유하는 도메인 개념)를 그대로 실어 보낸다
