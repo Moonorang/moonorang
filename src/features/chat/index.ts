@@ -24,7 +24,7 @@ export {
   CONDITION_QUESTIONS,
   type ConditionQuestion,
 } from './data/conditionQuestions';
-export { WELCOME_MESSAGE } from './constants';
+export { WELCOME_MESSAGE, MESSAGE_SUGGESTIONS } from './constants';
 export { parseChatRequest } from './lib/schema';
 export { formatSSEEvent, parseSSEEvent, SSE_HEADERS } from './lib/sse';
 export { selectRecommendedPlans } from './lib/selectPlans';
@@ -45,6 +45,9 @@ export type {
   ChatSummarizeRequestBody,
   ChatSummarizeResponseBody,
 } from './types';
-export type { ScoredPlan, SelectRecommendedPlansResult } from './lib/selectPlans';
+export type {
+  ScoredPlan,
+  SelectRecommendedPlansResult,
+} from './lib/selectPlans';
 export type { ScoredAddOn } from './lib/selectAddOns';
 export type { ScoredSubscription } from './lib/selectSubscriptions';

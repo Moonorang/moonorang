@@ -1,13 +1,6 @@
 import Button from '@/shared/ui/Button';
 
-const MESSAGE_SUGGESTIONS = [
-  '요금제 추천해줘',
-  '나에게 맞춰 요금제 추천',
-  '내 데이터 사용량 추세 보여줘',
-  '부가서비스 추천해줘',
-  '구독 상품 추천해줘',
-  '내 주변 멤버십 혜택 찾아줘',
-];
+import { MESSAGE_SUGGESTIONS } from '@/features/chat/constants';
 
 interface SuggestionChipsProps {
   onSuggest: (text: string) => void;

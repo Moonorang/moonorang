@@ -5,6 +5,8 @@ import Image from 'next/image';
 
 import Button from '@/shared/ui/Button';
 
+import { useSplashStore } from '../model/splashStore';
+
 import { cn } from '@/shared/utils/cn';
 
 const SPLASH_DURATION_MS = 2000;
@@ -15,6 +17,7 @@ type SplashPhase = 'checking' | 'visible' | 'leaving' | 'hidden';
 
 export default function SplashScreen() {
   const [phase, setPhase] = useState<SplashPhase>('checking');
+  const markDone = useSplashStore((state) => state.markDone);
 
   const hasCheckedRef = useRef(false);
 
@@ -68,6 +71,14 @@ export default function SplashScreen() {
     const timer = setTimeout(() => setPhase('hidden'), FADE_OUT_MS);
     return () => clearTimeout(timer);
   }, [phase]);
+
+  // 스플래시가 화면에서 사라지는 모든 경로(이전에 본 적 있어서 아예 안 뜬 경우,
+  // 건너뛰기, 재생 완료)를 여기 한 곳에서만 감지해 튜토리얼에 신호를 보낸다.
+  useEffect(() => {
+    if (phase !== 'hidden') return;
+
+    markDone();
+  }, [phase, markDone]);
 
   const handleSkip = () => setPhase('leaving');
 
