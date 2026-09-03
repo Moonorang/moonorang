@@ -6,3 +6,4 @@ export type {
   SavingsAnalysis,
   UsageAnalysisResult,
 } from './types';
+export { default as UsageSnapshotCard } from './ui/UsageSnapshotCard';
