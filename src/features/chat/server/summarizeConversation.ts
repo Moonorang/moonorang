@@ -1,7 +1,12 @@
 import { buildSummarizePrompt } from '@/features/chat/server/summarizePrompt';
 import type { SummarizeTurnMessage } from '@/features/chat/types';
 
-import { openai, OPENAI_MODEL, OPENAI_TEMPERATURE, OPENAI_SEED } from '@/shared/lib/openai';
+import {
+  getOpenAIClient,
+  OPENAI_MODEL,
+  OPENAI_TEMPERATURE,
+  OPENAI_SEED,
+} from '@/shared/lib/openai';
 
 // 요약은 짧은 비스트리밍 호출이라 본 채팅(60초)보다 훨씬 짧게 제한한다
 const SUMMARIZE_TIMEOUT_MS = 20_000;
@@ -15,7 +20,7 @@ export async function summarizeConversation(
   messages: SummarizeTurnMessage[],
   existingSummary?: string,
 ): Promise<string> {
-  const completion = await openai.chat.completions.create(
+  const completion = await getOpenAIClient().chat.completions.create(
     {
       model: OPENAI_MODEL,
       messages: [
@@ -40,7 +45,7 @@ export async function mergeSummaries(
   memberSummary: string,
   guestSummary: string,
 ): Promise<string> {
-  const completion = await openai.chat.completions.create(
+  const completion = await getOpenAIClient().chat.completions.create(
     {
       model: OPENAI_MODEL,
       messages: [
