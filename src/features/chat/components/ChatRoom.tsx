@@ -181,6 +181,11 @@ export default function ChatRoom({
   // 로그인 상태였는지 - 로그아웃으로 넘어가는 순간을 알아채려고 들고 있는다
   const wasLoggedInRef = useRef(false);
 
+  // 높이가 뒤늦게 바뀌는 것을 지켜볼 대상 - 스크롤 칸이 아니라 그 안의 내용이다
+  const contentRef = useRef<HTMLDivElement>(null);
+  // ResizeObserver 콜백은 렌더 밖에서 돌아서 state 를 그대로 읽으면 낡은 값을 본다
+  const isAtBottomRef = useRef(true);
+
   const scrollToBottom = useCallback(() => {
     const element = scrollAreaRef.current;
     if (!element) return;
@@ -202,6 +207,33 @@ export default function ChatRoom({
     shouldForceScrollRef.current = false;
     scrollToBottom();
   }, [messages, joinBlocks, error, isStreaming, isAtBottom, scrollToBottom]);
+
+  useEffect(() => {
+    isAtBottomRef.current = isAtBottom;
+  }, [isAtBottom]);
+
+  /*
+   * 위 효과는 '무엇이 바뀌었는지'를 보고 도는데, 뒤늦게 높이만 바뀌는 경우가 있다 -
+   * 가입 카드가 "이용 중인지 확인하고 있어요" 한 줄에서 절차 화면으로 바뀌는 순간이
+   * 그렇다. 그건 카드 안의 상태라 messages 도 joinBlocks 도 그대로여서 위 효과가
+   * 다시 돌지 않고, 먼저 내려간 스크롤이 늘어난 만큼 모자란 채로 남는다.
+   *
+   * 그래서 내용의 높이 자체를 지켜보고, 최하단을 보고 있었으면 다시 붙여준다.
+   * 늦게 자리를 잡는 것들(이미지, 지도, 차트)도 같은 이유로 여기서 해결된다.
+   */
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+
+    // 스크롤을 옮겨도 높이는 안 바뀌므로 이 관찰이 스스로를 다시 부르지는 않는다
+    const observer = new ResizeObserver(() => {
+      if (isAtBottomRef.current) scrollToBottom();
+    });
+
+    observer.observe(content);
+
+    return () => observer.disconnect();
+  }, [scrollToBottom]);
 
   // CHAT-011/012: 로그아웃하면 대화를 화면에서도 브라우저 저장분에서도 비운다.
   // 로그인해서 나눈 이야기가 로그아웃 뒤에까지 남아 있으면, 같은 기기를 쓰는
@@ -436,7 +468,7 @@ export default function ChatRoom({
         className="flex flex-1 flex-col overflow-y-auto pt-(--height-header) pb-(--height-chat-input)"
       >
         {/* 채팅 내역 영역 */}
-        <div className="flex flex-col gap-3 px-4 py-6">
+        <div ref={contentRef} className="flex flex-col gap-3 px-4 py-6">
           <AiMessage content={WELCOME_MESSAGE} />
 
           {/*
