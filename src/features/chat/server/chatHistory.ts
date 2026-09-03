@@ -6,6 +6,7 @@ import { dedupeJoinBlocks } from '@/features/chat/lib/joinBlock';
 import {
   getActiveChat,
   getChatMessages,
+  getChatSummary,
   type DbChatMessage,
 } from '@/features/chat/server/chatRepository';
 import type {
@@ -20,6 +21,17 @@ export interface MemberChatHistory {
   messages: ChatMessage[];
   joinBlocks: JoinBlock[];
   keywords: ChatKeywords;
+  /**
+   * 화면 표시용 요약 - chatStream.ts가 LLM 컨텍스트용으로 이미 관리하는
+   * chat_summary를 그대로 빌려 쓴다(§2.6). 클라이언트는 이걸 시작점으로 삼아
+   * 비회원과 같은 방식(useChat의 summarizeIfNeeded/pruneVisibleMessages)으로
+   * 화면 유지 상한을 넘는 오래된 대화를 걷어낸다 - 단, DB 원본은 그대로 남아있어
+   * 비회원처럼 사라지지는 않는다.
+   */
+  summary: string;
+  /** summary가 messages 중 몇 턴까지 반영했는지 - pruneVisibleMessages가 이 값을
+   * 넘어서는 절대 걷어내지 않는다(아직 요약 안 된 턴 보호). */
+  summarizedTurnCount: number;
 }
 
 interface PendingJoinMarker {
@@ -185,6 +197,28 @@ async function restoreJoinBlocks(
 }
 
 /**
+ * chat_summary.last_message_id(원본 chat_messages 행 id)가 복구된 messages 배열의
+ * 몇 번째 완결된 턴까지에 해당하는지 계산한다. 카드 마커 행은 splitRows가 이미
+ * 접어 넣었으므로(messages에 별도 항목으로 안 남음) messages 안에서 그 id를 가진
+ * 행을 찾아 순번으로 턴 수를 셀 수 있다.
+ *
+ * 못 찾으면(예: 아직 요약이 한 번도 안 된 대화) 0을 돌려준다 - pruneVisibleMessages는
+ * 이 값을 넘어서는 절대 걷어내지 않으므로, 0은 "아직 아무것도 못 걷어낸다"는
+ * 안전한 기본값이다.
+ */
+function resolveSummarizedTurnCount(
+  messages: ChatMessage[],
+  lastMessageId: number | null,
+): number {
+  if (lastMessageId === null) return 0;
+
+  const index = messages.findIndex((m) => m.id === String(lastMessageId));
+  if (index === -1) return 0;
+
+  return Math.floor((index + 1) / 2);
+}
+
+/**
  * CHAT-012 회원판 - 화면을 벗어났다 돌아와도, 회원은 DB에 있는 대화·카드를 그대로
  * 복구해서 보여준다. 아직 대화를 시작 안 한 회원(세션 없음)이면 빈 상태를 돌려준다.
  */
@@ -192,12 +226,32 @@ export async function loadMemberChatHistory(
   userId: string,
 ): Promise<MemberChatHistory> {
   const chat = await getActiveChat(userId);
-  if (!chat) return { messages: [], joinBlocks: [], keywords: {} };
+  if (!chat) {
+    return {
+      messages: [],
+      joinBlocks: [],
+      keywords: {},
+      summary: '',
+      summarizedTurnCount: 0,
+    };
+  }
 
-  const rows = await getChatMessages(chat.id);
+  const [rows, summaryRow] = await Promise.all([
+    getChatMessages(chat.id),
+    getChatSummary(chat.id),
+  ]);
   const { messages, joinMarkers } = splitRows(rows);
 
   const joinBlocks = await restoreJoinBlocks(joinMarkers);
 
-  return { messages, joinBlocks, keywords: chat.keywords };
+  return {
+    messages,
+    joinBlocks,
+    keywords: chat.keywords,
+    summary: summaryRow?.summary ?? '',
+    summarizedTurnCount: resolveSummarizedTurnCount(
+      messages,
+      summaryRow?.lastMessageId ?? null,
+    ),
+  };
 }

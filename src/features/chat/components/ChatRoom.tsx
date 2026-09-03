@@ -506,15 +506,34 @@ export default function ChatRoom({
             안내선. summary가 있다는 건 지금 안 보이는 이전 대화가 있다는 뜻이라, 갑자기
             대화가 끊긴 것처럼 보이지 않도록 경계를 표시한다.
           */}
-              {summary && (
-                <div className="flex items-center gap-2 text-10 text-text-secondary">
-                  <span className="h-px flex-1 bg-border-light" />
-                  이전 대화 내용이 요약되었어요
-                  <span className="h-px flex-1 bg-border-light" />
-                </div>
-              )}
-
+          {summary && (
+            <div className="flex items-center gap-2 text-10 text-text-secondary">
+              <span className="h-px flex-1 bg-border-light" />
               {/*
+                왜 이 위가 안 보이는지를 짧은 안내선 문구만으로는 다 말할 수 없어서,
+                자세한 설명은 가리켰을 때만 펼친다. 버튼으로 두는 이유는 마우스가 없는
+                환경(NFR-010의 375px 모바일) 때문이다 - 탭하면 포커스가 잡혀 hover와
+                같은 안내가 뜬다.
+              */}
+              <button
+                type="button"
+                className="group relative shrink-0 cursor-help text-text-secondary"
+              >
+                이전 대화 내용이 요약되었어요
+                <span
+                  role="tooltip"
+                  className="pointer-events-none invisible absolute top-full left-1/2 z-10 mt-1.5 w-74 -translate-x-1/2 rounded-md bg-background-default px-3 py-2 text-left text-12 text-text-primary opacity-0 shadow-default transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100"
+                >
+                  대화 내용이 길어지면 이전 내용을 요약해서 기억해요.
+                  <br />
+                  핵심을 압축해서 더 빠르고 원활하게 채팅을 도와드릴게요.
+                </span>
+              </button>
+              <span className="h-px flex-1 bg-border-light" />
+            </div>
+          )}
+
+          {/*
             아직 주고받은 말이 없을 때 띄운 가입 카드 - 붙을 메시지가 없어서
             환영 메시지 바로 뒤, 대화가 시작되기 전 자리에 그린다.
           */}
