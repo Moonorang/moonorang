@@ -1,10 +1,11 @@
-import Image from 'next/image';
-
 import { ThumbsUp } from 'lucide-react';
 
 import { getDiscountedFee } from '@/entities/subscription/lib/getDiscountedFee';
+import {
+  SUBSCRIPTION_ICON_FALLBACK,
+  SUBSCRIPTION_ICONS,
+} from '@/entities/subscription/lib/icons';
 import type { Subscription } from '@/entities/subscription/types';
-import { CATALOG_IMAGE_BASE_PATH } from '@/shared/utils/catalogImagePath';
 import { formatWon } from '@/shared/utils/formatCurrency';
 
 interface SubscriptionListItemProps {
@@ -28,8 +29,8 @@ export default function SubscriptionListItem({
   const { name, baseMonthlyFee, discount, description } = subscription;
   const { fee } = getDiscountedFee(baseMonthlyFee, discount);
   const hasDiscount = discount > 0;
-  // description.image 는 파일명만 들어 있다.
-  const imageSrc = `${CATALOG_IMAGE_BASE_PATH}/${description?.image ?? 'netflix_youtube.jpg'}`;
+  // description.icon 값에 맞는 아이콘 (표에 없으면 기본 아이콘)
+  const Icon = SUBSCRIPTION_ICONS[description?.icon ?? ''] ?? SUBSCRIPTION_ICON_FALLBACK;
   const Wrapper = onClick ? 'button' : 'div';
 
   return (
@@ -37,7 +38,7 @@ export default function SubscriptionListItem({
       {...(onClick ? { type: 'button' as const, onClick } : {})}
       className={`flex w-full flex-1 items-center gap-4 px-4 py-5 text-left ${onClick ? 'cursor-pointer' : ''}`}
     >
-      {/* 이미지 높이만큼 늘려, 상품명은 위 끝 · 요금은 아래 끝에 붙인다.
+      {/* 아이콘 높이만큼 늘려, 상품명은 위 끝 · 요금은 아래 끝에 붙인다.
           할인 배지는 그 사이에 놓여서, 있든 없든 요금 위치가 그대로다. */}
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 self-stretch py-2">
         <p className="truncate text-14 font-medium text-text-primary">{name}</p>
@@ -65,13 +66,14 @@ export default function SubscriptionListItem({
         )}
       </div>
 
-      <Image
-        src={imageSrc}
-        alt=""
-        width={80}
-        height={80}
-        className="h-20 w-20 shrink-0 rounded-md object-cover"
-      />
+      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border-default">
+        <Icon
+          size={24}
+          strokeWidth={1.5}
+          className="text-text-primary"
+          aria-hidden
+        />
+      </span>
     </Wrapper>
   );
 }

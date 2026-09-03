@@ -1,10 +1,11 @@
-import Image from 'next/image';
-
 import Button from '@/shared/ui/Button';
 
 import { getDiscountedFee } from '@/entities/subscription/lib/getDiscountedFee';
+import {
+  SUBSCRIPTION_ICON_FALLBACK,
+  SUBSCRIPTION_ICONS,
+} from '@/entities/subscription/lib/icons';
 import type { Subscription } from '@/entities/subscription/types';
-import { CATALOG_IMAGE_BASE_PATH } from '@/shared/utils/catalogImagePath';
 import { formatWon } from '@/shared/utils/formatCurrency';
 
 interface SubscriptionDetailCardProps {
@@ -31,16 +32,16 @@ export default function SubscriptionDetailCard({
     subscription;
   const { fee } = getDiscountedFee(baseMonthlyFee, discount);
   const hasDiscount = discount > 0;
-  // description.image 는 파일명만 들어 있다.
-  const imageSrc = `${CATALOG_IMAGE_BASE_PATH}/${description?.image ?? 'netflix_youtube.jpg'}`;
+  // description.icon 값에 맞는 아이콘 (표에 없으면 기본 아이콘)
+  const Icon = SUBSCRIPTION_ICONS[description?.icon ?? ''] ?? SUBSCRIPTION_ICON_FALLBACK;
   const features = description?.features ?? [];
 
   return (
     // 본문 ↔ 버튼만 넓게 띄우고, 본문 안쪽은 한 값으로 통일한다
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-4">
-        {/* 이미지 높이만큼 늘려, 상품명은 위 끝 · 요금은 아래 끝에 붙인다.
-            간격을 고정값으로 주지 않아서 이미지 크기가 바뀌어도 양 끝에 맞춰 따라간다 -
+        {/* 아이콘 높이만큼 늘려, 상품명은 위 끝 · 요금은 아래 끝에 붙인다.
+            간격을 고정값으로 주지 않아서 아이콘 크기가 바뀌어도 양 끝에 맞춰 따라간다 -
             SubscriptionRow 와 같은 방식이라 목록에서 상세로 들어와도 배치가 안 흔들린다. */}
         <div className="flex items-center">
           <div className="my-2 flex min-w-0 flex-1 flex-col justify-between self-stretch">
@@ -64,13 +65,14 @@ export default function SubscriptionDetailCard({
             </div>
           </div>
 
-          <Image
-            src={imageSrc}
-            alt=""
-            width={80}
-            height={80}
-            className="h-20 w-20 shrink-0 rounded-md object-cover"
-          />
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-border-default">
+            <Icon
+              size={24}
+              strokeWidth={1.5}
+              className="text-text-primary"
+              aria-hidden
+            />
+          </span>
         </div>
 
         <hr className="border-border-default" />

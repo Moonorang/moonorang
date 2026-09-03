@@ -45,6 +45,7 @@ const usageAnalysisDemo: UsageAnalysisResult = {
       max_benefit_value: '24,400원/월',
       tethering_sharing: '60GB',
     },
+    image: 'plan/49.png',
   },
   billingMonth: 8,
   remainingDataGb: 85,
@@ -71,6 +72,7 @@ const usageAnalysisDemo: UsageAnalysisResult = {
         dataAllowance: '11GB (소진 후 1Mbps)',
         voiceSms: '기본제공 / 기본제공 / 300분 무료',
         benefits: null,
+        image: 'plan/26.png',
       },
       annualSavings: (49000 - 26000) * 12,
     },
@@ -230,6 +232,7 @@ export default function NotFoundPage() {
               max_benefit_value: '73,600원/월',
               tethering_sharing: '100GB',
             },
+            image: 'plan/75.png',
           }}
           rank={1}
           annualSavings={432000}
@@ -255,6 +258,7 @@ export default function NotFoundPage() {
               max_benefit_value: '73,600원/월',
               tethering_sharing: '100GB',
             },
+            image: 'plan/75.png',
           }}
           onJoin={() => {}}
         />
@@ -278,6 +282,7 @@ export default function NotFoundPage() {
               max_benefit_value: '73,600원/월',
               tethering_sharing: '100GB',
             },
+            image: 'plan/75.png',
           }}
         />
       </div>

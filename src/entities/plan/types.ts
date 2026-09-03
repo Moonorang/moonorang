@@ -38,6 +38,8 @@ export interface Plan {
   dataAllowance: string;
   voiceSms: string;
   benefits: PlanBenefits | null;
+  /** 목록 카드에 쓰는 요금제 이미지 파일명 (public/images/catalog 안의 파일) */
+  image: string;
 }
 
 // 혜택 행 아이콘의 색 조합. globals.css 토큰 이름과 1:1로 맞춘다
