@@ -18,8 +18,10 @@ import JoinFlowCard from '@/features/join/components/JoinFlowCard';
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatAvatar from '@/features/chat/components/ChatAvatar';
 import ChatConflictModal from '@/features/chat/components/ChatConflictModal';
+import NearbyMembershipCard from '@/features/chat/components/NearbyMembershipCard';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import UserMessage from '@/features/chat/components/UserMessage';
+import type { NearbyMembership } from '@/features/chat/types';
 
 // 임시: 모달 3종 디자인 확인용 - app/_header는 원래 라우트 전용 조립 폴더라 다른 곳에서
 // 잘 안 끌어오지만, 여기는 컴포넌트 갤러리 페이지라 미리보기 목적으로만 예외적으로 가져온다.
@@ -74,6 +76,51 @@ const usageAnalysisDemo: UsageAnalysisResult = {
     },
   },
 };
+
+// NearbyMembershipCard 데모용 - 실제 검색 결과가 0건이면 카드 자체가(모달을 열
+// 버튼까지) 안 뜨므로, 여기서는 항상 뜨는 가짜 데이터로 채운다. 강남역 인근 좌표.
+const nearbyMembershipDemo: NearbyMembership[] = [
+  {
+    brand: {
+      id: 'B001',
+      name: 'CGV',
+      category: '영화',
+      icon: null,
+      discountRules: { summary: '영화 최대 4,000원 할인' },
+    },
+    placeName: 'CGV 강남',
+    distanceMeters: 320,
+    lat: 37.4983,
+    lng: 127.0278,
+  },
+  {
+    brand: {
+      id: 'B002',
+      name: '스타벅스',
+      category: '카페',
+      icon: null,
+      discountRules: { summary: '사이렌오더 시 별 2배 적립' },
+    },
+    placeName: '스타벅스 강남역점',
+    distanceMeters: 150,
+    lat: 37.4975,
+    lng: 127.0281,
+  },
+  {
+    brand: {
+      id: 'B003',
+      name: 'GS25',
+      category: '편의점',
+      icon: null,
+      discountRules: { summary: '전 품목 5~10% 할인' },
+    },
+    placeName: 'GS25 강남대치점',
+    distanceMeters: 480,
+    lat: 37.4991,
+    lng: 127.0265,
+  },
+];
+const nearbyMembershipDemoLocation = { lat: 37.497942, lng: 127.027621 };
 
 export default function NotFoundPage() {
   // 모달 3종 미리보기용 상태 (임시)
@@ -314,6 +361,16 @@ export default function NotFoundPage() {
       형태 - 사용량 분석 카드 + 위 차트 + 절약 대안 요금제)
       <div className="m-5 w-90 rounded-md bg-background-subtle p-4">
         <UsageAnalysisSection data={usageAnalysisDemo} onJoin={() => {}} />
+      </div>
+      <br />
+      내 주변 혜택 카드 (임시 데모 데이터 - 실제 검색 결과가 0건이면 카드 자체가
+      안 뜨므로, 여기서는 가짜 3곳으로 항상 채워둠. 미니 지도를 눌러야 전체
+      모달이 뜸)
+      <div className="m-5 w-90 rounded-md bg-background-subtle p-4">
+        <NearbyMembershipCard
+          memberships={nearbyMembershipDemo}
+          userLocation={nearbyMembershipDemoLocation}
+        />
       </div>
       <br />
       AI 어시스턴트 프로필

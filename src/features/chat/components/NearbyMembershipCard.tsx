@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Locate, MapPin, X } from 'lucide-react';
-import { Map, MapMarker, useKakaoLoader } from 'react-kakao-maps-sdk';
+import { ChevronLeft, Locate, MapPin } from 'lucide-react';
+import {
+  CustomOverlayMap,
+  Map,
+  MapMarker,
+  useKakaoLoader,
+} from 'react-kakao-maps-sdk';
 
 import Button from '@/shared/ui/Button';
 import { cn } from '@/shared/utils/cn';
@@ -234,18 +239,21 @@ function NearbyMembershipMapPreview({
         }}
       >
         {userLocation && (
+          // title을 안 주는 이유는 아래 브랜드 핀과 같다 - 네이티브 브라우저
+          // 툴팁이 뜨는 걸 막기 위함.
           <MapMarker
             position={userLocation}
             image={MY_LOCATION_MARKER_IMAGE}
-            title="내 위치"
             zIndex={10}
           />
         )}
         {pins.map((item) => (
+          // title을 안 준다 - 카카오 SDK가 이걸 마커 이미지의 title 속성으로 그대로
+          // 얹어서, 브라우저 네이티브 툴팁(우리 커스텀 팝업과 별개로 뜨는 작은 창)이
+          // 나타난다.
           <MapMarker
             key={item.brand.id}
             position={{ lat: item.lat, lng: item.lng }}
-            title={item.brand.name}
           />
         ))}
       </Map>
@@ -318,20 +326,27 @@ function NearbyMembershipMapModal({
       role="dialog"
       aria-modal="true"
       aria-label="내 주변 혜택 지도"
-      className="fixed inset-0 z-(--z-modal) flex flex-col bg-background-default"
+      className="fixed inset-0 z-(--z-modal) flex flex-col bg-background-page"
     >
-      <div className="mx-auto flex h-full w-full max-w-(--width-container) flex-col">
-        <div className="flex h-(--height-header) shrink-0 items-center justify-between border-b border-border-default px-4">
-          <h2 className="text-14 font-bold text-text-primary">내 주변 혜택</h2>
+      <div className="mx-auto flex h-full w-full max-w-(--width-container) flex-col bg-background-default">
+        {/* 로그인 화면 등 다른 흐름 화면과 같은 뒤로가기 전용 헤더 모양(제목·우측
+            아이콘 없음) - Header.tsx의 variant="back"을 그대로 흉내낸다. 그
+            컴포넌트 자체는 fixed 포지션이라 이 모달(이미 fixed) 안에 그대로
+            끼워 넣으면 레이어가 꼬여서, 같은 모양만 여기서 다시 그린다. */}
+        <div className="flex h-(--height-header) shrink-0 items-center border-b border-border-default px-4">
           <button
             type="button"
             onClick={onClose}
             aria-label="지도 닫기"
-            className="flex h-6 w-6 items-center justify-center text-text-primary transition-colors hover:cursor-pointer hover:text-action-primary"
+            className="flex h-6 w-6 items-center justify-center text-text-secondary transition-colors hover:cursor-pointer hover:text-text-primary"
           >
-            <X size={24} strokeWidth={1.5} aria-hidden="true" />
+            <ChevronLeft size={24} strokeWidth={1.5} aria-hidden="true" />
           </button>
         </div>
+
+        <p className="border-b border-border-default bg-background-subtle px-4 py-2 text-16 font-medium text-text-primary">
+          지도에서 핀을 누르면 해당 가맹점과 길찾기를 확인하실 수 있습니다
+        </p>
 
         <div ref={containerRef} className="relative flex-1">
           {!loading && !error && center && (
@@ -348,48 +363,66 @@ function NearbyMembershipMapModal({
               }}
             >
               {userLocation && (
+                // title을 안 준다 - 카카오 SDK가 마커 이미지의 title 속성으로 그대로
+                // 얹어서, 우리 커스텀 팝업과 별개로 브라우저 네이티브 툴팁이 뜬다.
                 <MapMarker
                   position={userLocation}
                   image={MY_LOCATION_MARKER_IMAGE}
-                  title="내 위치"
                   zIndex={10}
                 />
               )}
               {pins.map((item) => (
-                <MapMarker
-                  key={item.brand.id}
-                  position={{ lat: item.lat, lng: item.lng }}
-                  title={item.brand.name}
-                  onClick={() => setSelectedBrandId(item.brand.id)}
-                >
+                <Fragment key={item.brand.id}>
+                  <MapMarker
+                    position={{ lat: item.lat, lng: item.lng }}
+                    onClick={() => setSelectedBrandId(item.brand.id)}
+                  />
+
+                  {/* MapMarker의 children은 카카오 InfoWindow로 렌더링돼서, 그
+                      자체가 흰 배경·테두리·꼬리 같은 기본 틀을 항상 같이 그린다 -
+                      우리 팝업 디자인과 별개로 그 틀이 겹쳐 보였다. 기본 틀이
+                      전혀 없는 CustomOverlay(=CustomOverlayMap)로 마커와 분리해서,
+                      완전히 우리 스타일대로만 뜨게 한다. */}
                   {selectedBrandId === item.brand.id && (
-                    <div className="flex flex-col items-center gap-1.5 p-2">
-                      <p className="text-10 font-medium whitespace-nowrap text-text-primary">
-                        {item.brand.name} · {item.placeName}
-                      </p>
-                      <Button
-                        variant="outline"
-                        radius="sm"
-                        size="sm"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          window.open(
-                            buildKakaoDirectionsUrl(
-                              item.placeName,
-                              item.lat,
-                              item.lng,
-                              userLocation,
-                            ),
-                            '_blank',
-                            'noopener,noreferrer',
-                          );
-                        }}
-                      >
-                        길찾기
-                      </Button>
-                    </div>
+                    <CustomOverlayMap
+                      position={{ lat: item.lat, lng: item.lng }}
+                      yAnchor={1.2}
+                      zIndex={20}
+                      clickable
+                    >
+                      <div className="flex flex-col items-center gap-1.5 rounded-sm border border-border-default bg-background-default p-3">
+                        <p className="flex items-center gap-1 text-10 font-semibold whitespace-nowrap text-text-primary">
+                          <MapPin
+                            size={12}
+                            className="shrink-0 text-action-primary"
+                            aria-hidden
+                          />
+                          {item.brand.name} · {item.placeName}
+                        </p>
+                        <Button
+                          variant="main"
+                          radius="sm"
+                          size="sm"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            window.open(
+                              buildKakaoDirectionsUrl(
+                                item.placeName,
+                                item.lat,
+                                item.lng,
+                                userLocation,
+                              ),
+                              '_blank',
+                              'noopener,noreferrer',
+                            );
+                          }}
+                        >
+                          길찾기
+                        </Button>
+                      </div>
+                    </CustomOverlayMap>
                   )}
-                </MapMarker>
+                </Fragment>
               ))}
             </Map>
           )}
@@ -506,9 +539,9 @@ function NearbyMembershipItem({
       {onDirections && (
         <div className="flex shrink-0 items-center pr-2">
           <Button
-            variant="outline"
+            variant="main"
             radius="sm"
-            size="sm"
+            size="md"
             onClick={(event) => {
               event.stopPropagation();
               onDirections();
