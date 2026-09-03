@@ -22,13 +22,24 @@ import {
   persistMemberAiTurn,
   persistMemberUserMessage,
 } from '@/features/chat/server/memberChat';
-import { streamCompletion, type ToolCallBuilder } from '@/features/chat/server/openaiStream';
+import {
+  streamCompletion,
+  type ToolCallBuilder,
+} from '@/features/chat/server/openaiStream';
 import { runAddOnRecommendation } from '@/features/chat/server/recommendAddOns';
 import { runPlanRecommendation } from '@/features/chat/server/recommendPlans';
 import { runSubscriptionRecommendation } from '@/features/chat/server/recommendSubscriptions';
 import { buildSystemPrompt } from '@/features/chat/server/systemPrompt';
-import { ACTION_TOOLS, parseExtractConditionsArguments } from '@/features/chat/server/tools';
-import type { ChatCardPayload, ChatKeywords, SummarizeTurnMessage } from '@/features/chat/types';
+import {
+  ACTION_TOOLS,
+  parseExtractConditionsArguments,
+  parseRecommendPlansArguments,
+} from '@/features/chat/server/tools';
+import type {
+  ChatCardPayload,
+  ChatKeywords,
+  SummarizeTurnMessage,
+} from '@/features/chat/types';
 
 import type { AddOn } from '@/entities/addOn/types';
 import type { MembershipBrand } from '@/entities/membershipBrand/types';
@@ -68,16 +79,46 @@ async function getToolResultContent(
   }: ToolResultContext,
 ): Promise<unknown> {
   switch (call.name) {
-    case 'recommend_plans':
-      return runPlanRecommendation(plans, mergedKeywords, send);
+    case 'recommend_plans': {
+      const { scope, direction } = parseRecommendPlansArguments(
+        call.argsBuffer,
+      );
+      return runPlanRecommendation(
+        plans,
+        mergedKeywords,
+        send,
+        scope,
+        direction,
+      );
+    }
     case 'show_current_plan':
-      return runSavingsAnalysis({ userId, allPlans: plans, send, mode: 'plan_info' });
+      return runSavingsAnalysis({
+        userId,
+        allPlans: plans,
+        send,
+        mode: 'plan_info',
+      });
     case 'analyze_savings':
-      return runSavingsAnalysis({ userId, allPlans: plans, send, mode: 'savings' });
+      return runSavingsAnalysis({
+        userId,
+        allPlans: plans,
+        send,
+        mode: 'savings',
+      });
     case 'show_usage_trend':
-      return runSavingsAnalysis({ userId, allPlans: plans, send, mode: 'trend' });
+      return runSavingsAnalysis({
+        userId,
+        allPlans: plans,
+        send,
+        mode: 'trend',
+      });
     case 'recommend_addons':
-      return runAddOnRecommendation(addOns, addOnAdoptionRates, mergedKeywords, send);
+      return runAddOnRecommendation(
+        addOns,
+        addOnAdoptionRates,
+        mergedKeywords,
+        send,
+      );
     case 'recommend_subscriptions':
       return runSubscriptionRecommendation(
         subscriptions,
@@ -254,12 +295,10 @@ export function createChatStream(
           },
           // §2.4 "최근 채팅 메시지 N개" - summary가 아직 못 따라잡은 구간의 원문.
           // ChatMessage/SummarizeTurnMessage의 'ai' role을 OpenAI의 'assistant'로 바꿔준다.
-          ...recentMessages.map(
-            (turn): ChatCompletionMessageParam => ({
-              role: turn.role === 'ai' ? 'assistant' : 'user',
-              content: turn.content,
-            }),
-          ),
+          ...recentMessages.map((turn): ChatCompletionMessageParam => ({
+            role: turn.role === 'ai' ? 'assistant' : 'user',
+            content: turn.content,
+          })),
           { role: 'user', content: message },
         ];
 
@@ -312,7 +351,10 @@ export function createChatStream(
         const capturedCards: ChatCardPayload[] = [];
         const trackingSend: SSESend = (event) => {
           if (event.event === 'recommendation') {
-            capturedCards.push({ type: 'recommendation', plans: event.data.plans });
+            capturedCards.push({
+              type: 'recommendation',
+              plans: event.data.plans,
+            });
           } else if (event.event === 'addOnRecommendation') {
             capturedCards.push({
               type: 'add_on_recommendation',
@@ -444,7 +486,13 @@ export function createChatStream(
         // 안 나간 상태이므로 그대로 버리고 에러로 전환한다(CARD-006: 재시도 가능).
         if (
           !actionConfirmed &&
-          containsCatalogName(turn1Text, plans, addOns, subscriptions, membershipBrands)
+          containsCatalogName(
+            turn1Text,
+            plans,
+            addOns,
+            subscriptions,
+            membershipBrands,
+          )
         ) {
           console.error(
             '[api/chat] 가드레일: 추천 도구 없이 요금제·부가서비스·구독명 언급 감지 -',

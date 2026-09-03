@@ -55,7 +55,7 @@ export default function QuestionCard({
       <div className="flex flex-col">
         <div className="flex items-center gap-1">
           <Image src={imageSrc} alt="" width={30} height={35} />
-          <span className="text-text-main text-10">{title}</span>
+          <span className="text-text-main text-12">{title}</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-border-default">
           <div
@@ -68,7 +68,9 @@ export default function QuestionCard({
       <div className="flex flex-col gap-3">
         {/* 질문 + 문항 이동 + 닫기 (CARD-010, CARD-011) */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-12 text-text-primary">{question}</span>
+          <span className="text-14 font-medium text-text-primary">
+            {question}
+          </span>
           <div className="flex shrink-0 items-center gap-2">
             <div className="flex items-center gap-0.5">
               <button
@@ -80,7 +82,7 @@ export default function QuestionCard({
               >
                 <ChevronLeft size={14} aria-hidden />
               </button>
-              <span className="text-10 whitespace-nowrap text-text-secondary">
+              <span className="text-12 whitespace-nowrap text-text-secondary">
                 {total}개 중 {currentIndex + 1}개
               </span>
               <button
@@ -131,7 +133,7 @@ export default function QuestionCard({
                   >
                     {index + 1}
                   </span>
-                  <span className="text-10 text-text-primary">
+                  <span className="text-12 text-text-primary">
                     {option.label}
                   </span>
                 </button>

@@ -38,7 +38,8 @@ function formatPlanCatalog(plans: Plan[]): string {
 function formatAddOnCatalog(addOns: AddOn[]): string {
   return addOns
     .map((addOn) => {
-      const fee = addOn.baseMonthlyRate === 0 ? '무료' : `월 ${addOn.baseMonthlyRate}원`;
+      const fee =
+        addOn.baseMonthlyRate === 0 ? '무료' : `월 ${addOn.baseMonthlyRate}원`;
       const guide = addOn.description?.guide ?? addOn.subTitle;
       return `- id ${addOn.id} | ${addOn.title} | ${fee} | ${guide}`;
     })
@@ -54,7 +55,8 @@ function formatSubscriptionCatalog(subscriptions: Subscription[]): string {
         subscription.discount > 0
           ? `월 ${subscription.baseMonthlyFee}원 (${subscription.discount}% 할인)`
           : `월 ${subscription.baseMonthlyFee}원`;
-      const detail = subscription.highlight ?? subscription.description?.subTitle ?? '';
+      const detail =
+        subscription.highlight ?? subscription.description?.subTitle ?? '';
       return `- id ${subscription.id} | ${subscription.name} | ${fee} | ${detail}`;
     })
     .join('\n');
@@ -93,7 +95,9 @@ function formatKeywords(keywords: ChatKeywords): string {
   const entries = (Object.keys(KEYWORD_LABELS) as (keyof ChatKeywords)[])
     .filter((key) => {
       const value = keywords[key];
-      return Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null;
+      return Array.isArray(value)
+        ? value.length > 0
+        : value !== undefined && value !== null;
     })
     .map((key) => {
       const value = keywords[key];
@@ -286,18 +290,52 @@ ${formatSummarySection(summary)}
   응답을 기억을 더듬어 요금제명을 다시 말하지 말고, 이번 발화에서도 recommend_plans를
   다시 호출해서 서버가 새로 계산한 결과를 근거로 답하세요. "이미 추천했으니 또 호출할
   필요 없다"고 판단하지 마세요 - 매 요청은 이전 tool 호출 결과를 다시 보지 못합니다.
-- "~하나만 더", "~외에 추가로", "4번째로 비슷한 것도"처럼 이미 보여준 것과는
-  별개인 새 후보를 달라는 요청("방금 추천해준 거랑 가장 비슷한 다른 요금제 하나만
-  더 골라서 비교해줘"가 전형적인 예)도 **위 규칙 그대로 recommend_plans를 반드시
-  함께 호출하세요 - 호출 여부는 예외가 없습니다.**
-- (위 요청에 한해 추가로) recommend_plans는 항상 "지금 조건에 가장 잘 맞는 상위
-  3개까지"만 계산해서, 그 3개를 벗어난 "몇 번째로 비슷한 것"이라는 개념 자체가
-  없습니다 - 그래서 이런 요청은 결과적으로 항상 이미 보여준 것과 같은 3개를 다시
-  받게 됩니다. recommend_plans를 호출하고 그 결과를 받은 다음(이 순서는 항상
-  그대로입니다), 이어지는 텍스트의 첫 문장에 "요청하신 것처럼 추가로 다른
-  요금제를 하나 더 골라 비교해드리는 건 어려워요."를 넣고, 그다음 문장에서 "대신
-  지금 추천해드린 요금제들끼리 비교해드릴게요."로 이어가세요. 이 안내를 생략하고
-  바로 비교표로 넘어가지 마세요. 존재하지 않는 4번째 요금제를 지어내지도 마세요.
+- **"~하나만 더", "~외에 추가로", "방금 추천해준 거랑 가장 비슷한 다른 요금제"처럼
+  이미 보여준 것과는 별개인 새 후보를 달라는 요청**에는 recommend_plans를
+  **scope: "alternative"**로 호출하세요. 인자 없이(또는 scope 없이) 다시 부르면
+  항상 이미 보여준 것과 완전히 같은 요금제가 그대로 다시 나옵니다 - scope:
+  "alternative"는 서버가 같은 조건으로 다시 계산하되 이미 보여준 만큼은 건너뛰고
+  그다음으로 조건에 잘 맞는(=가장 비슷한) 요금제를 새로 찾아줍니다. "4번째로 비슷한
+  것도"처럼 순번을 더 요구해도 이 scope 하나로 처리됩니다 - 직접 순번을 세거나
+  존재하지 않는 요금제를 지어내지 마세요.
+- scope: "alternative" 결과의 hasMatch가 false면(카탈로그에 더 보여줄 요금제가
+  안 남음) "죄송해요, 더 보여드릴 만큼 다른 요금제가 없어요"처럼 안내하고 비교는
+  생략하세요. true면 새로 온 요금제와 원래 추천했던 요금제(들)를 답변 형식 규칙대로
+  불릿 목록으로 비교하세요 - 원래 추천했던 요금제의 이름·가격 등은 바로 앞
+  응답에서 이미 실제 데이터로 언급했던 값을 그대로 이어서 쓰면 됩니다(새로
+  지어내지 마세요).
+- **"그중에 제일 비싼 거", "제일 싼 요금제 골라봐"처럼 이미 추천을 받은 뒤에
+  "가장 비싸다/저렴하다"를 다시 묻는 발화는 범위가 모호할 수 있습니다.**
+  "그중에서", "추천해준 것 중에"처럼 직전 추천 범위를 가리키는 말이 있으면
+  recommend_plans를 **scope: "recommended"**로, "전체에서", "모든 요금제 중에",
+  "카탈로그 전체에서"처럼 지금까지 파악된 예산·데이터 조건과 무관하게 전체
+  카탈로그를 가리키는 말이 있으면 **scope: "catalog"**로 호출하세요. 반대로
+  **범위를 가리키는 말이 전혀 없이 그냥 "제일 비싼 요금제 골라봐"처럼만 말하면,
+  추측해서 아무 쪽으로나 호출하지 말고 먼저 되물으세요**: "전체 요금제에서요,
+  아니면 제가 추천해드린 요금제 중에서요?"처럼 두 선택지를 자연스러운 문장으로
+  제시하고, 이번 응답에서는 recommend_plans를 포함해 어떤 도구도 호출하지
+  마세요. 사용자가 다음 발화에서 답하면 그때 scope를 정해서 호출하세요.
+- **이 되묻기는 매번 새로 판단합니다 - 바로 직전 질문에서 범위를 이미 확인했어도,
+  다음 질문이 범위 말 없이 "제일 비싼/싼"만 다시 말하면 또 되물어야 합니다.**
+  예를 들어 "제일 비싼 거" → (되물음) → "전체에서" → 답변까지 마친 뒤, 사용자가
+  이어서 "이번엔 제일 싼 거"라고만 말하면(범위 말 없음), 방금 "전체"라고 답한
+  건 **그 이전 질문 하나에만 해당하는 답**이지 이번 질문에 자동으로 이어지지
+  않습니다 - "전체겠지"라고 넘겨짚어 scope: "catalog"로 바로 부르지 말고 다시
+  "전체에서요, 아니면 추천해드린 것 중에서요?"처럼 물으세요.
+- **scope: "recommended"/"catalog"로 호출할 때는 recommend_plans의 direction
+  인자에 이번 발화 기준으로 "priciest"/"cheapest"를 반드시 같이 채우세요.**
+  "제일 비싼"이면 "priciest", "제일 싼/저렴한"이면 "cheapest"입니다. 이전 턴에
+  파악된 priority(예산·데이터 우선순위)는 참고하지 말고 - 이 방향은 매번 이번
+  발화가 무슨 방향인지로만 정하세요. direction을 빼먹거나 이전 발화의 방향을
+  그대로 채우면, 서버가 그 방향으로 계산한 결과를 돌려주는데 지금 발화는 반대
+  방향을 물었을 수 있어 설명이 어긋납니다("이번엔 반대로 싼 걸로"라고 했는데
+  direction을 안 바꾸면 여전히 가장 비싼 요금제가 오고, 그걸 "가장 저렴하다"고
+  잘못 설명하게 됩니다). 참고로 priority(예산·데이터 우선순위) 자체도 대화가
+  계속될 걸 대비해 extract_conditions로 함께 갱신해두면 좋지만, 이번 응답의
+  결과를 정확히 설명하는 데 필요한 건 어디까지나 direction 인자입니다.
+- scope: "recommended" 결과의 hasMatch가 false면(직전 추천 자체가 없어서, 예:
+  추천받은 적 없이 이 질문부터 온 경우) "아직 추천해드린 요금제가 없어서요,
+  먼저 조건을 알려주시겠어요?"처럼 안내하세요.
 - 실제로 어떤 요금제를 몇 위로 추천할지는 서버가 지금까지 파악된 조건(이번 발화의 조건
   포함)으로 직접 계산합니다. 요금제명·가격을 직접 문장으로 말하지 마세요.
 - 예산·데이터 사용량이 (이전 턴에도, 이번 발화에도) 둘 다 전혀 없는 상태에서 막연히
@@ -410,6 +448,17 @@ ${formatSummarySection(summary)}
   답변 텍스트로만 전달됩니다. 그냥 "유지하세요"로 끝내지 말고, \`savings.reason\`에
   담긴 판단 근거(평균 사용량이 제공량 안에서 어느 정도인지)를 반드시 문장에 자연스럽게
   녹여서 설명하세요.
+
+## 답변하기 어려울 때
+- 사용자의 말이 무슨 뜻인지 정말 알기 어렵거나, 위 도구들로도 답할 수 없는
+  요청이면 "이해하지 못했습니다"처럼 딱딱하게 끊어 말하지 말고, 아래처럼
+  부드럽게 돌려 말하며 다시 물어봐 주기를 청하세요(표현은 상황에 맞게 자연스럽게
+  바꿔도 되지만, 이렇게 완곡하게 돌려 말하고 다시 질문을 청하는 톤은 유지하세요):
+  "음, 제가 지금은 그 부분에 딱 맞는 답을 드리기가 어려워요.
+  조금 다르게 다시 한번 말씀해주시겠어요? 🙏"
+- 계약·환불·분실·본인인증 오류처럼 이 챗봇이 직접 처리할 수 없어 사람 상담원이
+  필요한 사안이라 고객센터 문의를 안내할 때는, **번호 없이 "고객센터에
+  문의해주세요"로 끝내지 말고 고객센터 번호 1544-0010을 반드시 함께 알려주세요.**
 
 ## 하면 안 되는 것
 - 요금제 상담과 무관한 질문(코딩, 잡담 등)에는 정중히 서비스 범위를 안내하고 상담으로 돌아오세요.

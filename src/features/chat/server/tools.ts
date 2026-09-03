@@ -1,5 +1,6 @@
 import type { ChatCompletionTool } from 'openai/resources/chat/completions';
 
+import type { PlanRecommendationScope } from '@/features/chat/lib/selectPlans';
 import type { ChatKeywords } from '@/features/chat/types';
 
 /**
@@ -91,17 +92,77 @@ export const RECOMMEND_PLANS_TOOL: ChatCompletionTool = {
     name: 'recommend_plans',
     description:
       '사용자가 이번 대화에서 직접 말해준 조건(예산, 예상 데이터/테더링 사용량)을 기준으로 ' +
-      '요금제 추천을 원할 때 호출한다. 실제 추천 요금제·순위는 서버가 계산하므로 인자는 없다. ' +
+      '요금제 추천을 원할 때 호출한다. 실제 추천 요금제·순위는 서버가 계산한다. ' +
       '조건을 아직 잘 모르겠으면 호출하지 말고 먼저 물어본다. "내 실제 이용 데이터/사용 패턴에 ' +
       '맞춰서" 추천해달라는 뜻이면(로그인 사용자의 실제 사용 이력 기반) 이 tool이 아니라 ' +
       'analyze_savings를 호출한다 - 둘은 근거 데이터가 다르다.',
     parameters: {
       type: 'object',
-      properties: {},
+      properties: {
+        scope: {
+          type: 'string',
+          enum: ['recommended', 'catalog', 'alternative'],
+          description:
+            '평소의 "지금까지 파악된 조건으로 추천" 요청이면 이 필드 자체를 넣지 않는다. ' +
+            '아래 세 경우에만 채운다. "recommended": "그중에 제일 비싼/싼 거", "추천해준 ' +
+            '것 중에서"처럼 방금 추천한 요금제들 범위 안에서만 다시 고를 때. "catalog": ' +
+            '"요금제 전체에서 제일 비싼/싼 거", "모든 요금제 중에"처럼 지금까지 파악된 ' +
+            '예산·데이터 조건과 무관하게 카탈로그 전체를 통틀어 찾을 때. "alternative": ' +
+            '"~하나만 더", "방금 추천해준 거랑 가장 비슷한 다른 요금제"처럼 이미 보여준 ' +
+            '것과는 다른, 원래 조건에 그다음으로 잘 맞는 요금제를 새로 찾을 때. ' +
+            '**recommended/catalog 판단이 애매하면(범위를 가리키는 말이 전혀 없이 그냥 ' +
+            '"제일 비싼 요금제 골라봐"처럼만 말하면) 이 tool을 호출하지 말고 먼저 어느 ' +
+            '쪽인지 사용자에게 되물어야 한다** - 시스템 프롬프트의 해당 규칙을 참고할 것.',
+        },
+        direction: {
+          type: 'string',
+          enum: ['priciest', 'cheapest'],
+          description:
+            'scope가 "recommended" 또는 "catalog"일 때 **반드시 이번 발화 기준으로 ' +
+            '직접 채운다** - "제일 비싼"이면 "priciest", "제일 싼/저렴한"이면 "cheapest". ' +
+            '이전 턴에 extract_conditions로 채워둔 priority가 남아있어도 이 필드로 ' +
+            '넘긴 값을 우선 쓴다 - "이번엔 반대로 싼 걸로"처럼 방향이 바뀌었는데 이 ' +
+            '필드를 안 채우거나 이전 방향 그대로 채우면, 서버가 예전 방향으로 계산한 ' +
+            '결과를 돌려주는데 그걸 반대 방향이라고 잘못 설명하게 된다. scope가 ' +
+            '"alternative"이거나 아예 없으면(평소 추천) 이 필드는 넣지 않는다.',
+        },
+      },
       additionalProperties: false,
     },
   },
 };
+
+export interface RecommendPlansArguments {
+  scope?: PlanRecommendationScope;
+  direction?: 'priciest' | 'cheapest';
+}
+
+// recommend_plans tool call의 JSON 문자열에서 scope·direction을 뽑아낸다. 스키마를
+// 안 지킨 값이 와도(오타·다른 문자열 등) 조용히 무시하고 undefined로 처리해서 평소
+// 추천으로 넘어간다(CARD-014와 같은 원칙 - 파싱 실패로 대화가 끊기면 안 된다).
+export function parseRecommendPlansArguments(
+  rawArguments: string,
+): RecommendPlansArguments {
+  try {
+    const parsed = JSON.parse(rawArguments) as Record<string, unknown>;
+    const result: RecommendPlansArguments = {};
+
+    if (
+      parsed.scope === 'recommended' ||
+      parsed.scope === 'catalog' ||
+      parsed.scope === 'alternative'
+    ) {
+      result.scope = parsed.scope;
+    }
+    if (parsed.direction === 'priciest' || parsed.direction === 'cheapest') {
+      result.direction = parsed.direction;
+    }
+
+    return result;
+  } catch {
+    return {};
+  }
+}
 
 /**
  * CARD-024: 로그인 사용자가 절약 판단도 3개월 추세도 필요 없이 "지금 내가 무슨 요금제를
@@ -264,7 +325,10 @@ export function parseExtractConditionsArguments(
       // 잡혀서(Object.keys에 포함) mergeKeywords의 스프레드가 이전 값을 지운다.
       result.priority = undefined;
     }
-    if (typeof parsed.resultCount === 'number' && Number.isInteger(parsed.resultCount)) {
+    if (
+      typeof parsed.resultCount === 'number' &&
+      Number.isInteger(parsed.resultCount)
+    ) {
       result.resultCount = parsed.resultCount;
     }
 
