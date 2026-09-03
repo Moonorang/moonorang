@@ -378,8 +378,13 @@ export default function ChatRoom({
             isCompleted: Boolean(block.isCompleted),
             progress: block.progress,
             onProgressChange: (progress) => saveJoinProgress(target, progress),
-            onComplete: (resultMessage) =>
-              completeJoinBlock(target, resultMessage),
+            onComplete: (resultMessage) => {
+              // 마치는 순간 카드가 대화 끝으로 옮겨간다(completeJoinBlock) -
+              // 위로 올라가 중간 카드를 진행하던 중이면 그 자리에서 카드가 사라지므로,
+              // 최하단을 보고 있는 것으로 쳐서 따라 내려간다(handleJoin 과 같은 방식)
+              setIsAtBottom(true);
+              completeJoinBlock(target, resultMessage);
+            },
           })}
         </AiMessage>
       </Fragment>

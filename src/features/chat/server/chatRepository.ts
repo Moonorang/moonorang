@@ -159,12 +159,22 @@ export async function insertJoinFlowMessages(
   chatId: string,
   target: JoinTarget,
   displayText: string,
+  /**
+   * 이미 있던 카드를 대화 끝으로 옮기는 경우, 그때까지의 상태를 함께 실어 옮긴
+   * 자리에서 그대로 이어지게 한다. 새로 여는 카드면 없다.
+   */
+  marker: { progress?: JoinProgress; isCompleted?: boolean } = {},
 ): Promise<void> {
   await insertMessages(chatId, [
     { role: 'user', content: displayText },
     {
       role: 'ai',
-      content: serializeCardPayload({ type: 'join_flow', ...target }),
+      content: serializeCardPayload({
+        type: 'join_flow',
+        ...target,
+        ...(marker.progress ? { progress: marker.progress } : {}),
+        ...(marker.isCompleted ? { isCompleted: true } : {}),
+      }),
     },
   ]);
 }

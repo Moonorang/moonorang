@@ -742,35 +742,37 @@ export function useChat(isLoggedIn: boolean | undefined) {
    * CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다.
    * afterMessageId 는 누른 시점의 마지막 메시지 - 카드가 대화 끝에 이어 붙는다.
    * 아직 주고받은 말이 없으면 null 로, 대화 맨 앞에 붙는다.
-   * 같은 요금제를 또 눌러도 카드가 여러 장 쌓이지 않게 무시한다. 회원이면 서버에도
-   * 같은 자리를 남겨서(POST /api/chat/join), 나중에 복구했을 때 이 카드가 그대로
-   * 다시 보이게 한다.
+   *
+   * 같은 상품 카드는 대화에 한 장만 둔다(dedupeJoinBlocks). 이미 있으면 새로
+   * 쌓는 대신 그 카드를 대화 끝으로 옮긴다. 회원이면 서버에도 같은 자리를
+   * 남겨서(POST /api/chat/join), 나중에 복구했을 때 이 카드가 그대로 다시 보이게 한다.
    */
   const addJoinBlock = useCallback(
     (item: JoinItem, afterMessageId: string | null) => {
       const target = { kind: item.kind, itemId: item.item.id };
       const key = getJoinKey(target);
+      const existing = joinBlocksRef.current.find(
+        (block) => getJoinKey(getJoinBlockTarget(block)) === key,
+      );
 
-      if (
-        joinBlocksRef.current.some(
-          (block) => getJoinKey(getJoinBlockTarget(block)) === key,
-        )
-      ) {
-        return;
-      }
-
+      // 같은 상품 카드가 이미 대화에 있으면 한 장 더 쌓지 않고 대화 끝으로 옮긴다.
+      // 카드가 저 위에 있으면 눌러도 아무 일도 안 일어난 것처럼 보이기 때문이다.
+      // 진행 상태는 그대로 들고 간다 - 다시 누른 것이지 처음부터 하겠다는 뜻은 아니다.
+      const moved: JoinBlock = { ...existing, ...item, afterMessageId };
       const next: JoinBlock[] = [
-        ...joinBlocksRef.current,
-        { ...item, afterMessageId },
+        ...joinBlocksRef.current.filter((block) => block !== existing),
+        moved,
       ];
       joinBlocksRef.current = next;
       setJoinBlocks(next);
 
       if (isLoggedIn) {
+        // 서버에는 마커를 새로 넣는다 - 옛 마커는 그대로 두어도 복구할 때
+        // 나중 것만 살아나므로(dedupeJoinBlocks) 지울 필요가 없다.
         fetch('/api/chat/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(target),
+          body: JSON.stringify({ ...target, progress: existing?.progress }),
         }).catch(() => {
           // 서버에 못 남겨도 지금 화면에는 이미 카드가 떠 있으니 대화는 계속된다 -
           // 다음에 복구할 때만 이 카드가 안 보일 뿐이다.
@@ -851,9 +853,22 @@ export function useChat(isLoggedIn: boolean | undefined) {
       const current = joinBlocksRef.current.find(isTarget);
       if (!current || current.isCompleted) return;
 
-      const nextBlocks = joinBlocksRef.current.map((block) =>
-        isTarget(block) ? { ...block, isCompleted: true } : block,
-      );
+      /*
+       * 결과 메시지는 늘 대화 끝에 붙는데 카드가 중간에 있으면 둘이 떨어진다 -
+       * 대화를 더 나눈 뒤 위로 올라가 카드를 마저 진행한 경우가 그렇다.
+       * 그래서 마치는 시점에 카드를 지금 대화의 끝으로 데려와 결과 바로 앞에 세운다.
+       */
+      const lastMessageId =
+        messagesRef.current[messagesRef.current.length - 1]?.id ?? null;
+      const completed: JoinBlock = {
+        ...current,
+        isCompleted: true,
+        afterMessageId: lastMessageId,
+      };
+      const nextBlocks: JoinBlock[] = [
+        ...joinBlocksRef.current.filter((block) => block !== current),
+        completed,
+      ];
       joinBlocksRef.current = nextBlocks;
       setJoinBlocks(nextBlocks);
 
@@ -869,7 +884,14 @@ export function useChat(isLoggedIn: boolean | undefined) {
       ]);
 
       if (isLoggedIn) {
-        patchJoinFlow({ ...target, isCompleted: true, resultMessage });
+        // 카드를 옮긴 사실도 서버에 알린다 - progress 를 함께 보내야 복구했을 때
+        // 완료된 카드가 첫 단계가 아니라 마지막 단계 모습으로 살아난다
+        patchJoinFlow({
+          ...target,
+          progress: current.progress,
+          isCompleted: true,
+          resultMessage,
+        });
         return;
       }
 

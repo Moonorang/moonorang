@@ -68,8 +68,17 @@ async function buildJoinDisplayText(
 /**
  * CARD-029: 회원이 채팅 안에서 "신청하기"를 누른 순간을 DB에 남긴다 - 나중에 이
  * 대화를 복구했을 때 가입 카드가 그 자리에 그대로 다시 보이도록.
+ *
+ * 같은 상품 카드가 이미 있어도 옛 마커를 지우지 않고 새 마커를 뒤에 넣는다.
+ * 복구할 때 나중 것만 살아나므로(dedupeJoinBlocks) 결과적으로 카드가 대화 끝으로
+ * 옮겨진 것이 되고, 행을 옮기거나 지우는 일 없이 끝난다.
+ *
  * 비회원은 이 엔드포인트를 안 쓰고 클라이언트 상태로만 들고 있는다.
  */
+interface JoinPostBody {
+  progress?: unknown;
+}
+
 export async function POST(request: Request) {
   const guard = await requireMember();
 
@@ -82,7 +91,13 @@ export async function POST(request: Request) {
 
   const user = guard.user;
 
-  const target = parseJoinTarget(await request.json().catch(() => null));
+  const body = (await request.json().catch(() => null)) as JoinPostBody | null;
+  const target = parseJoinTarget(body);
+  // 이미 있던 카드를 대화 끝으로 옮기는 경우에만 실려 온다
+  const progress =
+    body?.progress && typeof body.progress === 'object'
+      ? (body.progress as JoinProgress)
+      : undefined;
 
   if (!target) {
     return NextResponse.json(
@@ -101,7 +116,7 @@ export async function POST(request: Request) {
     }
 
     const chat = await getOrCreateActiveChat(user.id);
-    await insertJoinFlowMessages(chat.id, target, displayText);
+    await insertJoinFlowMessages(chat.id, target, displayText, { progress });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -170,6 +185,30 @@ export async function PATCH(request: Request) {
       );
     }
 
+    /*
+     * 절차를 마치는 순간에는 마커를 제자리에서 고치지 않고 대화 끝에 새로 넣는다.
+     * 결과 메시지는 늘 대화 끝에 붙는데 카드가 중간에 남아 있으면 둘이 떨어져서,
+     * 복구했을 때 "가입하셨어요" 앞에 카드가 없는 모양이 된다.
+     * 옛 마커는 그대로 둬도 나중 것만 살아난다(dedupeJoinBlocks).
+     */
+    if (resultMessage) {
+      const displayText = await buildJoinDisplayText(target);
+
+      if (displayText) {
+        await insertJoinFlowMessages(chat.id, target, displayText, {
+          progress,
+          isCompleted: true,
+        });
+      } else {
+        // 상품을 못 찾으면 옮기지 못하니 제자리에서 완료 표시만 한다
+        await updateJoinFlowMarker(chat.id, target, { progress, isCompleted });
+      }
+
+      await insertJoinResultMessages(chat.id, target.kind, resultMessage);
+
+      return NextResponse.json({ ok: true });
+    }
+
     const isUpdated = await updateJoinFlowMarker(chat.id, target, {
       progress,
       isCompleted,
@@ -180,10 +219,6 @@ export async function PATCH(request: Request) {
         { error: '가입 카드를 찾을 수 없습니다.' },
         { status: 404 },
       );
-    }
-
-    if (resultMessage) {
-      await insertJoinResultMessages(chat.id, target.kind, resultMessage);
     }
 
     return NextResponse.json({ ok: true });
