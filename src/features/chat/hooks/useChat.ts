@@ -211,7 +211,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
     setSummary('');
   }, []);
 
-  /** 게스트 대화를 서버로 승계한 뒤, 승계가 반영된 최신 기록을 다시 받아와 화면에 반영한다. */
+  /**
+   * 게스트 대화를 서버로 승계한 뒤, 승계가 반영된 최신 기록을 다시 받아와 화면에
+   * 반영한다. 대화 없이 조건(keywords)만 있는 경우에도 같은 길을 쓴다 - 승계 결과가
+   * 회원 DB 값과 병합된 모양이라(migrateGuestChat), 다시 받아와야 화면이 맞는다.
+   */
   const migrateGuestToMember = useCallback(
     (guestStored: StoredChatState) =>
       fetch('/api/chat/migrate', {
@@ -267,6 +271,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
         guestStored &&
         (guestStored.messages.length > 0 || guestStored.joinBlocks.length > 0),
       );
+      // 말은 한 마디도 안 했지만 조건만 남긴 경우 - 관심사 화면에서 칩만 고르고
+      // 로그인하면 이 모양이 된다. 대화가 아니라 조건만 옮기면 되므로 아래 충돌
+      // 모달을 거치지 않는다(합칠 대화가 없어서 물어볼 것도 없다).
+      const hasGuestKeywords = Boolean(
+        guestStored && Object.keys(guestStored.keywords).length > 0,
+      );
 
       fetch('/api/chat/history')
         .then((response) => (response.ok ? response.json() : null))
@@ -293,8 +303,10 @@ export function useChat(isLoggedIn: boolean | undefined) {
             return;
           }
 
-          if (hasGuestConversation && guestStored) {
+          if ((hasGuestConversation || hasGuestKeywords) && guestStored) {
             // 회원 DB가 비어있으면(첫 대화) 충돌이 아니므로 그냥 이어붙인다.
+            // 조건만 있는 경우도 여기로 온다 - 회원 대화가 이미 있어도 덮어쓸
+            // 대화가 없으니 조건만 병합하고 끝난다.
             void migrateGuestToMember(guestStored);
             return;
           }
