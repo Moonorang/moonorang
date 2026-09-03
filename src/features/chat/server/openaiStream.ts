@@ -9,7 +9,7 @@ import type { ChatCompletionTool } from 'openai/resources/chat/completions';
 import { CHAT_TOOLS } from '@/features/chat/server/tools';
 import type { SSESend } from '@/features/chat/lib/sse';
 import {
-  openai,
+  getOpenAIClient,
   OPENAI_MODEL,
   OPENAI_TEMPERATURE,
   OPENAI_SEED,
@@ -65,7 +65,7 @@ export async function streamCompletion({
   tools = CHAT_TOOLS,
   emitTokens = true,
 }: StreamCompletionParams): Promise<StreamCompletionResult> {
-  const stream = await openai.chat.completions.create(
+  const stream = await getOpenAIClient().chat.completions.create(
     {
       model: OPENAI_MODEL,
       messages,
