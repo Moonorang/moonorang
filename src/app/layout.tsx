@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { FloatingChatButton } from '@/features/chat';
 
 import { AppHeader } from '@/app/_header';
+import { SplashScreen } from '@/app/_splash';
 
 import { displayFont, notoSansKr } from '@/shared/fonts';
 import '@/shared/styles/globals.css';
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       className={`${notoSansKr.variable} ${displayFont.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
+        <SplashScreen />
         <AppHeader />
         {children}
         <FloatingChatButton />

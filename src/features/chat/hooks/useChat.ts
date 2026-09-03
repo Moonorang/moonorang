@@ -99,6 +99,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<ChatError | null>(null);
+  // CARD-006: 재시도 요청이 진행 중인지. 실패 카드를 곧바로 없애고 빈 말풍선(타이핑
+  // 표시)만 남기면 "그냥 새로 물어본 것"처럼 보여 방금 실패했던 맥락이 끊겨 보인다 -
+  // 이 값이 true인 동안은 실패 카드를 그대로 두고 아이콘·버튼만 "재시도 중"으로 바꿔서
+  // 보여준다(ChatErrorNotice).
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // 재시도용: 직전 요청의 입력을 기억해둠
   const lastUserTextRef = useRef<string | null>(null);
@@ -474,8 +479,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
   }, [isLoggedIn, persist]);
 
   const runChatRequest = useCallback(
-    async (userText: string, aiMessageId: string) => {
-      setError(null);
+    async (userText: string, aiMessageId: string, isRetry = false) => {
+      // 재시도일 때는 곧바로 지우지 않는다 - 방금 실패한 사유를 그대로 보여준 채로
+      // ChatErrorNotice가 "재시도 중" 상태로 전환되고, 이번 시도 결과가 나온 뒤에야
+      // (성공하면 지우고, 또 실패하면 새 사유로) 갱신한다.
+      if (!isRetry) setError(null);
       setIsStreaming(true);
 
       const appendToAiMessage = (delta: string) => {
@@ -593,6 +601,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        // 재시도 중 이번 시도에서 새 에러를 받았는지 - 받았으면 아래에서 재시도
+        // 성공으로 보고 카드를 지우면 안 된다(그 새 에러가 그대로 남아있어야 함).
+        let receivedNewError = false;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -623,12 +634,17 @@ export function useChat(isLoggedIn: boolean | undefined) {
               setAiMessageUsageAnalysis(parsed.data);
             } else if (parsed?.event === 'error') {
               setError(parsed.data);
+              receivedNewError = true;
             }
             // 'done' 은 별도 처리 없이 스트림이 자연스럽게 끝남
 
             boundary = buffer.indexOf('\n\n');
           }
         }
+
+        // 재시도가 이번엔 끝까지 새 에러 없이 성공했으면, 그대로 남아있던 실패
+        // 카드를 지운다.
+        if (isRetry && !receivedNewError) setError(null);
 
         persist();
         // 응답을 다 보여준 뒤 비동기로 - await 하지 않는다(§2.6)
@@ -696,11 +712,20 @@ export function useChat(isLoggedIn: boolean | undefined) {
     [isStreaming, runChatRequest, updateMessages, persist],
   );
 
-  /** CARD-006: 실패한 요청을 직전과 동일한 입력·문맥으로 재시도한다. */
+  /**
+   * CARD-006: 실패한 요청을 직전과 동일한 입력·문맥으로 재시도한다.
+   * 실패 카드는 여기서 곧바로 지우지 않는다 - runChatRequest가 isRetry를 받아서
+   * 결과가 나올 때까지 그대로 두고, isRetrying만 켜서 카드가 "재시도 중" 상태로
+   * 바뀌도록 한다(실패 사유와 재시도 버튼이 갑자기 사라지고 빈 말풍선만 남는 것보다,
+   * 방금 실패했던 맥락을 유지한 채로 지금 다시 시도하고 있다는 걸 보여주는 게 더
+   * 명확한 피드백이다).
+   */
   const retry = useCallback(() => {
     const userText = lastUserTextRef.current;
     const aiMessageId = lastAiMessageIdRef.current;
     if (!userText || !aiMessageId || isStreaming) return;
+
+    setIsRetrying(true);
 
     // 실패 전에 일부 토큰이 이미 쌓여있을 수 있어 비우고 다시 채운다.
     updateMessages((prev) =>
@@ -719,7 +744,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
       ),
     );
 
-    void runChatRequest(userText, aiMessageId);
+    void runChatRequest(userText, aiMessageId, true).finally(() => {
+      setIsRetrying(false);
+    });
   }, [isStreaming, runChatRequest, updateMessages]);
 
   /**
@@ -861,6 +888,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
     setMessages([]);
     setError(null);
+    setIsRetrying(false);
     setKeywords({});
     setSummary('');
     setJoinBlocks([]);
@@ -898,6 +926,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     messages,
     isStreaming,
     error,
+    isRetrying,
     location,
     isRestored,
     keywords,
