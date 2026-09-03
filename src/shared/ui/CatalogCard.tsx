@@ -17,6 +17,15 @@ interface CatalogCardProps {
  * 폭을 스스로 정하지 않아서(w-full 등 없음), 좁은 부모 안에 두면 그대로 좁아진다 -
  * features/catalog의 목록 페이지(전체 폭)와 features/chat의 카드(w-[80%]) 둘 다
  * 이 컴포넌트를 그대로 재사용한다.
+ *
+ * shrink-0을 붙이는 이유: features/chat의 추천 카드들처럼 이 컴포넌트를 높이가
+ * 제한된 flex-col 목록(overflow-y-auto) 안에 여러 개 늘어놓는 경우, flex 아이템은
+ * 기본으로 shrink 가능(flex-shrink: 1)해서 - 목록이 다 담을 공간보다 내용이
+ * 많아지면 스크롤이 생기는 대신 각 카드가 자기 내용보다 낮게 찌그러지는 문제가
+ * 있었다(실측: "카드 높이가 안 늘어난다"로 보고됨 - 실제로는 안 늘어나는 게
+ * 아니라 내용보다 작게 눌린 것). shrink-0으로 각 카드가 항상 자기 내용만큼의
+ * 높이를 갖게 고정하면, 목록 쪽 높이 제한은 카드를 찌그러뜨리는 대신 정상적으로
+ * 스크롤을 만든다.
  */
 export default function CatalogCard({
   children,
@@ -25,7 +34,7 @@ export default function CatalogCard({
   return (
     <div
       className={cn(
-        'flex min-h-30 flex-col overflow-hidden rounded-lg bg-background-default shadow-default',
+        'flex min-h-30 shrink-0 flex-col overflow-hidden rounded-lg bg-background-default shadow-default',
         appendClassName,
       )}
     >

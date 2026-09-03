@@ -37,7 +37,7 @@ function PlanFeatureRow({
   label: string;
 }) {
   return (
-    <li className="flex items-center gap-1.5 text-10 text-text-primary">
+    <li className="flex items-center gap-1.5 text-12 text-text-primary">
       {icon}
       {label}
     </li>
@@ -62,7 +62,10 @@ export default function PlanCard({
   return (
     <div
       className={cn(
-        'flex w-[80%] flex-col gap-2 rounded-md bg-background-default p-4 shadow-default',
+        // ChatBubble과 같은 이유 - 모바일에서는 부모 폭의 80%로 자연스럽게 줄어들되,
+        // 넓은 화면에서는 400px을 절대 상한으로 건다. PlanCardCarousel의 CARD_WIDTH,
+        // 화살표 위치와 반드시 같은 값이어야 한다.
+        'flex w-[min(80%,440px)] flex-col gap-2 rounded-md bg-background-default p-4 shadow-default',
         appendClassName,
       )}
     >
@@ -71,8 +74,8 @@ export default function PlanCard({
       )}
 
       <div className="flex items-end justify-between gap-2">
-        <h3 className="text-14 font-medium text-text-primary">{plan.name}</h3>
-        <p className="text-14 text-action-primary">
+        <h3 className="text-16 font-semibold text-text-primary">{plan.name}</h3>
+        <p className="text-16 font-semibold text-action-primary">
           월 {formatWon(plan.monthlyFee)}
         </p>
       </div>
@@ -124,7 +127,8 @@ export default function PlanCard({
       <div className="flex gap-1">
         <Button
           variant="outline"
-          radius="full"
+          radius="sm"
+          size="lg"
           onClick={onViewDetail}
           appendClassName="flex-8"
         >
@@ -132,7 +136,8 @@ export default function PlanCard({
         </Button>
         <Button
           variant="main"
-          radius="full"
+          radius="sm"
+          size="lg"
           onClick={onJoin}
           appendClassName="flex-17"
         >

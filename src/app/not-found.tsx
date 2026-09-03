@@ -6,6 +6,7 @@ import { LogIn, Send, Plus, Mic, Search } from 'lucide-react';
 import Button from '@/shared/ui/Button';
 import CarouselIndicator from '@/shared/ui/CarouselIndicator';
 import CheckBox from '@/shared/ui/CheckBox';
+import ConfirmModal from '@/shared/ui/ConfirmModal';
 import StepProgress from '@/shared/ui/StepProgress';
 import Tag from '@/shared/ui/Tag';
 
@@ -16,8 +17,13 @@ import JoinFlowCard from '@/features/join/components/JoinFlowCard';
 
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatAvatar from '@/features/chat/components/ChatAvatar';
+import ChatConflictModal from '@/features/chat/components/ChatConflictModal';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import UserMessage from '@/features/chat/components/UserMessage';
+
+// 임시: 모달 3종 디자인 확인용 - app/_header는 원래 라우트 전용 조립 폴더라 다른 곳에서
+// 잘 안 끌어오지만, 여기는 컴포넌트 갤러리 페이지라 미리보기 목적으로만 예외적으로 가져온다.
+import ExitSignupDialog from '@/app/_header/ui/ExitSignupDialog';
 
 import UsageAnalysisSection from '@/features/usage/components/UsageAnalysisSection';
 import UsageTrendChart from '@/features/usage/components/UsageTrendChart';
@@ -51,7 +57,8 @@ const usageAnalysisDemo: UsageAnalysisResult = {
   },
   savings: {
     type: 'downgrade',
-    reason: '최근 3개월 평균 데이터 사용량이 약 10GB로, 지금보다 저렴한 요금제로도 충분히 커버돼요.',
+    reason:
+      '최근 3개월 평균 데이터 사용량이 약 10GB로, 지금보다 저렴한 요금제로도 충분히 커버돼요.',
     recommendedPlan: {
       plan: {
         id: 1,
@@ -68,6 +75,12 @@ const usageAnalysisDemo: UsageAnalysisResult = {
 };
 
 export default function NotFoundPage() {
+  // 모달 3종 미리보기용 상태 (임시)
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
+  const [isExitDialogExiting, setIsExitDialogExiting] = useState(false);
+  const [isChatConflictOpen, setIsChatConflictOpen] = useState(false);
+
   // OpenAI 연결 확인용 상태 (임시)
   const [testInput, setTestInput] = useState('안녕! 너 누구야?');
   const [testReply, setTestReply] = useState('');
@@ -97,7 +110,11 @@ export default function NotFoundPage() {
   };
 
   return (
-    <div>
+    // COMMON-006: 다른 실제 페이지들(mypage, auth/login 등)처럼 폭을 768px로 제한하고
+    // 중앙 정렬한다 - 이게 없으면 데모 박스들 때문에 페이지가 화면보다 넓어져 가로
+    // 스크롤이 생기고, 스크롤을 밀어둔 채로 모달(fixed inset-0, 화면 기준 정중앙)을
+    // 열면 문서 기준으로는 오른쪽에 쏠려 보이는 착시가 생긴다.
+    <div className="mx-auto max-w-(--width-container) px-4 pt-(--height-header)">
       {/* 예시 1. 기본 형태 */}
       <div className="flex items-center gap-4">
         <LogIn />
@@ -292,10 +309,10 @@ export default function NotFoundPage() {
         </div>
       </div>
       <br />
-      개인화 카드 전체 조합 (채팅에서 usageAnalysis 이벤트가 오면 실제로 뜨는 형태 -
-      사용량 분석 카드 + 위 차트 + 절약 대안 요금제)
+      개인화 카드 전체 조합 (채팅에서 usageAnalysis 이벤트가 오면 실제로 뜨는
+      형태 - 사용량 분석 카드 + 위 차트 + 절약 대안 요금제)
       <div className="m-5 w-90 rounded-md bg-background-subtle p-4">
-        <UsageAnalysisSection data={usageAnalysisDemo} onJoin={() => {}} onViewDetail={() => {}} />
+        <UsageAnalysisSection data={usageAnalysisDemo} onJoin={() => {}} />
       </div>
       <br />
       AI 어시스턴트 프로필
@@ -422,6 +439,51 @@ export default function NotFoundPage() {
       <div className="m-5">
         <ScrollToBottomButton onClick={() => {}} />
       </div>
+      <br />
+      모달 3종 (ConfirmModal 통일 버전 - CHAT-014 대화 초기화 / AUTH-004 가입 이탈 /
+      로그인 시 회원·게스트 대화 충돌. 셋 다 내부적으로 같은 ConfirmModal을 씀)
+      <div className="m-5 flex flex-wrap items-center gap-2">
+        <Button variant="outline" onClick={() => setIsResetModalOpen(true)}>
+          1. ConfirmModal (대화 초기화)
+        </Button>
+        <Button variant="outline" onClick={() => setIsExitDialogOpen(true)}>
+          2. ExitSignupDialog (가입 이탈)
+        </Button>
+        <Button variant="outline" onClick={() => setIsChatConflictOpen(true)}>
+          3. ChatConflictModal (대화 충돌)
+        </Button>
+        <Button
+          variant={isExitDialogExiting ? 'main' : 'ghost'}
+          onClick={() => setIsExitDialogExiting((prev) => !prev)}
+        >
+          2번의 &quot;나가는 중...&quot; 상태 미리보기: {isExitDialogExiting ? 'ON' : 'OFF'}
+        </Button>
+      </div>
+
+      <ConfirmModal
+        isOpen={isResetModalOpen}
+        title="대화를 초기화할까요?"
+        description="지금까지 나눈 대화와 진행 중인 가입 카드가 모두 사라져요. 되돌릴 수 없어요."
+        confirmLabel="초기화"
+        onConfirm={() => setIsResetModalOpen(false)}
+        onCancel={() => setIsResetModalOpen(false)}
+      />
+
+      {isExitDialogOpen && (
+        <ExitSignupDialog
+          isExiting={isExitDialogExiting}
+          onCancel={() => setIsExitDialogOpen(false)}
+          onConfirm={() => setIsExitDialogOpen(false)}
+        />
+      )}
+
+      {isChatConflictOpen && (
+        <ChatConflictModal
+          guestMessageCount={3}
+          onKeepBoth={() => setIsChatConflictOpen(false)}
+          onDiscardGuest={() => setIsChatConflictOpen(false)}
+        />
+      )}
       <br />
       OpenAI 연결 확인 (임시)
       <div className="m-5 flex max-w-100 flex-col gap-2">

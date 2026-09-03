@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-import SignupForm from '@/features/auth/components/SignupForm';
+import SignupGate from '@/features/auth/components/SignupGate';
 
 import { getKakaoNickname } from '@/features/auth/lib/getKakaoNickname';
 import { resolveNextPath } from '@/features/auth/lib/resolveNextPath';
@@ -47,7 +47,11 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
       </p>
 
       <div className="mt-5">
-        <SignupForm
+        {/*
+          AUTH-008: 요금제 가입 절차에서 넘어온 경우엔 물어볼 것이 남지 않아
+          이 화면을 건너뛴다 - 그 판단은 sessionStorage 를 읽어야 해서 클라이언트가 한다.
+        */}
+        <SignupGate
           plans={plans}
           defaultName={getKakaoNickname(user.user_metadata)}
           nextPath={nextPath}

@@ -1,12 +1,12 @@
 import { createClient } from '@/shared/lib/supabase/server';
-import type { Plan } from '@/entities/plan/types';
 import {
   serializeCardPayload,
   tryParseCardPayload,
 } from '@/features/chat/lib/chatCard';
 import type { ChatCardPayload, ChatKeywords } from '@/features/chat/types';
 
-import type { PlanJoinProgress } from '@/entities/planJoin/types';
+import { getJoinKey } from '@/entities/join';
+import type { JoinProgress, JoinTarget } from '@/entities/join/types';
 
 export interface DbChatMessage {
   /** chat_messages.id(bigint)를 문자열로 - 클라이언트 ChatMessage.id와 모양을 맞춘다 */
@@ -68,7 +68,9 @@ export async function getActiveChat(
 
 /** CHAT-014: 대화 초기화 시 새 세션을 강제로 만든다. 이전 세션을 지우는 건 이
  * 함수의 책임이 아니다 - 호출부(reset 라우트)가 deleteChat으로 먼저 지운다. */
-export async function createNewChat(userId: string): Promise<{ id: string; keywords: ChatKeywords }> {
+export async function createNewChat(
+  userId: string,
+): Promise<{ id: string; keywords: ChatKeywords }> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('chats')
@@ -155,11 +157,25 @@ export async function insertMessages(
  */
 export async function insertJoinFlowMessages(
   chatId: string,
-  plan: Pick<Plan, 'id' | 'name'>,
+  target: JoinTarget,
+  displayText: string,
+  /**
+   * 이미 있던 카드를 대화 끝으로 옮기는 경우, 그때까지의 상태를 함께 실어 옮긴
+   * 자리에서 그대로 이어지게 한다. 새로 여는 카드면 없다.
+   */
+  marker: { progress?: JoinProgress; isCompleted?: boolean } = {},
 ): Promise<void> {
   await insertMessages(chatId, [
-    { role: 'user', content: `${plan.name} 요금제 가입할래` },
-    { role: 'ai', content: serializeCardPayload({ type: 'join_flow', planId: plan.id }) },
+    { role: 'user', content: displayText },
+    {
+      role: 'ai',
+      content: serializeCardPayload({
+        type: 'join_flow',
+        ...target,
+        ...(marker.progress ? { progress: marker.progress } : {}),
+        ...(marker.isCompleted ? { isCompleted: true } : {}),
+      }),
+    },
   ]);
 }
 
@@ -168,15 +184,15 @@ export async function insertJoinFlowMessages(
  *
  * 새 행을 쌓지 않고 이미 있는 마커를 고치는 이유는, 마커 행 하나가 카드 한 장에
  * 대응하기 때문이다 - 진행할 때마다 행이 늘면 복구할 때 같은 카드가 여러 장 뜬다.
- * 같은 요금제로 여러 번 신청한 흔적이 있으면 가장 최근 것을 고친다.
+ * 같은 상품으로 여러 번 신청한 흔적이 있으면 가장 최근 것을 고친다.
  *
  * 넘어온 값만 덮어쓴다. 완료만 알리는 호출이 이미 저장된 진행 단계를 지우면
  * 안 되기 때문이다. 고칠 마커를 못 찾으면 false 를 돌려준다.
  */
 export async function updateJoinFlowMarker(
   chatId: string,
-  planId: number,
-  patch: { progress?: PlanJoinProgress; isCompleted?: boolean },
+  target: JoinTarget,
+  patch: { progress?: JoinProgress; isCompleted?: boolean },
 ): Promise<boolean> {
   const supabase = await createClient();
 
@@ -195,17 +211,19 @@ export async function updateJoinFlowMarker(
     throw new Error(`가입 카드 조회 실패: ${error.message}`);
   }
 
-  const target = (data ?? [])
+  const key = getJoinKey(target);
+  const marker = (data ?? [])
     .map((row) => ({ row, payload: tryParseCardPayload(row.content) }))
     .find(
       ({ payload }) =>
-        payload?.type === 'join_flow' && payload.planId === planId,
+        payload?.type === 'join_flow' &&
+        getJoinKey({ kind: payload.kind, itemId: payload.itemId }) === key,
     );
 
-  if (!target || target.payload?.type !== 'join_flow') return false;
+  if (!marker || marker.payload?.type !== 'join_flow') return false;
 
   const next: ChatCardPayload = {
-    ...target.payload,
+    ...marker.payload,
     ...(patch.progress !== undefined ? { progress: patch.progress } : {}),
     ...(patch.isCompleted !== undefined
       ? { isCompleted: patch.isCompleted }
@@ -215,7 +233,7 @@ export async function updateJoinFlowMarker(
   const { error: updateError } = await supabase
     .from('chat_messages')
     .update({ content: serializeCardPayload(next) })
-    .eq('id', target.row.id);
+    .eq('id', marker.row.id);
 
   if (updateError) {
     throw new Error(`가입 카드 저장 실패: ${updateError.message}`);
@@ -230,11 +248,15 @@ export async function updateJoinFlowMarker(
  */
 export async function insertJoinResultMessages(
   chatId: string,
+  kind: JoinTarget['kind'],
   resultMessage: string,
 ): Promise<void> {
   await insertMessages(chatId, [
     { role: 'ai', content: resultMessage },
-    { role: 'ai', content: serializeCardPayload({ type: 'join_result' }) },
+    {
+      role: 'ai',
+      content: serializeCardPayload({ type: 'join_result', kind }),
+    },
   ]);
 }
 
@@ -243,7 +265,10 @@ export async function updateChatKeywords(
   keywords: ChatKeywords,
 ): Promise<void> {
   const supabase = await createClient();
-  const { error } = await supabase.from('chats').update({ keywords }).eq('id', chatId);
+  const { error } = await supabase
+    .from('chats')
+    .update({ keywords })
+    .eq('id', chatId);
 
   if (error) {
     throw new Error(`조건 저장 실패: ${error.message}`);
@@ -255,7 +280,9 @@ export interface DbChatSummary {
   lastMessageId: number | null;
 }
 
-export async function getChatSummary(chatId: string): Promise<DbChatSummary | null> {
+export async function getChatSummary(
+  chatId: string,
+): Promise<DbChatSummary | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('chat_summary')
@@ -291,7 +318,9 @@ export async function upsertChatSummary(
 }
 
 /** 대화 전체 기록 - 복귀 시 화면에 그대로 복구하는 용도(CHAT-012의 회원 버전) */
-export async function getChatMessages(chatId: string): Promise<DbChatMessage[]> {
+export async function getChatMessages(
+  chatId: string,
+): Promise<DbChatMessage[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('chat_messages')

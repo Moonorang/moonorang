@@ -1,5 +1,5 @@
 import {
-  openai,
+  getOpenAIClient,
   OPENAI_MODEL,
   OPENAI_SEED,
   OPENAI_TEMPERATURE,
@@ -35,7 +35,7 @@ export async function extractConditions(
   message: string,
 ): Promise<ChatKeywords | null> {
   try {
-    const completion = await openai.chat.completions.create(
+    const completion = await getOpenAIClient().chat.completions.create(
       {
         model: OPENAI_MODEL,
         temperature: OPENAI_TEMPERATURE,

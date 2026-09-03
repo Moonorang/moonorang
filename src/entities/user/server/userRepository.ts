@@ -17,11 +17,15 @@ interface UserRow {
  * 로그인 사용자의 프로필 + 현재 요금제. 회원가입을 마치지 않은 사용자(users row 없음)면 null.
  * CHAT-010: 상담 문맥에 포함. CARD-023~026: 절약 상담의 "현재 요금제" 기준.
  */
-export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+export async function getUserProfile(
+  userId: string,
+): Promise<UserProfile | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('users')
-    .select('id, name, contact, current_plan_id, remaining_data, data_limit, point')
+    .select(
+      'id, name, contact, current_plan_id, remaining_data, data_limit, point',
+    )
     .eq('id', userId)
     .maybeSingle<UserRow>();
 
@@ -72,6 +76,26 @@ interface MonthlyUsageRow {
  * 최근 N개월(기본 3) 데이터 사용량. CARD-028.
  * billing_month 오름차순(과거→최근)으로 돌려준다 - 차트 x축에 그대로 쓰기 좋게.
  */
+/**
+ * 지금 이용 중인 요금제 번호만 가볍게 조회한다.
+ * getUserProfile 은 plans 조인까지 해서 프로필 전체를 만드는데, "이 요금제를
+ * 이미 쓰고 있나"만 물을 때는 그만큼이 필요 없다.
+ */
+export async function getCurrentPlanId(userId: string): Promise<number | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('users')
+    .select('current_plan_id')
+    .eq('id', userId)
+    .maybeSingle<{ current_plan_id: number | null }>();
+
+  if (error) {
+    throw new Error(`현재 요금제 조회 실패: ${error.message}`);
+  }
+
+  return data?.current_plan_id ?? null;
+}
+
 export async function getRecentMonthlyUsage(
   userId: string,
   months = 3,

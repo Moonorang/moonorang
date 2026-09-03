@@ -5,7 +5,7 @@ import Button from '@/shared/ui/Button';
 import BenefitRow from '@/entities/plan/ui/BenefitRow';
 
 import { formatWon } from '@/shared/utils/formatCurrency';
-import { getPlanBenefitDetail } from '@/entities/plan/config/planBenefits';
+import { getPlanBenefitItems } from '@/entities/plan/config/planBenefits';
 import { parseDataAllowance, parseVoiceSms } from '@/entities/plan/lib/format';
 import type { Plan } from '@/entities/plan/types';
 
@@ -48,7 +48,7 @@ export default function PlanDetailCard({ plan, onJoin }: PlanDetailCardProps) {
   );
   const { call, sms } = parseVoiceSms(plan.voiceSms);
   const tetheringSharing = plan.benefits?.tethering_sharing;
-  const { mainBenefits, addOnServices } = getPlanBenefitDetail(plan.id);
+  const benefitItems = getPlanBenefitItems(plan.benefits);
 
   return (
     <div className="flex flex-col">
@@ -106,27 +106,14 @@ export default function PlanDetailCard({ plan, onJoin }: PlanDetailCardProps) {
         </Button>
       )}
 
-      {mainBenefits.length > 0 && (
+      {benefitItems.length > 0 && (
         <>
           <h4 className="mt-[18px] text-12 font-medium text-text-primary">
             주요 혜택
           </h4>
           <ul className="mt-2.5 flex flex-col gap-2">
-            {mainBenefits.map((benefit) => (
-              <BenefitRow key={benefit.title} {...benefit} />
-            ))}
-          </ul>
-        </>
-      )}
-
-      {addOnServices.length > 0 && (
-        <>
-          <h4 className="mt-[18px] text-12 font-medium text-text-primary">
-            추가 서비스
-          </h4>
-          <ul className="mt-2.5 flex flex-col gap-2">
-            {addOnServices.map((service) => (
-              <BenefitRow key={service.title} {...service} />
+            {benefitItems.map(({ key, ...benefit }) => (
+              <BenefitRow key={key} {...benefit} />
             ))}
           </ul>
         </>

@@ -1,32 +1,29 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-
-import { ChevronLeft } from 'lucide-react';
-
-import StepProgress from '@/shared/ui/StepProgress';
 
 import CardStep from '@/features/join/components/CardStep';
 import ConfirmStep from '@/features/join/components/ConfirmStep';
 import IdentityStep from '@/features/join/components/IdentityStep';
+import JoinAlreadyNotice from '@/features/join/components/JoinAlreadyNotice';
+import JoinCardFrame from '@/features/join/components/JoinCardFrame';
+import JoinCheckingNotice from '@/features/join/components/JoinCheckingNotice';
 import JoinSignupNotice from '@/features/join/components/JoinSignupNotice';
 import PaymentLoading from '@/features/join/components/PaymentLoading';
 import PlanConfirmStep from '@/features/join/components/PlanConfirmStep';
 import TermsStep from '@/features/join/components/TermsStep';
-import { PAYMENT_DELAY_MS } from '@/features/join/data/complete';
-import { JOIN_STEPS } from '@/features/join/data/steps';
+import { PLAN_JOIN_STEPS } from '@/features/join/data/steps';
+import { PLAN_JOIN_TERMS } from '@/features/join/data/terms';
+import { useJoinAvailability } from '@/features/join/hooks/useJoinAvailability';
+import { useJoinSteps } from '@/features/join/hooks/useJoinSteps';
+import { useJoinSubmission } from '@/features/join/hooks/useJoinSubmission';
 import { getBirthFromRrn, getGenderFromRrnCode } from '@/features/join/lib/rrn';
-import {
-  findNextStepIndex,
-  findPrevStepIndex,
-  getProgressPosition,
-} from '@/features/join/lib/steps';
 import { completeJoin } from '@/features/join/server/actions';
 import type { CardValues } from '@/features/join/lib/cardSchema';
 import type { IdentityValues } from '@/features/join/lib/identitySchema';
 
-import type { PlanJoinProgress } from '@/entities/planJoin/types';
+import type { JoinProgress } from '@/entities/join/types';
 import type { Plan } from '@/entities/plan/types';
 import { saveSignupPrefill } from '@/entities/user/lib/signupPrefill';
 import type { Gender } from '@/entities/user/types';
@@ -70,9 +67,9 @@ interface JoinFlowCardProps {
    * CARD-046: 지난번에 어디까지 밟았는지. 회원가입 하러 나갔다 돌아오면 화면이
    * 통째로 새로 뜨므로, 이 값이 없으면 늘 첫 단계부터 다시 시작하게 된다.
    */
-  progress?: PlanJoinProgress;
+  progress?: JoinProgress;
   /** 진행 상태가 달라질 때마다 불린다 - 대화 쪽이 받아서 함께 저장한다 */
-  onProgressChange?: (progress: PlanJoinProgress) => void;
+  onProgressChange?: (progress: JoinProgress) => void;
 }
 
 /**
@@ -94,9 +91,19 @@ export default function JoinFlowCard({
   onProgressChange,
 }: JoinFlowCardProps) {
   // 1. 상태 및 훅
-  // CARD-046: 저장해둔 진행 상태가 있으면 그 자리에서 시작한다.
-  // 카드가 붙는 시점에는 대화 복구가 이미 끝나 있어서 첫 값으로 받아도 늦지 않다.
-  const [stepIndex, setStepIndex] = useState(progress?.stepIndex ?? 0);
+  const {
+    stepIndex,
+    step,
+    prevStepIndex,
+    progressPosition,
+    cardRef,
+    goNext,
+    goPrev,
+  } = useJoinSteps({
+    steps: PLAN_JOIN_STEPS,
+    initialStepIndex: progress?.stepIndex,
+  });
+
   const [agreedTermIds, setAgreedTermIds] = useState<string[]>(
     progress?.agreedTermIds ?? [],
   );
@@ -108,48 +115,47 @@ export default function JoinFlowCard({
   // 저장해두는데, 가입을 마칠 때 회원 정보에 남겨야 하기 때문이다.
   const [gender, setGender] = useState<Gender | null>(progress?.gender ?? null);
   const [birth, setBirth] = useState<string | null>(progress?.birth ?? null);
-  // CARD-043: 결제하기를 누른 뒤 가입 결과가 대화에 나오기 전까지의 처리 중 상태
-  const [isPaying, setIsPaying] = useState(false);
-  // CARD-044: 비회원이 결제하기를 눌러 회원가입 안내로 갈아탄 상태
-  const [isSignupRequired, setIsSignupRequired] = useState(false);
-  // COMMON-002: 가입 정보를 저장하지 못했을 때 결제 정보 화면에 남기는 사유
-  const [paymentError, setPaymentError] = useState<string | null>(null);
-
-  const step = JOIN_STEPS[stepIndex];
-  const nextStepIndex = findNextStepIndex(stepIndex);
-  const prevStepIndex = findPrevStepIndex(stepIndex);
-  // 진행 표시줄에 그릴 위치 - 이어가기용 progress(props) 와는 다른 값이다
-  const progressPosition = getProgressPosition(stepIndex);
-
-  const cardRef = useRef<HTMLDivElement>(null);
-  // 카드가 처음 붙는 순간은 ChatRoom 이 최하단으로 끌어내리는 시점이라 건드리지 않는다
-  const isFirstRenderRef = useRef(true);
-  const payingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 첫 그리기에서는 방금 복구한 값을 그대로 되돌려 보내는 셈이라 알리지 않는다
   const isFirstProgressRef = useRef(true);
 
+  // CARD-030: 회원에게는 '변경'을 연결하는데, 지금 쓰는 요금제로는 바꿀 것이 없다
+  const availability = useJoinAvailability({
+    kind: 'plan',
+    itemId: plan.id,
+    isLoggedIn,
+    isCompleted,
+  });
+
+  /**
+   * CARD-043/045: 결제하기부터 가입 확정까지. 여기서 현재 이용 요금제가 바뀐다 -
+   * 저장이 실패하면 훅이 결제 정보 화면으로 되돌리고 사유를 보여주므로,
+   * 화면과 회원 정보가 어긋난 채로 남지 않는다.
+   */
+  const submission = useJoinSubmission({
+    target: { kind: 'plan', itemId: plan.id },
+    isLoggedIn,
+    isCompleted,
+    errorFallbackMessage: '가입을 완료하지 못했어요. 다시 시도해 주세요.',
+    onSubmit: () =>
+      completeJoin({
+        planId: plan.id,
+        gender: gender ?? undefined,
+        birth: birth ?? undefined,
+      }),
+    // AUTH-008: 회원가입 추가 정보 화면이 방금 입력한 값을 초기값으로 쓰게 넘겨둔다.
+    // 이어가기(CARD-046)로 돌아온 경우엔 이름·연락처가 비어 있는데, 성별·생년월일은
+    // 진행 상태에 남아 있어 여전히 넘길 것이 있다 - 그래서 이름 유무로 막지 않는다.
+    onBeforeSignup: () =>
+      saveSignupPrefill({
+        name: identity.name,
+        mobileNum: identity.mobileNum,
+        gender: gender ?? undefined,
+        birth: birth ?? undefined,
+      }),
+    onComplete,
+  });
+
   // 2. 부수 효과
-  // 단계마다 카드 높이가 크게 달라서(상세 카드 ↔ 약관), 스크롤 위치를 그대로 두면
-  // 다음으로 갈 땐 내용이 줄어든 만큼 화면이 튀고, 이전으로 돌아오면 늘어난 만큼
-  // 위쪽이 잘린 채로 보인다. 단계가 바뀔 때마다 카드 머리를 화면 위에 맞춰준다.
-  // useEffect 가 아니라 useLayoutEffect 인 이유는 그리기 전에 옮겨야 튀는 순간이
-  // 눈에 안 보이기 때문이다.
-  useLayoutEffect(() => {
-    if (isFirstRenderRef.current) {
-      isFirstRenderRef.current = false;
-      return;
-    }
-
-    cardRef.current?.scrollIntoView({ block: 'start' });
-  }, [stepIndex]);
-
-  // 결제 중에 카드가 사라지면(대화 초기화 등) 타이머만 남아 없는 화면을 바꾸려 든다
-  useEffect(() => {
-    return () => {
-      if (payingTimerRef.current) clearTimeout(payingTimerRef.current);
-    };
-  }, []);
-
   // CARD-046: 어디까지 왔는지가 달라질 때마다 대화 쪽에 알려 함께 저장하게 한다.
   // onProgressChange 는 매 렌더 새로 만들어지지만, 받는 쪽이 같은 값이면 저장을
   // 건너뛰므로 이 효과가 다시 도는 일은 없다.
@@ -168,17 +174,10 @@ export default function JoinFlowCard({
   }, [stepIndex, agreedTermIds, gender, birth, onProgressChange]);
 
   // 3. 이벤트 핸들러
-  const handleNext = () => {
-    // 뒤에 남은 화면이 없으면 절차를 마친 것으로 본다
-    if (nextStepIndex === -1) return;
-
-    setStepIndex(nextStepIndex);
-  };
-
   const handlePrev = () => {
-    // 단계를 옮기면 회원가입 안내는 접는다 - 다시 오면 결제 정보부터 본다
-    setIsSignupRequired(false);
-    setStepIndex(prevStepIndex);
+    // 결제하기를 물렀다는 뜻이므로 회원가입 안내를 접고 이어가기 표식도 거둔다
+    submission.withdraw();
+    goPrev();
   };
 
   const handleIdentityNext = (values: IdentityValues) => {
@@ -186,144 +185,103 @@ export default function JoinFlowCard({
     // 주민등록번호는 여기서 성별·생년월일로 한 번 풀어내고 그 결과만 들고 간다
     setGender(getGenderFromRrnCode(values.rrnGenderCode));
     setBirth(getBirthFromRrn(values.rrnFront, values.rrnGenderCode));
-    handleNext();
+    goNext();
   };
 
   const handleCardNext = (values: CardValues) => {
     setCard(values);
-    handleNext();
-  };
-
-  /**
-   * 결제 처리가 끝난 뒤 - 가입을 회원 정보에 반영하고 결과를 대화로 넘긴다.
-   *
-   * CARD-045: 여기서 현재 이용 요금제가 바뀐다. 저장이 실패했는데도 가입 완료를
-   * 알리면 화면과 회원 정보가 어긋난 채로 남으므로, 실패하면 결제 정보 화면으로
-   * 되돌리고 사유를 보여준다 - 다시 시도는 결제하기를 한 번 더 누르면 된다.
-   */
-  const finishPayment = async () => {
-    const { errorMessage } = await completeJoin({
-      planId: plan.id,
-      gender: gender ?? undefined,
-      birth: birth ?? undefined,
-    });
-
-    setIsPaying(false);
-
-    if (errorMessage) {
-      setPaymentError(errorMessage);
-      return;
-    }
-
-    onComplete?.();
-  };
-
-  /**
-   * CARD-043: 결제하기. 실제 결제 연동이 없어서 잠깐 처리하는 척하다가, 끝나면
-   * 결과를 카드가 아니라 대화에 새 메시지로 넘긴다 - 가입이 끝난 뒤의 이야기는
-   * 절차의 한 단계가 아니라 무너가 건네는 다음 말이기 때문이다.
-   */
-  const handlePayment = () => {
-    if (isPaying || isCompleted) return;
-
-    setPaymentError(null);
-
-    // CARD-044: 가입은 회원만 할 수 있어서, 비회원은 결제 대신 회원가입부터 거친다.
-    // 카카오를 다녀와도 CARD-046 진행 상태 덕에 이 자리에서 다시 시작한다.
-    if (!isLoggedIn) {
-      // AUTH-008: 회원가입 추가 정보 화면이 방금 입력한 값을 초기값으로 쓰게 넘겨둔다.
-      // 이어가기(CARD-046)로 돌아온 경우엔 입력값이 없으니 덮어쓰지 않는다.
-      if (identity.name) {
-        saveSignupPrefill({
-          name: identity.name,
-          mobileNum: identity.mobileNum,
-        });
-      }
-
-      setIsSignupRequired(true);
-      return;
-    }
-
-    setIsPaying(true);
-    payingTimerRef.current = setTimeout(
-      () => void finishPayment(),
-      PAYMENT_DELAY_MS,
-    );
+    goNext();
   };
 
   // 4. 렌더링
   const submitLabel = step.submitLabel;
 
+  /*
+   * 이미 쓰고 있는 요금제이거나 아직 확인 중이면 절차 대신 이 안내가 카드를 채운다.
+   * 비회원은 여기 걸리지 않는다 - 요금제는 비회원도 절차를 밟고 마지막에 회원가입으로
+   * 가는 흐름이라(CARD-044), 이용 중 여부를 물을 상대가 없다.
+   */
+  if (availability !== 'available') {
+    return (
+      <JoinCardFrame
+        cardRef={cardRef}
+        title={step.title}
+        progressPosition={progressPosition}
+        progressAriaLabel="요금제 가입 진행 상황"
+        isPrevDisabled
+        onPrev={handlePrev}
+      >
+        {availability === 'checking' ? (
+          <JoinCheckingNotice />
+        ) : (
+          <JoinAlreadyNotice
+            message={
+              <>
+                이미 이용 중인 요금제예요.
+                <br />
+                다른 요금제를 찾아보시겠어요?
+              </>
+            }
+          />
+        )}
+      </JoinCardFrame>
+    );
+  }
+
   // 결제 정보 자리에는 상황에 따라 셋 중 하나가 온다 -
   // 회원가입 안내(비회원) > 결제 처리 중 > 평소의 결제 정보
-  const confirmBody = isSignupRequired ? (
-    <JoinSignupNotice onPrev={() => setIsSignupRequired(false)}>
+  const confirmBody = submission.isSignupRequired ? (
+    <JoinSignupNotice
+      message={
+        <>
+          요금제 가입은 회원만 할 수 있어요.
+          <br />
+          카카오로 가입하고 이어서 진행해 주세요.
+        </>
+      }
+      onPrev={submission.closeSignupNotice}
+    >
       {renderSignup?.()}
     </JoinSignupNotice>
-  ) : isPaying ? (
+  ) : submission.isSubmitting ? (
     <PaymentLoading />
   ) : (
     <ConfirmStep
       plan={plan}
       submitLabel={submitLabel}
       isCompleted={isCompleted}
-      errorMessage={paymentError}
+      errorMessage={submission.errorMessage}
       onPrev={handlePrev}
-      onNext={handlePayment}
+      onNext={submission.submit}
     />
   );
 
-  // 폭·여백은 대화에 나란히 서는 PlanCard 와 같은 값으로 맞춘다.
-  // scroll-mt 는 고정 헤더 높이만큼 - 없으면 단계 이동 때 카드 머리가 헤더에 가린다
   return (
-    <div
-      ref={cardRef}
-      className="flex w-[80%] scroll-mt-(--height-header) flex-col rounded-md bg-background-default p-4"
+    <JoinCardFrame
+      cardRef={cardRef}
+      title={step.title}
+      progressPosition={progressPosition}
+      progressAriaLabel="요금제 가입 진행 상황"
+      isPrevDisabled={
+        prevStepIndex === -1 || submission.isSubmitting || isCompleted
+      }
+      onPrev={handlePrev}
     >
-      <div className="flex items-center gap-1">
-        {/*
-          CARD-040: 첫 단계에서는 돌아갈 곳이 없어 잠가둔다. 결제 중이거나 이미
-          가입을 마친 뒤에도 되돌릴 것이 없어 같이 잠근다.
-          Header·QuestionCard 의 이전 버튼과 같은 방식으로 그린다
-        */}
-        <button
-          type="button"
-          onClick={handlePrev}
-          disabled={prevStepIndex === -1 || isPaying || isCompleted}
-          aria-label="이전 단계로 이동"
-          className="shrink-0 cursor-pointer text-text-secondary transition-colors hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
-        </button>
-
-        <h3 className="text-14 font-medium text-text-primary">{step.title}</h3>
-      </div>
-
-      {/* 상세 확인은 절차가 시작되기 전이라 표시줄을 안 그린다 */}
-      {progressPosition && (
-        <div className="mt-3">
-          <StepProgress
-            total={progressPosition.total}
-            currentIndex={progressPosition.currentIndex}
-            ariaLabel="요금제 가입 진행 상황"
-          />
-        </div>
-      )}
-
       {step.id === 'plan' && (
         <PlanConfirmStep
           plan={plan}
           submitLabel={submitLabel}
-          onNext={handleNext}
+          onNext={goNext}
         />
       )}
 
       {step.id === 'terms' && (
         <TermsStep
+          terms={PLAN_JOIN_TERMS}
           submitLabel={submitLabel}
           agreedIds={agreedTermIds}
           onAgreedIdsChange={setAgreedTermIds}
-          onNext={handleNext}
+          onNext={goNext}
         />
       )}
 
@@ -345,6 +303,6 @@ export default function JoinFlowCard({
       )}
 
       {step.id === 'confirm' && confirmBody}
-    </div>
+    </JoinCardFrame>
   );
 }

@@ -17,6 +17,26 @@ function describeInterestMatch(): string {
   return '관심사에 맞는 혜택이 있는 요금제예요.';
 }
 
+// priority: 'data'(예: "이전보다 데이터 더 많이") - "약 XGB 기준에 맞춰"라는 문구가
+// 안 맞는다. 예산 안에서 데이터가 많은 순으로 골랐다는 걸 그대로 밝힌다.
+function describeDataPriorityMatch(isWithinBudget: boolean): string {
+  const budgetNote = isWithinBudget ? '예산 안에서' : '예산을 조금 넘지만';
+  return `${budgetNote} 데이터 제공량이 가장 많은 순으로 고른 요금제예요.`;
+}
+
+// priority: 'priciest'(예: "월 5만원대로 추천해줘" - 데이터 언급 없이 예산만 준
+// 경우, 또는 "제일 비싼 걸로") - 예산을 최대한 활용하는(가장 비싼) 순으로 골랐다는
+// 걸 그대로 밝힌다.
+function describePriciestMatch(): string {
+  return '예산 안에서 가장 비싼(혜택이 큰) 순으로 고른 요금제예요.';
+}
+
+// priority: 'cheapest'(예: "제일 싼 걸로", "가장 저렴한 걸로") - priciest와
+// 정반대로 가장 저렴한 순으로 골랐다는 걸 그대로 밝힌다.
+function describeCheapestMatch(): string {
+  return '가장 저렴한 순으로 고른 요금제예요.';
+}
+
 /**
  * recommend_plans가 트리거되면(=사용자가 추천을 원하면) 실제 선별을 수행한다.
  *
@@ -36,8 +56,10 @@ export function runPlanRecommendation(
   const {
     recommendations: scored,
     didRelaxBudget,
+    didRelaxDataUsage,
     didRelaxTethering,
     isInterestBrowse,
+    effectivePriority,
   } = selectRecommendedPlans(plans, keywords);
 
   const recommendations: PlanRecommendation[] = scored.map((item) => ({
@@ -45,7 +67,13 @@ export function runPlanRecommendation(
     rank: item.rank,
     reason: isInterestBrowse
       ? describeInterestMatch()
-      : describeFit(item.isWithinBudget, usageGb),
+      : effectivePriority === 'data'
+        ? describeDataPriorityMatch(item.isWithinBudget)
+        : effectivePriority === 'priciest'
+          ? describePriciestMatch()
+          : effectivePriority === 'cheapest'
+            ? describeCheapestMatch()
+            : describeFit(item.isWithinBudget, usageGb),
   }));
 
   send({ event: 'recommendation', data: { plans: recommendations } });
@@ -61,9 +89,15 @@ export function runPlanRecommendation(
     })),
     // CARD-020: 조건을 못 채워서 필터를 완화했으면 그 사실을 안내 문구에 반영하라고 알려준다.
     didRelaxBudget,
+    didRelaxDataUsage,
     didRelaxTethering,
     // 예산/데이터 없이 관심사만으로 찾았다는 사실 - 마무리 응답에서 "예산에 맞춰서" 같은
     // 표현을 쓰지 않고 관심사 기준으로 설명하라고 시스템 프롬프트에서 안내한다.
     isInterestBrowse,
+    // 'priciest'/'cheapest'/'data' 우선순위가 실제로 적용됐다는 사실 - keywords.priority를 모델이
+    // 명시적으로 안 채웠어도(예산만 있고 데이터가 전혀 없어 서버가 자동으로 판단한
+    // 경우 포함) 여기엔 실제로 적용된 값이 온다. 마무리 응답에서 "왜 이렇게 골랐는지"
+    // 설명할 근거로 쓰라고 시스템 프롬프트에서 안내한다.
+    effectivePriority,
   };
 }

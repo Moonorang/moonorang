@@ -119,11 +119,29 @@ async function appendToolRound(
     }),
   );
 
+  // 모델이 같은 tool을 같은 인자로 한 턴에 두 번 부르는 경우가 실측으로 관측됐다
+  // (예: recommend_plans 중복 호출). 실행 도구(recommend_plans 등)는 전부 인자가
+  // 없어서 두 번째 호출도 항상 첫 번째와 완전히 같은 결과가 나오는데, 그대로 두면
+  // recommendation 같은 SSE 카드 이벤트가 중복으로 나가고 계산도 두 번 한다.
+  // name+argsBuffer가 같은 호출은 결과(Promise)를 재사용한다 - 다만 OpenAI에 보낼
+  // tool 메시지는 호출된 tool_call_id 개수만큼 여전히 다 채워야 한다(요청 계약상
+  // 모든 tool_call에 대응하는 tool 메시지가 있어야 함).
+  const resultCache = new Map<string, Promise<unknown>>();
+  const getCachedResult = (call: ToolCallBuilder) => {
+    const key = `${call.name}:${call.argsBuffer}`;
+    const cached = resultCache.get(key);
+    if (cached) return cached;
+
+    const result = getToolResultContent(call, context);
+    resultCache.set(key, result);
+    return result;
+  };
+
   const toolResultMessages: ChatCompletionMessageParam[] = await Promise.all(
     calls.map(async (call) => ({
       role: 'tool' as const,
       tool_call_id: call.id,
-      content: JSON.stringify(await getToolResultContent(call, context)),
+      content: JSON.stringify(await getCachedResult(call)),
     })),
   );
 
@@ -485,10 +503,18 @@ export function createChatStream(
         send({
           event: 'error',
           data: {
+            // APIConnectionTimeoutError는 APIError의 하위 타입이라 반드시 먼저 걸러야
+            // 한다. 그 외 APIError(OpenAI가 5xx/4xx로 명시적으로 응답한 경우, 또는
+            // 우리 서버가 OpenAI에 아예 연결하지 못한 경우)는 우리 서버와 사용자
+            // 사이는 멀쩡하고 OpenAI 쪽 문제라 ai_server_error로 구분한다 - 사용자
+            // 네트워크를 의심하게 만드는 안내를 보여주지 않기 위함이다.
+            // APIError가 아닌 예외(우리 코드/DB 쪽 버그 등)만 runtime_unavailable로 남는다.
             reason:
               error instanceof APIConnectionTimeoutError
                 ? 'timeout'
-                : 'runtime_unavailable',
+                : error instanceof APIError
+                  ? 'ai_server_error'
+                  : 'runtime_unavailable',
             message:
               error instanceof APIError
                 ? error.message

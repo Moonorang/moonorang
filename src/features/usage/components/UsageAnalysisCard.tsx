@@ -51,7 +51,7 @@ export default function UsageAnalysisCard({
   return (
     <div
       className={cn(
-        'flex w-[80%] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default',
+        'flex w-[min(80%,440px)] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default',
         appendClassName,
       )}
     >
@@ -179,7 +179,12 @@ export default function UsageAnalysisCard({
               {dataAlertLimit} 남았을 때
             </span>
           </div>
-          <Button variant="outline" radius="full" gap="sm" onClick={onEditAlert}>
+          <Button
+            variant="outline"
+            radius="full"
+            gap="sm"
+            onClick={onEditAlert}
+          >
             <Pencil size={12} /> 수정하기
           </Button>
         </div>

@@ -19,16 +19,17 @@ import {
   selectTurnsToSummarize,
   selectUnsummarizedHistory,
 } from '@/features/chat/lib/turns';
+import { getJoinBlockTarget } from '@/features/chat/lib/joinBlock';
 import type {
   ChatErrorReason,
   ChatKeywords,
   ChatMessage,
   ChatSummarizeResponseBody,
-  PlanJoinBlock,
+  JoinBlock,
 } from '@/features/chat/types';
 
-import type { PlanJoinProgress } from '@/entities/planJoin/types';
-import type { Plan } from '@/entities/plan/types';
+import { getJoinKey } from '@/entities/join';
+import type { JoinItem, JoinProgress, JoinTarget } from '@/entities/join/types';
 
 import { createId } from '@/shared/utils/createId';
 
@@ -39,7 +40,7 @@ export interface ChatError {
 
 interface MemberChatHistoryResponse {
   messages: ChatMessage[];
-  joinBlocks: PlanJoinBlock[];
+  joinBlocks: JoinBlock[];
   keywords: ChatKeywords;
 }
 
@@ -49,7 +50,7 @@ interface MemberChatHistoryResponse {
  * keepBothConversations(이어서 보기) / discardGuestConversation(게스트 대화 버리기).
  */
 export interface ChatConflict {
-  /** 로그인 전 게스트로 나눈 메시지 개수 - 모달 문구에 사용 */
+  /** 로그인 전 게스트로 나눈 대화 조각 수(메시지 + 가입 카드) - 모달 문구에 사용 */
   guestMessageCount: number;
 }
 
@@ -58,10 +59,7 @@ export interface ChatConflict {
  * 가입 카드는 렌더할 때마다 진행 상태를 알려오는데, 달라진 게 없을 때도 저장하면
  * 상태가 새로 만들어져 다시 렌더되고, 그게 또 알림을 부르는 고리가 된다.
  */
-function isSameProgress(
-  a: PlanJoinProgress | undefined,
-  b: PlanJoinProgress,
-): boolean {
+function isSameProgress(a: JoinProgress | undefined, b: JoinProgress): boolean {
   return (
     a !== undefined &&
     a.stepIndex === b.stepIndex &&
@@ -99,6 +97,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<ChatError | null>(null);
+  // CARD-006: 재시도 요청이 진행 중인지. 실패 카드를 곧바로 없애고 빈 말풍선(타이핑
+  // 표시)만 남기면 "그냥 새로 물어본 것"처럼 보여 방금 실패했던 맥락이 끊겨 보인다 -
+  // 이 값이 true인 동안은 실패 카드를 그대로 두고 아이콘·버튼만 "재시도 중"으로 바꿔서
+  // 보여준다(ChatErrorNotice).
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // 재시도용: 직전 요청의 입력을 기억해둠
   const lastUserTextRef = useRef<string | null>(null);
@@ -117,16 +120,19 @@ export function useChat(isLoggedIn: boolean | undefined) {
   // NearbyMembershipCard의 미니 지도가 "내 위치" 핀을 찍을 수 있게 화면에 내려주기
   // 위한 것 - 둘이 항상 같은 값을 가리키도록 같이 갱신한다.
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
+    null,
+  );
   // getCurrentPosition은 비동기라, 예전엔 이 결과를 기다리지 않고 곧바로 fetch를
   // 보내서 - 권한이 이미 허용돼 있어도 매번 위치 없이 요청이 나가는 레이스가 있었다
   // (locationRef.current가 아직 null인 채로 fetch 본문이 만들어짐). 그래서
   // runChatRequest가 이 promise를 await해서 요청을 보내기 직전에 위치가 반영되게
   // 한다. 이미 얻은 뒤(locationRef.current 있음)나 요청이 이미 진행 중일 때는
   // 새로 묻지 않고 같은 promise/값을 재사용한다.
-  const locationPromiseRef = useRef<Promise<{ lat: number; lng: number } | null> | null>(
-    null,
-  );
+  const locationPromiseRef = useRef<Promise<{
+    lat: number;
+    lng: number;
+  } | null> | null>(null);
 
   const ensureLocationRequested = useCallback((): Promise<{
     lat: number;
@@ -138,26 +144,28 @@ export function useChat(isLoggedIn: boolean | undefined) {
       return Promise.resolve(null);
     }
 
-    const promise = new Promise<{ lat: number; lng: number } | null>((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const nextLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          locationRef.current = nextLocation;
-          setLocation(nextLocation);
-          resolve(nextLocation);
-        },
-        () => {
-          // 거부·타임아웃 등 - promise를 비워서 다음 메시지를 보낼 때 다시
-          // 시도되게 한다(COMMON-002의 "재시도 수단").
-          locationPromiseRef.current = null;
-          resolve(null);
-        },
-        { timeout: 10_000 },
-      );
-    });
+    const promise = new Promise<{ lat: number; lng: number } | null>(
+      (resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const nextLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            locationRef.current = nextLocation;
+            setLocation(nextLocation);
+            resolve(nextLocation);
+          },
+          () => {
+            // 거부·타임아웃 등 - promise를 비워서 다음 메시지를 보낼 때 다시
+            // 시도되게 한다(COMMON-002의 "재시도 수단").
+            locationPromiseRef.current = null;
+            resolve(null);
+          },
+          { timeout: 10_000 },
+        );
+      },
+    );
     locationPromiseRef.current = promise;
     return promise;
   }, []);
@@ -169,8 +177,8 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
   // CARD-029: 신청하기로 띄운 가입 카드들. 대화 이력과 섞지 않고 따로 들고 있지만,
   // 화면을 벗어났다 돌아왔을 때 같이 복구돼야 해서 저장은 messages와 함께 한다.
-  const [joinBlocks, setJoinBlocks] = useState<PlanJoinBlock[]>([]);
-  const joinBlocksRef = useRef<PlanJoinBlock[]>([]);
+  const [joinBlocks, setJoinBlocks] = useState<JoinBlock[]>([]);
+  const joinBlocksRef = useRef<JoinBlock[]>([]);
 
   // §2.3 "대화 요약" 계층 - 화면엔 안 보이고 시스템 프롬프트에만 실어 보낸다.
   const [summary, setSummary] = useState('');
@@ -252,8 +260,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
       // 안에서 감지할 수 없다. 그래서 회원으로 확인될 때마다 localStorage에 아직
       // 안 옮겨진 게스트 대화가 남아있는지를 직접 확인한다.
       const guestStored = loadChatState();
+      // 주고받은 말이 하나도 없어도 가입 카드가 떠 있으면 승계해야 한다 - 목록에서
+      // 바로 카드를 열고 결제하기를 눌러 카카오로 넘어간 경우가 정확히 그 모양이라,
+      // 여기서 빠뜨리면 돌아왔을 때 카드와 진행 상태가 통째로 사라진다(CARD-046).
       const hasGuestConversation = Boolean(
-        guestStored && guestStored.messages.length > 0,
+        guestStored &&
+        (guestStored.messages.length > 0 || guestStored.joinBlocks.length > 0),
       );
 
       fetch('/api/chat/history')
@@ -272,7 +284,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
             // 여기서는 isRestored를 올리지 않는다 - 아직 화면을 어느 쪽으로도
             // 확정하지 않은 상태라, 지금 메시지를 밀어 넣으면 사용자가 고른 대화가
             // 그 위에 덮어써진다. keepBoth/discard 쪽에서 올린다.
-            setChatConflict({ guestMessageCount: guestStored.messages.length });
+            setChatConflict({
+              // 가입 카드도 말풍선 두 개로 그려지므로 한 조각으로 센다 - 말은 없고
+              // 카드만 있는 대화에서 "0개"라고 묻지 않기 위함이다
+              guestMessageCount:
+                guestStored.messages.length + guestStored.joinBlocks.length,
+            });
             return;
           }
 
@@ -462,8 +479,10 @@ export function useChat(isLoggedIn: boolean | undefined) {
     // 걷어낸 메시지에 붙어있던 가입 카드는 그릴 자리가 없어졌으므로 같이 버린다 -
     // 안 그러면 화면에 안 보이는 채로 저장분에만 계속 쌓인다.
     const visibleIds = new Set(result.messages.map((message) => message.id));
-    const nextJoinBlocks = joinBlocksRef.current.filter((block) =>
-      visibleIds.has(block.afterMessageId),
+    const nextJoinBlocks = joinBlocksRef.current.filter(
+      // 맨 앞에 붙은 카드(null)는 특정 메시지에 매여 있지 않아 걷어낼 이유가 없다
+      (block) =>
+        block.afterMessageId === null || visibleIds.has(block.afterMessageId),
     );
     if (nextJoinBlocks.length !== joinBlocksRef.current.length) {
       joinBlocksRef.current = nextJoinBlocks;
@@ -474,8 +493,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
   }, [isLoggedIn, persist]);
 
   const runChatRequest = useCallback(
-    async (userText: string, aiMessageId: string) => {
-      setError(null);
+    async (userText: string, aiMessageId: string, isRetry = false) => {
+      // 재시도일 때는 곧바로 지우지 않는다 - 방금 실패한 사유를 그대로 보여준 채로
+      // ChatErrorNotice가 "재시도 중" 상태로 전환되고, 이번 시도 결과가 나온 뒤에야
+      // (성공하면 지우고, 또 실패하면 새 사유로) 갱신한다.
+      if (!isRetry) setError(null);
       setIsStreaming(true);
 
       const appendToAiMessage = (delta: string) => {
@@ -593,6 +615,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        // 재시도 중 이번 시도에서 새 에러를 받았는지 - 받았으면 아래에서 재시도
+        // 성공으로 보고 카드를 지우면 안 된다(그 새 에러가 그대로 남아있어야 함).
+        let receivedNewError = false;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -614,7 +639,9 @@ export function useChat(isLoggedIn: boolean | undefined) {
             } else if (parsed?.event === 'addOnRecommendation') {
               setAiMessageAddOnRecommendations(parsed.data.addOns);
             } else if (parsed?.event === 'subscriptionRecommendation') {
-              setAiMessageSubscriptionRecommendations(parsed.data.subscriptions);
+              setAiMessageSubscriptionRecommendations(
+                parsed.data.subscriptions,
+              );
             } else if (parsed?.event === 'nearbyMembership') {
               setAiMessageNearbyMemberships(parsed.data.memberships);
             } else if (parsed?.event === 'keywords') {
@@ -623,12 +650,17 @@ export function useChat(isLoggedIn: boolean | undefined) {
               setAiMessageUsageAnalysis(parsed.data);
             } else if (parsed?.event === 'error') {
               setError(parsed.data);
+              receivedNewError = true;
             }
             // 'done' 은 별도 처리 없이 스트림이 자연스럽게 끝남
 
             boundary = buffer.indexOf('\n\n');
           }
         }
+
+        // 재시도가 이번엔 끝까지 새 에러 없이 성공했으면, 그대로 남아있던 실패
+        // 카드를 지운다.
+        if (isRetry && !receivedNewError) setError(null);
 
         persist();
         // 응답을 다 보여준 뒤 비동기로 - await 하지 않는다(§2.6)
@@ -696,11 +728,20 @@ export function useChat(isLoggedIn: boolean | undefined) {
     [isStreaming, runChatRequest, updateMessages, persist],
   );
 
-  /** CARD-006: 실패한 요청을 직전과 동일한 입력·문맥으로 재시도한다. */
+  /**
+   * CARD-006: 실패한 요청을 직전과 동일한 입력·문맥으로 재시도한다.
+   * 실패 카드는 여기서 곧바로 지우지 않는다 - runChatRequest가 isRetry를 받아서
+   * 결과가 나올 때까지 그대로 두고, isRetrying만 켜서 카드가 "재시도 중" 상태로
+   * 바뀌도록 한다(실패 사유와 재시도 버튼이 갑자기 사라지고 빈 말풍선만 남는 것보다,
+   * 방금 실패했던 맥락을 유지한 채로 지금 다시 시도하고 있다는 걸 보여주는 게 더
+   * 명확한 피드백이다).
+   */
   const retry = useCallback(() => {
     const userText = lastUserTextRef.current;
     const aiMessageId = lastAiMessageIdRef.current;
     if (!userText || !aiMessageId || isStreaming) return;
+
+    setIsRetrying(true);
 
     // 실패 전에 일부 토큰이 이미 쌓여있을 수 있어 비우고 다시 채운다.
     updateMessages((prev) =>
@@ -719,31 +760,46 @@ export function useChat(isLoggedIn: boolean | undefined) {
       ),
     );
 
-    void runChatRequest(userText, aiMessageId);
+    void runChatRequest(userText, aiMessageId, true).finally(() => {
+      setIsRetrying(false);
+    });
   }, [isStreaming, runChatRequest, updateMessages]);
 
   /**
    * CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다.
    * afterMessageId 는 누른 시점의 마지막 메시지 - 카드가 대화 끝에 이어 붙는다.
-   * 같은 요금제를 또 눌러도 카드가 여러 장 쌓이지 않게 무시한다. 회원이면 서버에도
-   * 같은 자리를 남겨서(POST /api/chat/join), 나중에 복구했을 때 이 카드가 그대로
-   * 다시 보이게 한다.
+   * 아직 주고받은 말이 없으면 null 로, 대화 맨 앞에 붙는다.
+   *
+   * 같은 상품 카드는 대화에 한 장만 둔다(dedupeJoinBlocks). 이미 있으면 새로
+   * 쌓는 대신 그 카드를 대화 끝으로 옮긴다. 회원이면 서버에도 같은 자리를
+   * 남겨서(POST /api/chat/join), 나중에 복구했을 때 이 카드가 그대로 다시 보이게 한다.
    */
   const addJoinBlock = useCallback(
-    (plan: Plan, afterMessageId: string) => {
-      if (joinBlocksRef.current.some((block) => block.plan.id === plan.id)) {
-        return;
-      }
+    (item: JoinItem, afterMessageId: string | null) => {
+      const target = { kind: item.kind, itemId: item.item.id };
+      const key = getJoinKey(target);
+      const existing = joinBlocksRef.current.find(
+        (block) => getJoinKey(getJoinBlockTarget(block)) === key,
+      );
 
-      const next = [...joinBlocksRef.current, { plan, afterMessageId }];
+      // 같은 상품 카드가 이미 대화에 있으면 한 장 더 쌓지 않고 대화 끝으로 옮긴다.
+      // 카드가 저 위에 있으면 눌러도 아무 일도 안 일어난 것처럼 보이기 때문이다.
+      // 진행 상태는 그대로 들고 간다 - 다시 누른 것이지 처음부터 하겠다는 뜻은 아니다.
+      const moved: JoinBlock = { ...existing, ...item, afterMessageId };
+      const next: JoinBlock[] = [
+        ...joinBlocksRef.current.filter((block) => block !== existing),
+        moved,
+      ];
       joinBlocksRef.current = next;
       setJoinBlocks(next);
 
       if (isLoggedIn) {
+        // 서버에는 마커를 새로 넣는다 - 옛 마커는 그대로 두어도 복구할 때
+        // 나중 것만 살아나므로(dedupeJoinBlocks) 지울 필요가 없다.
         fetch('/api/chat/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ planId: plan.id }),
+          body: JSON.stringify({ ...target, progress: existing?.progress }),
         }).catch(() => {
           // 서버에 못 남겨도 지금 화면에는 이미 카드가 떠 있으니 대화는 계속된다 -
           // 다음에 복구할 때만 이 카드가 안 보일 뿐이다.
@@ -762,12 +818,13 @@ export function useChat(isLoggedIn: boolean | undefined) {
    * 그 자리가 덜 되살아날 뿐이다(addJoinBlock 과 같은 취지).
    */
   const patchJoinFlow = useCallback(
-    (body: {
-      planId: number;
-      progress?: PlanJoinProgress;
-      isCompleted?: boolean;
-      resultMessage?: string;
-    }) => {
+    (
+      body: JoinTarget & {
+        progress?: JoinProgress;
+        isCompleted?: boolean;
+        resultMessage?: string;
+      },
+    ) => {
       fetch('/api/chat/join', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -785,20 +842,22 @@ export function useChat(isLoggedIn: boolean | undefined) {
    * 만으로는 이어갈 수 없다.
    */
   const saveJoinProgress = useCallback(
-    (planId: number, progress: PlanJoinProgress) => {
-      const target = joinBlocksRef.current.find(
-        (block) => block.plan.id === planId,
-      );
-      if (!target || isSameProgress(target.progress, progress)) return;
+    (target: JoinTarget, progress: JoinProgress) => {
+      const key = getJoinKey(target);
+      const isTarget = (block: JoinBlock) =>
+        getJoinKey(getJoinBlockTarget(block)) === key;
+
+      const current = joinBlocksRef.current.find(isTarget);
+      if (!current || isSameProgress(current.progress, progress)) return;
 
       const nextBlocks = joinBlocksRef.current.map((block) =>
-        block.plan.id === planId ? { ...block, progress } : block,
+        isTarget(block) ? { ...block, progress } : block,
       );
       joinBlocksRef.current = nextBlocks;
       setJoinBlocks(nextBlocks);
 
       if (isLoggedIn) {
-        patchJoinFlow({ planId, progress });
+        patchJoinFlow({ ...target, progress });
         return;
       }
 
@@ -813,15 +872,30 @@ export function useChat(isLoggedIn: boolean | undefined) {
    * 두 번 결제되지 않도록 그 가입 카드에도 끝났다는 표시를 남긴다.
    */
   const completeJoinBlock = useCallback(
-    (planId: number, resultMessage: string) => {
-      const target = joinBlocksRef.current.find(
-        (block) => block.plan.id === planId,
-      );
-      if (!target || target.isCompleted) return;
+    (target: JoinTarget, resultMessage: string) => {
+      const key = getJoinKey(target);
+      const isTarget = (block: JoinBlock) =>
+        getJoinKey(getJoinBlockTarget(block)) === key;
 
-      const nextBlocks = joinBlocksRef.current.map((block) =>
-        block.plan.id === planId ? { ...block, isCompleted: true } : block,
-      );
+      const current = joinBlocksRef.current.find(isTarget);
+      if (!current || current.isCompleted) return;
+
+      /*
+       * 결과 메시지는 늘 대화 끝에 붙는데 카드가 중간에 있으면 둘이 떨어진다 -
+       * 대화를 더 나눈 뒤 위로 올라가 카드를 마저 진행한 경우가 그렇다.
+       * 그래서 마치는 시점에 카드를 지금 대화의 끝으로 데려와 결과 바로 앞에 세운다.
+       */
+      const lastMessageId =
+        messagesRef.current[messagesRef.current.length - 1]?.id ?? null;
+      const completed: JoinBlock = {
+        ...current,
+        isCompleted: true,
+        afterMessageId: lastMessageId,
+      };
+      const nextBlocks: JoinBlock[] = [
+        ...joinBlocksRef.current.filter((block) => block !== current),
+        completed,
+      ];
       joinBlocksRef.current = nextBlocks;
       setJoinBlocks(nextBlocks);
 
@@ -832,12 +906,19 @@ export function useChat(isLoggedIn: boolean | undefined) {
           role: 'ai',
           content: resultMessage,
           createdAt: new Date().toISOString(),
-          isJoinResult: true,
+          joinResultKind: target.kind,
         },
       ]);
 
       if (isLoggedIn) {
-        patchJoinFlow({ planId, isCompleted: true, resultMessage });
+        // 카드를 옮긴 사실도 서버에 알린다 - progress 를 함께 보내야 복구했을 때
+        // 완료된 카드가 첫 단계가 아니라 마지막 단계 모습으로 살아난다
+        patchJoinFlow({
+          ...target,
+          progress: current.progress,
+          isCompleted: true,
+          resultMessage,
+        });
         return;
       }
 
@@ -861,6 +942,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
 
     setMessages([]);
     setError(null);
+    setIsRetrying(false);
     setKeywords({});
     setSummary('');
     setJoinBlocks([]);
@@ -898,6 +980,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     messages,
     isStreaming,
     error,
+    isRetrying,
     location,
     isRestored,
     keywords,

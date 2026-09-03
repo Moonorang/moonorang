@@ -7,12 +7,25 @@ export interface PlanOption {
 }
 
 // 요금제 타입
-// plans.benefits 안에 실제로 있는 키들
+// plans.benefits 안에 실제로 있는 키들.
+// 요금제마다 들어 있는 키가 다르고(상위 요금제일수록 많다) DB 쪽에서 키가 늘어날 수
+// 있어서, 아는 키는 이름으로 두되 모르는 키도 문자열로 받도록 열어 둔다.
 export interface PlanBenefits {
   media_contents?: string;
   vip_membership?: string;
   max_benefit_value?: string;
   tethering_sharing?: string;
+  roaming?: string;
+  data_refill?: string;
+  data_sharing?: string;
+  coupon_benefit?: string;
+  cloud_storage?: string;
+  device_care?: string;
+  family_discount?: string;
+  home_bundle?: string;
+  smart_device?: string;
+  airport_lounge?: string;
+  [key: string]: string | undefined;
 }
 
 // 요금제 타입 plans 테이블 컬럼 반영
@@ -32,13 +45,10 @@ export type BenefitTone = 'secondary' | 'accent1' | 'accent2' | 'primary';
 
 // 요금제 상세의 혜택 한 줄 - 아이콘 + 제목(+ 부제)
 export interface PlanBenefitItem {
+  /** benefits 의 원본 키. 목록에서 행을 구분하는 값으로 쓴다 */
+  key: string;
   icon: LucideIcon;
   tone: BenefitTone;
   title: string;
   subTitle?: string;
-}
-
-export interface PlanBenefitDetail {
-  mainBenefits: PlanBenefitItem[];
-  addOnServices: PlanBenefitItem[];
 }

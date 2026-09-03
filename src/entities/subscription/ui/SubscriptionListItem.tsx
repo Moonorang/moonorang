@@ -40,7 +40,7 @@ export default function SubscriptionListItem({
       {/* 이미지 높이만큼 늘려, 상품명은 위 끝 · 요금은 아래 끝에 붙인다.
           할인 배지는 그 사이에 놓여서, 있든 없든 요금 위치가 그대로다. */}
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 self-stretch py-2">
-        <p className="truncate text-12 font-medium text-text-primary">{name}</p>
+        <p className="truncate text-14 font-medium text-text-primary">{name}</p>
 
         <div className="text-12 font-medium text-text-primary">
           {hasDiscount && (
