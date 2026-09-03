@@ -1,4 +1,5 @@
 import { isJoinKind } from '@/entities/join';
+import { dedupeJoinBlocks } from '@/features/chat/lib/joinBlock';
 import type { Plan } from '@/entities/plan/types';
 
 import { CHAT_STORAGE_KEY } from '@/features/chat/constants';
@@ -89,10 +90,14 @@ export function loadChatState(): StoredChatState | null {
           ? parsed.keywords
           : {},
       // 이 필드가 없던 시절에 저장된 값도 그대로 복구돼야 한다 - 없으면 빈 배열
+      // 같은 상품 카드가 두 장이면 화면이 멈춘다(dedupeJoinBlocks 주석 참고) -
+      // 저장분이 예전 버전에서 왔거나 손상됐을 수 있어 읽는 자리에서도 지킨다
       joinBlocks: Array.isArray(parsed.joinBlocks)
-        ? parsed.joinBlocks
-            .map(normalizeJoinBlock)
-            .filter((block): block is JoinBlock => block !== null)
+        ? dedupeJoinBlocks(
+            parsed.joinBlocks
+              .map(normalizeJoinBlock)
+              .filter((block): block is JoinBlock => block !== null),
+          )
         : [],
     };
   } catch {

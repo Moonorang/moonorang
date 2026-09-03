@@ -2,6 +2,7 @@ import { getAddOnsByIds } from '@/entities/addOn/server';
 import { getPlansByIds } from '@/entities/plan/server/planRepository';
 import { getSubscriptionsByIds } from '@/entities/subscription/server';
 import { tryParseCardPayload } from '@/features/chat/lib/chatCard';
+import { dedupeJoinBlocks } from '@/features/chat/lib/joinBlock';
 import {
   getActiveChat,
   getChatMessages,
@@ -142,29 +143,45 @@ async function restoreJoinBlocks(
     subscriptions.map((subscription) => [subscription.id, subscription]),
   );
 
-  return markers.reduce<JoinBlock[]>((acc, marker) => {
-    const { target, afterMessageId, progress, isCompleted } = marker;
-    const base = { afterMessageId, progress, isCompleted };
+  // 같은 상품 마커가 여러 개 남아 있을 수 있다 - 가입했다가 로그아웃하고 같은
+  // 상품을 다시 연 경우다. 카드는 한 장만 세운다(dedupeJoinBlocks 주석 참고).
+  return dedupeJoinBlocks(
+    markers.reduce<JoinBlock[]>((acc, marker) => {
+      const { target, afterMessageId, progress, isCompleted } = marker;
+      const base = { afterMessageId, progress, isCompleted };
 
-    if (target.kind === 'plan') {
-      const plan = planById.get(target.itemId);
-      if (plan) acc.push({ ...base, kind: 'plan', item: plan });
-    }
-
-    if (target.kind === 'addOn') {
-      const addOn = addOnById.get(target.itemId);
-      if (addOn) acc.push({ ...base, kind: 'addOn', item: addOn });
-    }
-
-    if (target.kind === 'subscription') {
-      const subscription = subscriptionById.get(target.itemId);
-      if (subscription) {
-        acc.push({ ...base, kind: 'subscription', item: subscription });
+      // if 를 늘어놓지 않고 switch 로 두는 이유는 default 의 never 검사 때문이다.
+      // 종류가 늘었는데 여기 갈래를 안 더하면 컴파일이 막힌다 - 예전에 이 자리를
+      // 빠뜨려서 부가서비스·구독 카드가 조용히 안 살아난 적이 있다.
+      switch (target.kind) {
+        case 'plan': {
+          const plan = planById.get(target.itemId);
+          if (plan) acc.push({ ...base, kind: 'plan', item: plan });
+          break;
+        }
+        case 'addOn': {
+          const addOn = addOnById.get(target.itemId);
+          if (addOn) acc.push({ ...base, kind: 'addOn', item: addOn });
+          break;
+        }
+        case 'subscription': {
+          const subscription = subscriptionById.get(target.itemId);
+          if (subscription) {
+            acc.push({ ...base, kind: 'subscription', item: subscription });
+          }
+          break;
+        }
+        default: {
+          // 여기까지 왔다면 위 갈래가 모자란 것이다. 대화 복구 전체를 막지는 않고
+          // (그 카드만 빠진다) 로그로 남긴다.
+          const unhandledKind: never = target.kind;
+          console.error('[chat] 복구할 수 없는 가입 카드 종류', unhandledKind);
+        }
       }
-    }
 
-    return acc;
-  }, []);
+      return acc;
+    }, []),
+  );
 }
 
 /**

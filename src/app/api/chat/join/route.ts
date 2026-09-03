@@ -43,21 +43,26 @@ function parseJoinTarget(body: unknown): JoinTarget | null {
 async function buildJoinDisplayText(
   target: JoinTarget,
 ): Promise<string | null> {
-  if (target.kind === 'plan') {
-    const [plan] = await getPlansByIds([target.itemId]);
+  // 마지막 종류를 else 로 흘려보내지 않고 switch 로 다 적는 이유는, 종류가 늘었을 때
+  // 엉뚱한 표에서 찾는 대신 컴파일이 막히게 하기 위함이다 - 갈래를 하나 빠뜨리면
+  // "반환문이 없다"로 잡힌다.
+  switch (target.kind) {
+    case 'plan': {
+      const [plan] = await getPlansByIds([target.itemId]);
 
-    return plan ? buildPlanJoinMessage(plan) : null;
+      return plan ? buildPlanJoinMessage(plan) : null;
+    }
+    case 'addOn': {
+      const [addOn] = await getAddOnsByIds([target.itemId]);
+
+      return addOn ? buildAddOnJoinMessage(addOn) : null;
+    }
+    case 'subscription': {
+      const [subscription] = await getSubscriptionsByIds([target.itemId]);
+
+      return subscription ? buildSubscriptionJoinMessage(subscription) : null;
+    }
   }
-
-  if (target.kind === 'addOn') {
-    const [addOn] = await getAddOnsByIds([target.itemId]);
-
-    return addOn ? buildAddOnJoinMessage(addOn) : null;
-  }
-
-  const [subscription] = await getSubscriptionsByIds([target.itemId]);
-
-  return subscription ? buildSubscriptionJoinMessage(subscription) : null;
 }
 
 /**
