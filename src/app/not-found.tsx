@@ -51,7 +51,8 @@ const usageAnalysisDemo: UsageAnalysisResult = {
   },
   savings: {
     type: 'downgrade',
-    reason: '최근 3개월 평균 데이터 사용량이 약 10GB로, 지금보다 저렴한 요금제로도 충분히 커버돼요.',
+    reason:
+      '최근 3개월 평균 데이터 사용량이 약 10GB로, 지금보다 저렴한 요금제로도 충분히 커버돼요.',
     recommendedPlan: {
       plan: {
         id: 1,
@@ -292,10 +293,10 @@ export default function NotFoundPage() {
         </div>
       </div>
       <br />
-      개인화 카드 전체 조합 (채팅에서 usageAnalysis 이벤트가 오면 실제로 뜨는 형태 -
-      사용량 분석 카드 + 위 차트 + 절약 대안 요금제)
+      개인화 카드 전체 조합 (채팅에서 usageAnalysis 이벤트가 오면 실제로 뜨는
+      형태 - 사용량 분석 카드 + 위 차트 + 절약 대안 요금제)
       <div className="m-5 w-90 rounded-md bg-background-subtle p-4">
-        <UsageAnalysisSection data={usageAnalysisDemo} onJoin={() => {}} onViewDetail={() => {}} />
+        <UsageAnalysisSection data={usageAnalysisDemo} onJoin={() => {}} />
       </div>
       <br />
       AI 어시스턴트 프로필
