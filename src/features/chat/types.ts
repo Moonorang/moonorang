@@ -146,6 +146,18 @@ export interface ChatRequestBody {
   location?: { lat: number; lng: number };
 }
 
+/**
+ * POST /api/chat/keywords 요청 바디 - 관심사 선택 화면에서 고른 목록을 회원의
+ * chats.keywords 에 반영한다. 회원은 서버 DB가 유일한 진짜 기록이라(chatStream이
+ * 클라이언트가 보낸 keywords를 무시하고 DB 값을 쓴다) 화면에서 고친 값을 이렇게
+ * 따로 저장해줘야 다음 대화에 반영된다. 비회원은 이 엔드포인트 없이
+ * localStorage에만 남긴다(CHAT-011).
+ */
+export interface ChatKeywordsRequestBody {
+  /** 고른 관심사 전체. 비운 것도 뜻이 있으므로 빈 배열이 그대로 온다 */
+  interests: string[];
+}
+
 /** 요약 대상이 되는 메시지 한 개 - chat completions 메시지보다 가벼운 형태만 필요하다 */
 export interface SummarizeTurnMessage {
   role: 'user' | 'ai';

@@ -7,12 +7,12 @@ export { default as ChatBubble } from './components/ChatBubble';
 export { default as ConditionQuestionCard } from './components/ConditionQuestionCard';
 export { default as ChatErrorNotice } from './components/ChatErrorNotice';
 export { default as ChatInput } from './components/ChatInput';
+export { default as InterestKeywordsModal } from './components/InterestKeywordsModal';
 export { default as FloatingChatButton } from './components/FloatingChatButton';
 export { default as FormattedMessage } from './components/FormattedMessage';
 export { default as NearbyMembershipCard } from './components/NearbyMembershipCard';
 export { default as PlanCardCarousel } from './components/PlanCardCarousel';
 export { default as PlusMenu } from './components/PlusMenu';
-export { default as ReadAloudButton } from './components/ReadAloudButton';
 export { default as ScrollToBottomButton } from './components/ScrollToBottomButton';
 export { default as SubscriptionRecommendationCard } from './components/SubscriptionRecommendationCard';
 export { default as SuggestionChips } from './components/SuggestionChips';
@@ -24,8 +24,13 @@ export {
   CONDITION_QUESTIONS,
   type ConditionQuestion,
 } from './data/conditionQuestions';
+export { INTEREST_KEYWORDS } from './data/interestKeywords';
 export { WELCOME_MESSAGE, MESSAGE_SUGGESTIONS } from './constants';
-export { parseChatRequest } from './lib/schema';
+export {
+  parseChatRequest,
+  parseChatKeywordsRequest,
+  normalizeInterests,
+} from './lib/schema';
 export { formatSSEEvent, parseSSEEvent, SSE_HEADERS } from './lib/sse';
 export { selectRecommendedPlans } from './lib/selectPlans';
 export { selectRecommendedAddOns } from './lib/selectAddOns';
@@ -36,6 +41,7 @@ export type {
   ChatErrorReason,
   ChatStreamEvent,
   ChatRequestBody,
+  ChatKeywordsRequestBody,
   ChatKeywords,
   PlanRecommendation,
   AddOnRecommendation,

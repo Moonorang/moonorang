@@ -1,4 +1,5 @@
 import type {
+  ChatKeywordsRequestBody,
   ChatRequestBody,
   ChatSummarizeRequestBody,
   SummarizeTurnMessage,
@@ -84,4 +85,44 @@ export function parseChatSummarizeRequest(body: unknown): SummarizeParseResult {
     typeof parsed.existingSummary === 'string' ? parsed.existingSummary : undefined;
 
   return { ok: true, data: { messages: parsed.messages, existingSummary } };
+}
+
+/** 관심사 하나의 최대 길이 - 칩 목록에서 고르는 값이라 이보다 길 이유가 없다 */
+const MAX_INTEREST_LENGTH = 30;
+/** 관심사 개수 상한 - 목록(INTEREST_KEYWORDS)보다 넉넉히 두되, 무한정 쌓이진 않게 한다 */
+const MAX_INTEREST_COUNT = 50;
+
+/**
+ * 관심사 목록을 저장 가능한 모양으로 다듬는다 - 공백 제거, 빈 값·중복 제거,
+ * 길이·개수 상한. 클라이언트가 보낸 값을 그대로 DB에 넣지 않기 위한 것이라
+ * 서버에서 쓰지만, 순수 함수라 필요하면 클라이언트에서도 쓸 수 있다.
+ */
+export function normalizeInterests(values: string[]): string[] {
+  const normalized = values
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0 && value.length <= MAX_INTEREST_LENGTH);
+
+  return Array.from(new Set(normalized)).slice(0, MAX_INTEREST_COUNT);
+}
+
+type KeywordsParseResult =
+  | { ok: true; data: ChatKeywordsRequestBody }
+  | { ok: false; message: string };
+
+/** POST /api/chat/keywords 요청 바디 검증 */
+export function parseChatKeywordsRequest(body: unknown): KeywordsParseResult {
+  const parsed = body as Partial<ChatKeywordsRequestBody> | null;
+  const interests = parsed?.interests;
+
+  // 다른 요청과 달리 형식이 안 맞으면 조용히 빈 값으로 넘어가지 않는다 - 사용자가
+  // 방금 고른 것을 저장하는 요청이라, 잘못된 요청을 성공으로 답하면 저장된 줄 알고
+  // 넘어가게 된다.
+  if (
+    !Array.isArray(interests) ||
+    !interests.every((value) => typeof value === 'string')
+  ) {
+    return { ok: false, message: '관심사 목록의 형식이 올바르지 않습니다.' };
+  }
+
+  return { ok: true, data: { interests: normalizeInterests(interests) } };
 }

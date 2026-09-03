@@ -221,7 +221,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
     setSummary('');
   }, []);
 
-  /** 게스트 대화를 서버로 승계한 뒤, 승계가 반영된 최신 기록을 다시 받아와 화면에 반영한다. */
+  /**
+   * 게스트 대화를 서버로 승계한 뒤, 승계가 반영된 최신 기록을 다시 받아와 화면에
+   * 반영한다. 대화 없이 조건(keywords)만 있는 경우에도 같은 길을 쓴다 - 승계 결과가
+   * 회원 DB 값과 병합된 모양이라(migrateGuestChat), 다시 받아와야 화면이 맞는다.
+   */
   const migrateGuestToMember = useCallback(
     (guestStored: StoredChatState) =>
       fetch('/api/chat/migrate', {
@@ -277,6 +281,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
         guestStored &&
         (guestStored.messages.length > 0 || guestStored.joinBlocks.length > 0),
       );
+      // 말은 한 마디도 안 했지만 조건만 남긴 경우 - 관심사 화면에서 칩만 고르고
+      // 로그인하면 이 모양이 된다. 대화가 아니라 조건만 옮기면 되므로 아래 충돌
+      // 모달을 거치지 않는다(합칠 대화가 없어서 물어볼 것도 없다).
+      const hasGuestKeywords = Boolean(
+        guestStored && Object.keys(guestStored.keywords).length > 0,
+      );
 
       fetch('/api/chat/history')
         .then((response) => (response.ok ? response.json() : null))
@@ -303,8 +313,10 @@ export function useChat(isLoggedIn: boolean | undefined) {
             return;
           }
 
-          if (hasGuestConversation && guestStored) {
+          if ((hasGuestConversation || hasGuestKeywords) && guestStored) {
             // 회원 DB가 비어있으면(첫 대화) 충돌이 아니므로 그냥 이어붙인다.
+            // 조건만 있는 경우도 여기로 온다 - 회원 대화가 이미 있어도 덮어쓸
+            // 대화가 없으니 조건만 병합하고 끝난다.
             void migrateGuestToMember(guestStored);
             return;
           }
@@ -991,6 +1003,39 @@ export function useChat(isLoggedIn: boolean | undefined) {
     [persist],
   );
 
+  /**
+   * CARD-013/015: 관심사 선택 화면에서 고른 목록으로 keywords.interests 를 통째로
+   * 바꾼다. 대화에서 뽑아낸 값(mergeKeywords)과 달리 합집합으로 누적하지 않는다 -
+   * 칩을 뺀 것도 사용자의 결정이라, 뺀 관심사가 다시 살아나면 안 된다.
+   *
+   * 회원은 DB가 유일한 진짜 기록이라 저장에 성공했을 때만 화면 값을 바꾼다 -
+   * 실패했는데 화면만 바뀌면, 다음 응답에서 예전 값으로 되돌아가는 것처럼 보인다.
+   * 실패는 던져서 호출부(모달)가 사유와 재시도 수단을 보여주게 한다(COMMON-002).
+   */
+  const setInterests = useCallback(
+    async (interests: string[]) => {
+      if (isLoggedIn) {
+        const response = await fetch('/api/chat/keywords', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interests }),
+        });
+
+        if (!response.ok) throw new Error('관심사를 저장하지 못했습니다.');
+      }
+
+      const next: ChatKeywords = { ...keywordsRef.current };
+
+      if (interests.length > 0) next.interests = interests;
+      else delete next.interests;
+
+      keywordsRef.current = next;
+      setKeywords(next);
+      persist();
+    },
+    [isLoggedIn, persist],
+  );
+
   return {
     messages,
     isStreaming,
@@ -1009,6 +1054,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     saveJoinProgress,
     completeJoinBlock,
     setKeywordValue,
+    setInterests,
     pruneVisibleMessages,
     stopGeneration,
     keepBothConversations,
