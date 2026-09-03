@@ -82,19 +82,8 @@ export default function TestResult({ displayName }: TestResultProps) {
       {/* 공유 / 재응시 (TEST-011, TEST-012) */}
       <div className="flex gap-2">
         <Button
-          variant="main"
-          radius="full"
-          size="lg"
-          gap="md"
-          onClick={shareResult}
-          appendClassName="flex-1"
-        >
-          <Share2 size={16} aria-hidden />
-          친구에게 공유하기
-        </Button>
-        <Button
           variant="outline"
-          radius="full"
+          radius="sm"
           size="lg"
           gap="md"
           onClick={retryTest}
@@ -102,6 +91,17 @@ export default function TestResult({ displayName }: TestResultProps) {
         >
           <Pencil size={16} aria-hidden />
           다시 테스트하기
+        </Button>
+        <Button
+          variant="main"
+          radius="sm"
+          size="lg"
+          gap="md"
+          onClick={shareResult}
+          appendClassName="flex-1"
+        >
+          <Share2 size={16} aria-hidden />
+          친구에게 공유하기
         </Button>
       </div>
     </>

@@ -14,6 +14,17 @@ export interface ScoredPlan {
   isWithinBudget: boolean;
 }
 
+/**
+ * recommend_plans가 range(범위)를 특정해서 호출됐을 때의 세 갈래.
+ * - 'recommended': 방금 추천했던 요금제들 중에서만 (예: "그중에 제일 비싼 거")
+ * - 'catalog': 사용자의 예산·데이터 조건과 무관하게 전체 카탈로그를 통틀어서
+ *   (예: "요금제 전체에서 제일 비싼 거")
+ * - 'alternative': 원래 조건은 그대로 두되, 이미 보여준 것과는 다른 그다음으로
+ *   비슷한 요금제 (예: "방금 추천해준 거랑 가장 비슷한 다른 요금제 하나 더")
+ * 셋 다 없으면(undefined) 지금까지 파악된 조건 기준의 평소 추천이다.
+ */
+export type PlanRecommendationScope = 'recommended' | 'catalog' | 'alternative';
+
 export interface SelectRecommendedPlansResult {
   recommendations: ScoredPlan[];
   /** CARD-020: 예산 안에 아무것도 없어서 필터를 풀었는지 - 안내 문구 분기에 쓴다 */
@@ -149,17 +160,23 @@ function selectPlansByInterest(
   plans: Plan[],
   interests: string[],
   resultCount: number,
+  // scope: 'alternative'일 때만 0이 아니다 - 이미 보여준 만큼 건너뛰고 그다음
+  // 순위부터 잘라낸다.
+  resultOffset: number = 0,
 ): ScoredPlan[] {
   const matched = plans
-    .filter((plan) => matchesMediaInterest(plan.benefits?.media_contents, interests))
+    .filter((plan) =>
+      matchesMediaInterest(plan.benefits?.media_contents, interests),
+    )
     .sort((a, b) => a.monthlyFee - b.monthlyFee)
-    .slice(0, resultCount);
+    .slice(resultOffset, resultOffset + resultCount);
 
   return matched.map((plan, index) => ({
     plan,
     rank: index + 1,
     // 예산/데이터가 없어 적합도를 계산할 축이 없다 - 순위 매기기(CARD-018)용으로만
-    // 등수에 반비례하는 값을 준다.
+    // 등수에 반비례하는 값을 준다. offset이 있어도 이 카드 안에서의 상대 순위이므로
+    // index(0부터, 이 카드 기준)만 쓴다 - resultOffset을 더하지 않는다.
     fitScore: Math.max(0, 100 - index * 10),
     isWithinBudget: true,
   }));
@@ -206,16 +223,26 @@ function selectPlansByInterest(
  *
  * 같은 plans·conditions 입력이면 항상 같은 결과가 나온다(NFR-005) - 순수 계산이라
  * temperature/seed 같은 LLM 샘플링 설정에 기댈 필요가 없다.
+ *
+ * resultOffset은 scope: 'alternative'("방금 추천해준 거랑 가장 비슷한 다른 요금제
+ * 하나 더") 전용이다 - 기본 0이면 평소와 같고, 원래 보여준 개수를 그대로 넘기면
+ * 이 함수가 "그다음으로 조건에 잘 맞는" 요금제부터 잘라낸다. 정렬 기준(우선순위·
+ * 적합도)은 원래 추천과 완전히 같으므로 "비슷함"의 의미도 같다.
  */
 export function selectRecommendedPlans(
   plans: Plan[],
   conditions: ChatKeywords,
+  resultOffset: number = 0,
 ): SelectRecommendedPlansResult {
   // 예산·데이터 사용량을 둘 다 모르면 순위를 매길 축이 없다 - 이때 관심사가 있으면
   // (예: "넷플릭스 관련 상품 있나요?") 그 혜택이 있는 요금제만 바로 찾아 보여준다.
   // 매칭되는 게 하나도 없으면 아래 일반 로직(기본값 기준 전체 카탈로그)으로 넘어간다 -
   // "관심사에 맞는 게 없다"고 빈 카드를 보여주는 것보다, 차선책이라도 보여주는 게 낫다.
-  if (!conditions.budget && !conditions.dataUsageGb && conditions.interests?.length) {
+  if (
+    !conditions.budget &&
+    !conditions.dataUsageGb &&
+    conditions.interests?.length
+  ) {
     const interestResultCount = resolveResultCount(
       conditions.resultCount,
       MAX_INTEREST_BROWSE_RESULTS,
@@ -225,6 +252,7 @@ export function selectRecommendedPlans(
       plans,
       conditions.interests,
       interestResultCount,
+      resultOffset,
     );
     if (byInterest.length > 0) {
       return {
@@ -250,7 +278,8 @@ export function selectRecommendedPlans(
   const withinBudget = conditions.budget
     ? withGb.filter((item) => item.plan.monthlyFee <= conditions.budget!)
     : withGb;
-  const didRelaxBudget = Boolean(conditions.budget) && withinBudget.length === 0;
+  const didRelaxBudget =
+    Boolean(conditions.budget) && withinBudget.length === 0;
   const afterBudget = didRelaxBudget ? withGb : withinBudget;
 
   // 2단계: 데이터 사용량 (1단계를 통과한 후보 안에서만 거른다). "최소 30GB 이상"처럼
@@ -265,7 +294,9 @@ export function selectRecommendedPlans(
 
   // 3단계: 테더링 (2단계를 통과한 후보 안에서만 거른다)
   const withinTethering = conditions.tetheringGb
-    ? afterDataUsage.filter((item) => item.tetheringGb >= conditions.tetheringGb!)
+    ? afterDataUsage.filter(
+        (item) => item.tetheringGb >= conditions.tetheringGb!,
+      )
     : afterDataUsage;
   const didRelaxTethering =
     Boolean(conditions.tetheringGb) && withinTethering.length === 0;
@@ -375,12 +406,14 @@ export function selectRecommendedPlans(
     DEFAULT_RESULT_COUNT,
     MAX_RESULT_COUNT,
   );
-  const recommendations = scored.slice(0, resultCount).map((item, index) => ({
-    plan: item.plan,
-    fitScore: item.fitScore,
-    isWithinBudget: item.isWithinBudget,
-    rank: index + 1,
-  }));
+  const recommendations = scored
+    .slice(resultOffset, resultOffset + resultCount)
+    .map((item, index) => ({
+      plan: item.plan,
+      fitScore: item.fitScore,
+      isWithinBudget: item.isWithinBudget,
+      rank: index + 1,
+    }));
 
   return {
     recommendations,
@@ -390,4 +423,56 @@ export function selectRecommendedPlans(
     isInterestBrowse: false,
     effectivePriority,
   };
+}
+
+/**
+ * scope: 'catalog' - "요금제 전체에서 제일 비싼/싼 거"처럼, 지금까지 파악된
+ * 예산·데이터 조건을 아예 무시하고 카탈로그 전체를 통틀어 극값을 찾는다.
+ * budget을 넘겨주면 isWithinBudget만 참고용으로 계산하고(CARD-018 표시용),
+ * 후보를 거르는 데는 쓰지 않는다 - 그게 이 스코프의 존재 이유다.
+ */
+export function selectPlansAcrossCatalog(
+  plans: Plan[],
+  direction: 'priciest' | 'cheapest',
+  resultCount: number,
+  budget?: number,
+): ScoredPlan[] {
+  const sorted = plans
+    .slice()
+    .sort((a, b) =>
+      direction === 'priciest'
+        ? b.monthlyFee - a.monthlyFee
+        : a.monthlyFee - b.monthlyFee,
+    )
+    .slice(0, resultCount);
+
+  return sorted.map((plan, index) => ({
+    plan,
+    rank: index + 1,
+    fitScore: Math.max(0, 100 - index * 10),
+    isWithinBudget: budget ? plan.monthlyFee <= budget : true,
+  }));
+}
+
+/**
+ * scope: 'recommended' - "그중에 제일 비싼/싼 거"처럼, 방금 추천했던(=이미 화면에
+ * 뜬) 요금제들 중에서만 극값을 찾는다. 호출하는 쪽이 selectRecommendedPlans(plans,
+ * keywords)를 offset 없이 다시 불러 "방금 추천한 것과 같은 결과"를 재구성한 뒤
+ * (NFR-005 결정성 덕분에 항상 같은 결과가 나온다), 그 recommendations를 이 함수에
+ * 넘기면 된다.
+ */
+export function pickPriceExtremeFromSet(
+  scoredPlans: ScoredPlan[],
+  direction: 'priciest' | 'cheapest',
+  resultCount: number,
+): ScoredPlan[] {
+  return scoredPlans
+    .slice()
+    .sort((a, b) =>
+      direction === 'priciest'
+        ? b.plan.monthlyFee - a.plan.monthlyFee
+        : a.plan.monthlyFee - b.plan.monthlyFee,
+    )
+    .slice(0, resultCount)
+    .map((item, index) => ({ ...item, rank: index + 1 }));
 }

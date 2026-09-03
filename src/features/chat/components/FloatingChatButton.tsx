@@ -52,34 +52,39 @@ export default function FloatingChatButton() {
   if (isHidden) return null;
 
   return (
-    <div className="fixed right-4 bottom-6 z-40 flex items-center gap-2">
-      <AnimatePresence>
-        {isTooltipVisible && (
-          <motion.div
-            initial={{ opacity: 0, x: 8 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 8 }}
-            transition={{ duration: 0.2 }}
-            className="rounded-md bg-action-secondary-light px-3 py-2 text-12 whitespace-nowrap text-text-primary shadow-default"
-          >
-            채팅으로 돌아가기
-          </motion.div>
-        )}
-      </AnimatePresence>
+    // 헤더/입력창과 같은 이유 - fixed는 뷰포트 기준이라, 그냥 right-4로 두면 넓은
+    // 화면에서 최대 너비 컬럼 밖(뷰포트 오른쪽 끝)으로 나가버린다. 감싸는 div를
+    // 컬럼 폭으로 맞춘 뒤(pointer-events-none) 그 안에서 우측 정렬한다.
+    <div className="pointer-events-none fixed inset-x-0 bottom-6 z-40 mx-auto flex w-full max-w-(--width-container) min-w-(--width-container-min) justify-end px-4">
+      <div className="pointer-events-auto flex items-center gap-2">
+        <AnimatePresence>
+          {isTooltipVisible && (
+            <motion.div
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 8 }}
+              transition={{ duration: 0.2 }}
+              className="rounded-md bg-action-secondary-light px-3 py-2 text-12 whitespace-nowrap text-text-primary shadow-default"
+            >
+              채팅으로 돌아가기
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      <Link
-        href={CHAT_PATH}
-        aria-label="채팅으로 돌아가기"
-        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-action-secondary-light p-1 shadow-default transition-transform hover:scale-105 active:scale-95"
-      >
-        <Image
-          src="/images/chat/ai-avatar.png"
-          alt=""
-          width={56}
-          height={56}
-          className="h-full w-full rounded-full object-cover"
-        />
-      </Link>
+        <Link
+          href={CHAT_PATH}
+          aria-label="채팅으로 돌아가기"
+          className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-action-secondary-light p-1 shadow-default transition-transform hover:scale-105 active:scale-95"
+        >
+          <Image
+            src="/images/chat/ai-avatar.png"
+            alt=""
+            width={56}
+            height={56}
+            className="h-full w-full rounded-full object-cover"
+          />
+        </Link>
+      </div>
     </div>
   );
 }

@@ -43,7 +43,7 @@ export default function Header({
   return (
     <header
       className={cn(
-        'fixed top-0 left-1/2 z-(--z-header) flex h-(--height-header) w-full max-w-(--width-container) -translate-x-1/2 items-center justify-between gap-4 border-b border-b-border-light bg-background-default px-4 py-3',
+        'fixed top-0 left-1/2 z-(--z-header) flex h-(--height-header) w-full max-w-(--width-container) min-w-(--width-container-min) -translate-x-1/2 items-center justify-between gap-4 border-b border-b-border-light bg-background-default px-4 py-3',
         appendClassName,
       )}
     >

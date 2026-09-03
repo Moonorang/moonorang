@@ -4,6 +4,7 @@ import { FloatingChatButton } from '@/features/chat';
 
 import { AppHeader } from '@/app/_header';
 import { SplashScreen } from '@/app/_splash';
+import { TutorialModal } from '@/app/_tutorial';
 
 import { displayFont, notoSansKr } from '@/shared/fonts';
 import '@/shared/styles/globals.css';
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     >
       <body className="flex min-h-full flex-col">
         <SplashScreen />
+        <TutorialModal />
         <AppHeader />
         {children}
         <FloatingChatButton />
