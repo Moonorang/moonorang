@@ -10,8 +10,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-(--width-container) min-w-(--width-container-min) flex-col items-center bg-background-subtle px-4 pt-(--height-header)">
-      {/* 회원가입 화면·관심사 화면과 같은 워드마크 - 로고를 화면마다 다른 크기로
-          쓰면 같은 흐름 안에서 서비스 이름이 커졌다 작아졌다 해서 크기도 맞춘다 */}
       <h1 className="mt-16 mb-8 font-display text-32">
         <span className="text-action-secondary">Moono</span>
         <span className="text-action-primary">rang</span>
