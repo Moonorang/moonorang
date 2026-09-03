@@ -104,7 +104,7 @@ export default function ConfirmModal({
         />
       )}
 
-      <div className="relative flex w-full max-w-(--width-container) flex-col gap-4 rounded-md bg-background-default p-4">
+      <div className="relative flex w-full max-w-(--width-container) min-w-(--width-container-min) flex-col gap-4 rounded-md bg-background-default p-4">
         <div className="flex flex-col gap-1">
           <p
             id={titleId}

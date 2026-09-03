@@ -28,7 +28,8 @@ const VARIANT_STYLES: Record<ButtonVariant, string> = {
   answer: 'bg-action-secondary-light text-text-primary shadow-default',
   filter:
     'bg-background-default text-text-secondary border border-border-default',
-  outline: 'border border-border-default bg-background-default text-text-primary',
+  outline:
+    'border border-border-default bg-background-default text-text-primary',
   ghost: 'bg-transparent text-text-primary',
   gradient:
     'bg-linear-to-br from-gradient-from to-gradient-to text-background-default',
@@ -45,7 +46,7 @@ const SIZE_STYLES: Record<ButtonSize, string> = {
   sm: 'px-2 py-1 text-10',
   md: 'px-3 py-2 text-10',
   lg: 'px-4 py-2.5 text-12',
-  xl: 'px-4 py-3 text-14 font-bold',
+  xl: 'px-4 py-3 text-14 font-semibold',
 };
 
 const GAP_STYLES: Record<ButtonGap, string> = {

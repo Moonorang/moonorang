@@ -11,3 +11,7 @@ export const HISTORY_BACK_ROUTES: string[] = ['/auth/login'];
 // 카카오 인증만 끝나고 users 레코드가 없는 '반쪽 상태'로 앱을 돌아다니지 않도록,
 // 몰래 빠져나가는 문 대신 명시적으로 그만두는 문만 둔다(AUTH-004).
 export const SIGNOUT_EXIT_ROUTES: string[] = ['/auth/signup'];
+
+// 로그인해야만 볼 수 있는 화면(PERSONAL-001~002).
+// 이 화면에서 로그아웃하면 볼 권한이 사라지므로 홈으로 내보낸다.
+export const AUTH_REQUIRED_ROUTES: string[] = ['/mypage'];

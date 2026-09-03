@@ -5,13 +5,20 @@ import { buildUsageTrend } from '@/features/chat/lib/buildUsageTrend';
 import { decideSavings, type SavingsDecision } from '@/features/chat/lib/selectSavingsPlan';
 import type { SSESend } from '@/features/chat/lib/sse';
 
+import { getSeoulMonth } from '@/shared/utils/getSeoulMonth';
+
 interface RunSavingsAnalysisParams {
   /** 로그인 안 했으면 null - CARD-023: 절약 상담은 로그인 사용자 전용 */
   userId: string | null;
   allPlans: Plan[];
   send: SSESend;
-  /** true: "절약해줘"(analyze_savings) - 대안 요금제 판단까지 포함. false: 추세만(show_usage_trend) */
-  includeSavingsDecision: boolean;
+  /**
+   * plan_info: "내 요금제 정보 알려줘"(show_current_plan) - 최근 3개월 사용 이력
+   *   조회 자체를 안 하고, 현재 요금제·잔여 사용량만 보여준다(이력이 없어도 동작).
+   * trend: "사용량 추세 알려줘"(show_usage_trend) - 3개월 추세까지 포함.
+   * savings: "절약해줘"(analyze_savings) - 추세 + 대안 요금제 판단까지 포함.
+   */
+  mode: 'plan_info' | 'trend' | 'savings';
 }
 
 // 절약/상향 판단 이유를 실제 계산값 기반으로 서술한다 - LLM이 숫자를 지어내지 않도록,
@@ -60,7 +67,7 @@ export async function runSavingsAnalysis({
   userId,
   allPlans,
   send,
-  includeSavingsDecision,
+  mode,
 }: RunSavingsAnalysisParams): Promise<unknown> {
   if (!userId) {
     return { ok: false, reason: 'not_logged_in' };
@@ -71,20 +78,53 @@ export async function runSavingsAnalysis({
     return { ok: false, reason: 'no_current_plan' };
   }
 
+  // "내 요금제 정보 알려줘"는 지금 쓰는 요금제·잔여 사용량만 보여주면 되고, 3개월
+  // 사용 이력이 없어도(가입한 지 얼마 안 된 사용자 등) 동작해야 한다 - 그래서 이
+  // 모드만 getRecentMonthlyUsage를 아예 건너뛴다.
+  if (mode === 'plan_info') {
+    send({
+      event: 'usageAnalysis',
+      data: {
+        currentPlan: profile.currentPlan,
+        billingMonth: getSeoulMonth(),
+        remainingDataGb: profile.remainingDataGb,
+        dataLimitGb: profile.dataLimitGb,
+      },
+    });
+
+    // 요금제명·특징을 다음 턴 텍스트가 그대로 인용할 수 있게, 실제 보유 데이터를
+    // 통째로 돌려준다(NFR-003~004 - 모델이 특징을 지어내지 않도록).
+    return {
+      ok: true,
+      currentPlan: {
+        name: profile.currentPlan.name,
+        description: profile.currentPlan.description,
+        monthlyFee: profile.currentPlan.monthlyFee,
+        dataAllowance: profile.currentPlan.dataAllowance,
+        voiceSms: profile.currentPlan.voiceSms,
+        benefits: profile.currentPlan.benefits,
+      },
+      remainingDataGb: profile.remainingDataGb,
+      dataLimitGb: profile.dataLimitGb,
+    };
+  }
+
   const usageHistory = await getRecentMonthlyUsage(userId);
   if (usageHistory.length === 0) {
     return { ok: false, reason: 'no_usage_history' };
   }
 
   const trend = buildUsageTrend(profile.currentPlan, usageHistory);
-  const savings = includeSavingsDecision
-    ? toSavingsAnalysis(decideSavings(profile.currentPlan, usageHistory, allPlans))
-    : undefined;
+  const savings =
+    mode === 'savings'
+      ? toSavingsAnalysis(decideSavings(profile.currentPlan, usageHistory, allPlans))
+      : undefined;
 
   send({
     event: 'usageAnalysis',
     data: {
       currentPlan: profile.currentPlan,
+      billingMonth: getSeoulMonth(),
       remainingDataGb: profile.remainingDataGb,
       dataLimitGb: profile.dataLimitGb,
       trend,

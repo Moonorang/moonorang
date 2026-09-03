@@ -32,7 +32,7 @@ export default function TestLoadingModal() {
       aria-live="polite"
       className="fixed inset-0 z-(--z-modal) flex items-center justify-center bg-text-primary/50 px-4"
     >
-      <div className="flex w-full max-w-(--width-container) flex-col items-center gap-3 rounded-md bg-background-default p-4">
+      <div className="flex w-full max-w-(--width-container) min-w-(--width-container-min) flex-col items-center gap-3 rounded-md bg-background-default p-4">
         <Image
           src="/images/test/loading-character.png"
           alt=""

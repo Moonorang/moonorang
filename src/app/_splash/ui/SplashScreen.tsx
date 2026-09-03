@@ -5,6 +5,8 @@ import Image from 'next/image';
 
 import Button from '@/shared/ui/Button';
 
+import { useSplashStore } from '../model/splashStore';
+
 import { cn } from '@/shared/utils/cn';
 
 const SPLASH_DURATION_MS = 2000;
@@ -15,6 +17,7 @@ type SplashPhase = 'checking' | 'visible' | 'leaving' | 'hidden';
 
 export default function SplashScreen() {
   const [phase, setPhase] = useState<SplashPhase>('checking');
+  const markDone = useSplashStore((state) => state.markDone);
 
   const hasCheckedRef = useRef(false);
 
@@ -69,6 +72,14 @@ export default function SplashScreen() {
     return () => clearTimeout(timer);
   }, [phase]);
 
+  // 스플래시가 화면에서 사라지는 모든 경로(이전에 본 적 있어서 아예 안 뜬 경우,
+  // 건너뛰기, 재생 완료)를 여기 한 곳에서만 감지해 튜토리얼에 신호를 보낸다.
+  useEffect(() => {
+    if (phase !== 'hidden') return;
+
+    markDone();
+  }, [phase, markDone]);
+
   const handleSkip = () => setPhase('leaving');
 
   if (phase === 'checking' || phase === 'hidden') return null;
@@ -77,13 +88,14 @@ export default function SplashScreen() {
     <div
       role="presentation"
       className={cn(
-        'fixed inset-0 z-(--z-splash) bg-[#FDF3CB] transition-opacity ease-out',
+        // COMMON-006: 다른 화면과 같은 규칙 - 최대 너비 컬럼 바깥은 검은색
+        'fixed inset-0 z-(--z-splash) bg-background-page transition-opacity ease-out',
         phase === 'leaving'
           ? 'opacity-0 duration-300'
           : 'opacity-100 duration-0',
       )}
     >
-      <div className="mx-auto flex h-full max-w-(--width-container) items-center justify-center">
+      <div className="mx-auto flex h-full max-w-(--width-container) min-w-(--width-container-min) items-center justify-center bg-[#FDF3CB]">
         <Image
           src="/images/splash.png"
           alt=""
