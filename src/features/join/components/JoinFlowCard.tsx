@@ -1,27 +1,21 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-
-import { ChevronLeft } from 'lucide-react';
-
-import StepProgress from '@/shared/ui/StepProgress';
 
 import CardStep from '@/features/join/components/CardStep';
 import ConfirmStep from '@/features/join/components/ConfirmStep';
 import IdentityStep from '@/features/join/components/IdentityStep';
+import JoinCardFrame from '@/features/join/components/JoinCardFrame';
 import JoinSignupNotice from '@/features/join/components/JoinSignupNotice';
 import PaymentLoading from '@/features/join/components/PaymentLoading';
 import PlanConfirmStep from '@/features/join/components/PlanConfirmStep';
 import TermsStep from '@/features/join/components/TermsStep';
 import { PAYMENT_DELAY_MS } from '@/features/join/data/complete';
-import { JOIN_STEPS } from '@/features/join/data/steps';
+import { PLAN_JOIN_STEPS } from '@/features/join/data/steps';
+import { PLAN_JOIN_TERMS } from '@/features/join/data/terms';
+import { useJoinSteps } from '@/features/join/hooks/useJoinSteps';
 import { getBirthFromRrn, getGenderFromRrnCode } from '@/features/join/lib/rrn';
-import {
-  findNextStepIndex,
-  findPrevStepIndex,
-  getProgressPosition,
-} from '@/features/join/lib/steps';
 import { completeJoin } from '@/features/join/server/actions';
 import type { CardValues } from '@/features/join/lib/cardSchema';
 import type { IdentityValues } from '@/features/join/lib/identitySchema';
@@ -99,9 +93,19 @@ export default function JoinFlowCard({
   onProgressChange,
 }: JoinFlowCardProps) {
   // 1. 상태 및 훅
-  // CARD-046: 저장해둔 진행 상태가 있으면 그 자리에서 시작한다.
-  // 카드가 붙는 시점에는 대화 복구가 이미 끝나 있어서 첫 값으로 받아도 늦지 않다.
-  const [stepIndex, setStepIndex] = useState(progress?.stepIndex ?? 0);
+  const {
+    stepIndex,
+    step,
+    prevStepIndex,
+    progressPosition,
+    cardRef,
+    goNext,
+    goPrev,
+  } = useJoinSteps({
+    steps: PLAN_JOIN_STEPS,
+    initialStepIndex: progress?.stepIndex,
+  });
+
   const [agreedTermIds, setAgreedTermIds] = useState<string[]>(
     progress?.agreedTermIds ?? [],
   );
@@ -120,35 +124,12 @@ export default function JoinFlowCard({
   // COMMON-002: 가입 정보를 저장하지 못했을 때 결제 정보 화면에 남기는 사유
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  const step = JOIN_STEPS[stepIndex];
-  const nextStepIndex = findNextStepIndex(stepIndex);
-  const prevStepIndex = findPrevStepIndex(stepIndex);
-  // 진행 표시줄에 그릴 위치 - 이어가기용 progress(props) 와는 다른 값이다
-  const progressPosition = getProgressPosition(stepIndex);
-
-  const cardRef = useRef<HTMLDivElement>(null);
-  // 카드가 처음 붙는 순간은 ChatRoom 이 최하단으로 끌어내리는 시점이라 건드리지 않는다
-  const isFirstRenderRef = useRef(true);
   // 첫 그리기에서는 방금 복구한 값을 그대로 되돌려 보내는 셈이라 알리지 않는다
   const isFirstProgressRef = useRef(true);
   // 회원가입을 마치고 돌아와 결제를 이어간 적이 있는지 - 한 번만 이어간다
   const hasResumedPaymentRef = useRef(false);
 
   // 2. 부수 효과
-  // 단계마다 카드 높이가 크게 달라서(상세 카드 ↔ 약관), 스크롤 위치를 그대로 두면
-  // 다음으로 갈 땐 내용이 줄어든 만큼 화면이 튀고, 이전으로 돌아오면 늘어난 만큼
-  // 위쪽이 잘린 채로 보인다. 단계가 바뀔 때마다 카드 머리를 화면 위에 맞춰준다.
-  // useEffect 가 아니라 useLayoutEffect 인 이유는 그리기 전에 옮겨야 튀는 순간이
-  // 눈에 안 보이기 때문이다.
-  useLayoutEffect(() => {
-    if (isFirstRenderRef.current) {
-      isFirstRenderRef.current = false;
-      return;
-    }
-
-    cardRef.current?.scrollIntoView({ block: 'start' });
-  }, [stepIndex]);
-
   // CARD-046: 어디까지 왔는지가 달라질 때마다 대화 쪽에 알려 함께 저장하게 한다.
   // onProgressChange 는 매 렌더 새로 만들어지지만, 받는 쪽이 같은 값이면 저장을
   // 건너뛰므로 이 효과가 다시 도는 일은 없다.
@@ -167,19 +148,12 @@ export default function JoinFlowCard({
   }, [stepIndex, agreedTermIds, gender, birth, onProgressChange]);
 
   // 3. 이벤트 핸들러
-  const handleNext = () => {
-    // 뒤에 남은 화면이 없으면 절차를 마친 것으로 본다
-    if (nextStepIndex === -1) return;
-
-    setStepIndex(nextStepIndex);
-  };
-
   const handlePrev = () => {
     // 단계를 옮기면 회원가입 안내는 접는다 - 다시 오면 결제 정보부터 본다
     setIsSignupRequired(false);
     // 결제하기를 물렀다는 뜻이므로, 돌아왔을 때 저절로 결제되지 않게 표식을 거둔다
     clearPendingJoinPayment();
-    setStepIndex(prevStepIndex);
+    goPrev();
   };
 
   const handleIdentityNext = (values: IdentityValues) => {
@@ -187,12 +161,12 @@ export default function JoinFlowCard({
     // 주민등록번호는 여기서 성별·생년월일로 한 번 풀어내고 그 결과만 들고 간다
     setGender(getGenderFromRrnCode(values.rrnGenderCode));
     setBirth(getBirthFromRrn(values.rrnFront, values.rrnGenderCode));
-    handleNext();
+    goNext();
   };
 
   const handleCardNext = (values: CardValues) => {
     setCard(values);
-    handleNext();
+    goNext();
   };
 
   /**
@@ -331,57 +305,30 @@ export default function JoinFlowCard({
     />
   );
 
-  // 폭·여백은 대화에 나란히 서는 PlanCard 와 같은 값으로 맞춘다.
-  // scroll-mt 는 고정 헤더 높이만큼 - 없으면 단계 이동 때 카드 머리가 헤더에 가린다
   return (
-    <div
-      ref={cardRef}
-      className="flex w-[80%] scroll-mt-(--height-header) flex-col rounded-md bg-background-default p-4"
+    <JoinCardFrame
+      cardRef={cardRef}
+      title={step.title}
+      progressPosition={progressPosition}
+      progressAriaLabel="요금제 가입 진행 상황"
+      isPrevDisabled={prevStepIndex === -1 || isPaying || isCompleted}
+      onPrev={handlePrev}
     >
-      <div className="flex items-center gap-1">
-        {/*
-          CARD-040: 첫 단계에서는 돌아갈 곳이 없어 잠가둔다. 결제 중이거나 이미
-          가입을 마친 뒤에도 되돌릴 것이 없어 같이 잠근다.
-          Header·QuestionCard 의 이전 버튼과 같은 방식으로 그린다
-        */}
-        <button
-          type="button"
-          onClick={handlePrev}
-          disabled={prevStepIndex === -1 || isPaying || isCompleted}
-          aria-label="이전 단계로 이동"
-          className="shrink-0 cursor-pointer text-text-secondary transition-colors hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
-        </button>
-
-        <h3 className="text-14 font-medium text-text-primary">{step.title}</h3>
-      </div>
-
-      {/* 상세 확인은 절차가 시작되기 전이라 표시줄을 안 그린다 */}
-      {progressPosition && (
-        <div className="mt-3">
-          <StepProgress
-            total={progressPosition.total}
-            currentIndex={progressPosition.currentIndex}
-            ariaLabel="요금제 가입 진행 상황"
-          />
-        </div>
-      )}
-
       {step.id === 'plan' && (
         <PlanConfirmStep
           plan={plan}
           submitLabel={submitLabel}
-          onNext={handleNext}
+          onNext={goNext}
         />
       )}
 
       {step.id === 'terms' && (
         <TermsStep
+          terms={PLAN_JOIN_TERMS}
           submitLabel={submitLabel}
           agreedIds={agreedTermIds}
           onAgreedIdsChange={setAgreedTermIds}
-          onNext={handleNext}
+          onNext={goNext}
         />
       )}
 
@@ -403,6 +350,6 @@ export default function JoinFlowCard({
       )}
 
       {step.id === 'confirm' && confirmBody}
-    </div>
+    </JoinCardFrame>
   );
 }

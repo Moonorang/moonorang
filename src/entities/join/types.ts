@@ -1,3 +1,4 @@
+import type { AddOn } from '@/entities/addOn/types';
 import type { Plan } from '@/entities/plan/types';
 import type { Gender } from '@/entities/user/types';
 
@@ -29,7 +30,8 @@ export interface JoinTarget {
  * 종류가 늘면 여기에 갈래를 하나 더한다 - 그러면 이 값을 다루는 곳들이 컴파일
  * 오류로 한 번에 드러난다.
  */
-export type JoinItem = { kind: 'plan'; item: Plan };
+export type JoinItem =
+  { kind: 'plan'; item: Plan } | { kind: 'addOn'; item: AddOn };
 
 /**
  * CARD-046: 가입 절차 도중 화면을 떠났다 돌아왔을 때 이어가기 위한 진행 상태.

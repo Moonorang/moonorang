@@ -2,7 +2,16 @@
 
 import { z } from 'zod';
 
+import { getActiveAddOnIds } from '@/entities/addOn/server';
 import { createClient } from '@/shared/lib/supabase/server';
+
+/** PostgreSQL unique 제약 위반 - 부분 unique index 로 막아둔 중복 신청이 여기로 온다 */
+const UNIQUE_VIOLATION_CODE = '23505';
+
+const completeAddOnJoinSchema = z.object({
+  /** 신청한 부가서비스 */
+  addOnId: z.number().int().positive(),
+});
 
 const completeJoinSchema = z.object({
   /** 가입한 요금제 */
@@ -78,6 +87,64 @@ export async function completeJoin(
 
   if (!data || data.length === 0) {
     return { errorMessage: '회원 정보를 찾지 못했어요. 다시 로그인해 주세요.' };
+  }
+
+  return {};
+}
+
+/**
+ * DATA-010/012: 부가서비스 신청이 확정되는 자리 - user_add_ons 에 이용 내역을 남긴다.
+ *
+ * 요금제(completeJoin)가 users 한 행을 고치는 것과 달리 이쪽은 행을 새로 넣는다.
+ * 그래서 두 번 눌리면 두 건이 쌓일 수 있어 확인이 한 겹 더 필요하다:
+ * 먼저 이미 이용 중인지 조회해 안내로 돌려보내고, 그 사이에 들어온 요청은
+ * uq_user_add_ons_active 가 막는다(23505) - 그 오류도 같은 안내로 바꿔 돌려준다.
+ *
+ * started_at 은 기본값(오늘)에 맡긴다. 일할 계산의 기준일은 서버가 정해야 하는
+ * 값이라 클라이언트가 보낸 날짜를 쓰지 않는다.
+ */
+export async function completeAddOnJoin(
+  input: unknown,
+): Promise<CompleteJoinResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { errorMessage: '로그인이 만료되었어요. 다시 로그인해 주세요.' };
+  }
+
+  const parsed = completeAddOnJoinSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { errorMessage: '신청 정보를 확인하지 못했어요.' };
+  }
+
+  const { addOnId } = parsed.data;
+
+  const activeAddOnIds = await getActiveAddOnIds(user.id);
+  if (activeAddOnIds.includes(addOnId)) {
+    return { errorMessage: '이미 이용 중인 부가서비스예요.' };
+  }
+
+  const { error } = await supabase
+    .from('user_add_ons')
+    .insert({ user_id: user.id, add_on_id: addOnId });
+
+  if (error) {
+    // 같은 순간에 두 번 들어온 경우 - 결과적으로는 이미 이용 중인 것이 맞다
+    if (error.code === UNIQUE_VIOLATION_CODE) {
+      return { errorMessage: '이미 이용 중인 부가서비스예요.' };
+    }
+
+    console.error('[join] 부가서비스 신청 저장 실패', error);
+
+    return {
+      errorMessage:
+        '신청 정보를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.',
+    };
   }
 
   return {};

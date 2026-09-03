@@ -2,7 +2,7 @@
 
 import FullModal from '@/shared/ui/FullModal';
 
-import AddOnDetailCard from '@/features/catalog/ui/AddOnDetailCard';
+import AddOnDetailCard from '@/entities/addOn/ui/AddOnDetailCard';
 import type { AddOn } from '@/entities/addOn/types';
 
 interface AddOnDetailModalProps {

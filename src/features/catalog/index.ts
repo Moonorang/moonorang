@@ -6,7 +6,6 @@ export { default as CatalogView } from './ui/CatalogView';
 export { default as CatalogTabs } from './ui/CatalogTabs';
 export { default as PlanDetailModal } from './ui/PlanDetailModal';
 export { default as AddOnDetailModal } from './ui/AddOnDetailModal';
-export { default as AddOnDetailCard } from './ui/AddOnDetailCard';
 export { default as SubscriptionDetailModal } from './ui/SubscriptionDetailModal';
 export { default as SubscriptionDetailCard } from './ui/SubscriptionDetailCard';
 export { default as MembershipDetailModal } from './ui/MembershipDetailModal';

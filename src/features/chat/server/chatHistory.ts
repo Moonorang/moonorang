@@ -1,3 +1,4 @@
+import { getAddOnsByIds } from '@/entities/addOn/server';
 import { getPlansByIds } from '@/entities/plan/server/planRepository';
 import { tryParseCardPayload } from '@/features/chat/lib/chatCard';
 import {
@@ -120,30 +121,34 @@ function splitRows(rows: DbChatMessage[]): {
 async function restoreJoinBlocks(
   markers: PendingJoinMarker[],
 ): Promise<JoinBlock[]> {
-  const planIds = [
+  // 종류별로 한 번씩만 조회한다 - 마커 하나마다 부르면 카드 수만큼 왕복하게 된다
+  const idsOf = (kind: JoinTarget['kind']) => [
     ...new Set(
       markers
-        .filter((marker) => marker.target.kind === 'plan')
+        .filter((marker) => marker.target.kind === kind)
         .map((marker) => marker.target.itemId),
     ),
   ];
-  const plans = await getPlansByIds(planIds);
+
+  const [plans, addOns] = await Promise.all([
+    getPlansByIds(idsOf('plan')),
+    getAddOnsByIds(idsOf('addOn')),
+  ]);
   const planById = new Map(plans.map((plan) => [plan.id, plan]));
+  const addOnById = new Map(addOns.map((addOn) => [addOn.id, addOn]));
 
   return markers.reduce<JoinBlock[]>((acc, marker) => {
-    const { afterMessageId, progress, isCompleted } = marker;
+    const { target, afterMessageId, progress, isCompleted } = marker;
+    const base = { afterMessageId, progress, isCompleted };
 
-    if (marker.target.kind === 'plan') {
-      const plan = planById.get(marker.target.itemId);
-      if (plan) {
-        acc.push({
-          kind: 'plan',
-          item: plan,
-          afterMessageId,
-          progress,
-          isCompleted,
-        });
-      }
+    if (target.kind === 'plan') {
+      const plan = planById.get(target.itemId);
+      if (plan) acc.push({ ...base, kind: 'plan', item: plan });
+    }
+
+    if (target.kind === 'addOn') {
+      const addOn = addOnById.get(target.itemId);
+      if (addOn) acc.push({ ...base, kind: 'addOn', item: addOn });
     }
 
     return acc;

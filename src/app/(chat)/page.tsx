@@ -4,10 +4,14 @@ import KakaoLoginButton from '@/features/auth/components/KakaoLoginButton';
 import { getDisplayName } from '@/features/auth/lib/getDisplayName';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import ChatRoom from '@/features/chat/components/ChatRoom';
+import AddOnJoinFlowCard from '@/features/join/components/AddOnJoinFlowCard';
 import JoinCompleteCard from '@/features/join/components/JoinCompleteCard';
 import JoinFlowCard from '@/features/join/components/JoinFlowCard';
 import { JOIN_COMPLETE_MESSAGE } from '@/features/join/data/complete';
-import { buildJoinResultMessage } from '@/features/join/lib/joinResultMessage';
+import {
+  buildAddOnJoinResultMessage,
+  buildJoinResultMessage,
+} from '@/features/join/lib/joinResultMessage';
 import TestLoadingModal from '@/features/test/components/TestLoadingModal';
 import TestQuestionCard from '@/features/test/components/TestQuestionCard';
 import { useTestFlow } from '@/features/test/hooks/useTestFlow';
@@ -44,24 +48,49 @@ export default function ChatPage() {
         renderJoinFlow={(
           block,
           { isCompleted, progress, onProgressChange, onComplete },
-        ) => (
-          <JoinFlowCard
-            plan={block.item}
-            isLoggedIn={isLoggedIn}
-            renderSignup={() => <KakaoLoginButton />}
-            isCompleted={isCompleted}
-            progress={progress}
-            onProgressChange={onProgressChange}
-            onComplete={() =>
-              onComplete(
-                buildJoinResultMessage({
-                  planName: block.item.name,
-                  customerName,
-                }),
-              )
-            }
-          />
-        )}
+        ) => {
+          // 종류마다 카드도 결과 문구도 달라서 여기서 가른다 - features/chat 은
+          // 어떤 카드가 붙는지 모르고 자리만 잡아준다.
+          const shared = {
+            isLoggedIn,
+            renderSignup: () => <KakaoLoginButton />,
+            isCompleted,
+            progress,
+            onProgressChange,
+          };
+
+          if (block.kind === 'addOn') {
+            return (
+              <AddOnJoinFlowCard
+                {...shared}
+                addOn={block.item}
+                onComplete={() =>
+                  onComplete(
+                    buildAddOnJoinResultMessage({
+                      addOnName: block.item.title,
+                      customerName,
+                    }),
+                  )
+                }
+              />
+            );
+          }
+
+          return (
+            <JoinFlowCard
+              {...shared}
+              plan={block.item}
+              onComplete={() =>
+                onComplete(
+                  buildJoinResultMessage({
+                    planName: block.item.name,
+                    customerName,
+                  }),
+                )
+              }
+            />
+          );
+        }}
         renderJoinResult={(kind) => (
           <JoinCompleteCard message={JOIN_COMPLETE_MESSAGE[kind]} />
         )}

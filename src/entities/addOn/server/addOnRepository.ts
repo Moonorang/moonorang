@@ -43,6 +43,46 @@ export async function getAllAddOns(): Promise<AddOn[]> {
   return (data ?? []).map(mapAddOnRow);
 }
 
+/** 번호로 부가서비스를 다시 조회한다 - 가입 카드를 복구할 때 쓴다 */
+export async function getAddOnsByIds(ids: number[]): Promise<AddOn[]> {
+  if (ids.length === 0) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('add_ons')
+    .select(ADD_ON_COLUMNS)
+    .in('id', ids)
+    .overrideTypes<AddOnRow[], { merge: false }>();
+
+  if (error) {
+    throw new Error(`부가서비스 조회 실패: ${error.message}`);
+  }
+
+  return (data ?? []).map(mapAddOnRow);
+}
+
+/**
+ * 이 회원이 지금 이용 중인 부가서비스 번호들.
+ * 같은 서비스를 두 번 신청하는 일을 미리 걸러내는 데 쓴다(COMMON-004) -
+ * DB 에도 uq_user_add_ons_active 로 막혀 있지만, 그건 마지막 방어선이라
+ * 사용자에게는 오류가 아니라 안내로 알려야 한다.
+ */
+export async function getActiveAddOnIds(userId: string): Promise<number[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('user_add_ons')
+    .select('add_on_id')
+    .eq('user_id', userId)
+    .eq('status', 'ACTIVE')
+    .overrideTypes<{ add_on_id: number }[], { merge: false }>();
+
+  if (error) {
+    throw new Error(`이용 중인 부가서비스 조회 실패: ${error.message}`);
+  }
+
+  return (data ?? []).map((row) => row.add_on_id);
+}
+
 /**
  * "N%의 고객님이 선택했어요" 배지에 쓰는 실제 채택률.
  * 분모는 전체 회원이 아니라 "부가서비스를 하나라도 쓰고 있는 회원 수"로 잡는다 -
@@ -58,7 +98,10 @@ export async function getAddOnAdoptionRates(): Promise<Map<number, number>> {
     .from('user_add_ons')
     .select('user_id, add_on_id')
     .eq('status', 'ACTIVE')
-    .overrideTypes<{ user_id: string; add_on_id: number }[], { merge: false }>();
+    .overrideTypes<
+      { user_id: string; add_on_id: number }[],
+      { merge: false }
+    >();
 
   if (error) {
     throw new Error(`부가서비스 채택률 조회 실패: ${error.message}`);
