@@ -34,12 +34,20 @@ export default function JoinCardFrame({
   onPrev,
   children,
 }: JoinCardFrameProps) {
-  // 폭·여백은 대화에 나란히 서는 PlanCard 와 같은 값으로 맞춘다.
-  // scroll-mt 는 고정 헤더 높이만큼 - 없으면 단계 이동 때 카드 머리가 헤더에 가린다
+  /*
+   * 폭·여백은 대화에 나란히 서는 PlanCard 와 같은 값으로 맞춘다.
+   * scroll-mt 는 고정 헤더 높이만큼 - 없으면 단계 이동 때 카드 머리가 헤더에 가린다.
+   *
+   * min-h 는 안내만 들어가는 상태(로그인 필요·이미 이용 중·확인 중)를 위한 것이다.
+   * 그때는 내용이 두어 줄뿐이라 카드가 쪽지처럼 납작해지고, 확인 중에서 안내로
+   * 넘어갈 때 높이가 눈에 띄게 튄다. 바닥을 두면 세 안내가 같은 크기로 서고
+   * 절차 화면과도 덜 어긋난다 - 단계 화면은 이보다 커서 영향을 받지 않는다.
+   * (목록 카드 CatalogCard 가 min-h-30 을 쓰는 것과 같은 취지)
+   */
   return (
     <div
       ref={cardRef}
-      className="flex w-[80%] scroll-mt-(--height-header) flex-col rounded-md bg-background-default p-4"
+      className="flex min-h-45 w-[80%] scroll-mt-(--height-header) flex-col rounded-md bg-background-default p-4"
     >
       <div className="flex items-center gap-1">
         {/*
@@ -71,7 +79,9 @@ export default function JoinCardFrame({
         </div>
       )}
 
-      {children}
+      {/* 내용이 짧으면(안내 상태) 남는 자리에서 가운데로 선다.
+          단계 화면은 이 칸보다 커서 그대로 위에서부터 채운다. */}
+      <div className="flex flex-1 flex-col justify-center">{children}</div>
     </div>
   );
 }
