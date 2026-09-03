@@ -1,4 +1,4 @@
-import { Gift, User } from 'lucide-react';
+import { Smartphone, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 // HEADER-003: 헤더 우측에 노출하는 이동 항목.
@@ -15,5 +15,5 @@ interface HeaderLink {
 
 export const HEADER_LINKS: HeaderLink[] = [
   { label: '마이 페이지', href: '/mypage', icon: User },
-  { label: '상품·혜택', href: '/catalog', icon: Gift },
+  { label: '상품·혜택', href: '/catalog', icon: Smartphone },
 ];

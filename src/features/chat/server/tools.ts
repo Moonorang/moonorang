@@ -30,6 +30,39 @@ export const EXTRACT_CONDITIONS_TOOL: ChatCompletionTool = {
             '한 달 예상 테더링/쉐어링 사용량(GB). 생활 패턴 표현을 이 기준으로 추정: ' +
             '거의 안 함=0, 노트북 가끔 잠깐=10, 자주 씀=30, 거의 매일 씀=60',
         },
+        priority: {
+          type: 'string',
+          enum: ['priciest', 'cheapest', 'data', 'balanced'],
+          description:
+            '예산과 데이터 중 뭘 우선할지의 상대적 선호. **규칙: 이번 발화에서 예산은 ' +
+            '알게 됐는데(이번 발화든 이전 턴이든) 데이터 사용량은 숫자로도 생활 ' +
+            '패턴으로도 전혀 모르면, 항상 "priciest"를 채운다** - "요금제 추천해줘 월 ' +
+            '5만원대로", "5만원 정도로 뭐 있어?"처럼 데이터 언급이 아예 없는 짧은 ' +
+            '요청이 전형적인 예다. 이 경우를 놓치고 필드를 안 채우면, 서버가 데이터 ' +
+            '사용량을 임의의 기본값(15GB)으로 가정해버려서 예산과 무관하게 늘 저가 ' +
+            '요금제만 추천된다. "priciest": 위 규칙 외에도 "제일 비싼 걸로", "가장 ' +
+            '혜택 큰 걸로"처럼 명시적으로 말했을 때도 채운다. "cheapest": "제일 싼 ' +
+            '걸로", "가장 저렴한 걸로", "가성비로"처럼 반대로 가장 저렴한 쪽을 원할 ' +
+            '때. "data": "이전 추천보다 데이터 더 많이", "데이터 넉넉하게", ' +
+            '"무제한으로" 처럼 dataUsageGb를 구체적 숫자로 못 박기보다 예산 안에서 ' +
+            '데이터가 가장 많은 쪽을 원할 때 - dataUsageGb를 억지로 큰 숫자로 ' +
+            '추정해서 흉내 내지 않는다(그 숫자 하나에 따라 결과가 들쭉날쭉해진다). ' +
+            '"balanced": 사용자가 다시 "적당한/무난한 걸로"처럼 어느 한쪽 우선도 그만 ' +
+            '원하면 명시해서 되돌린다(언급이 없으면 이전 값이 그대로 유지되므로, ' +
+            '되돌릴 때는 반드시 이 필드를 balanced로 채워야 한다). budget·dataUsageGb를 ' +
+            '둘 다 숫자로 알고 있어서 균형 있게 추천받고 싶으면 이 필드 자체를 넣지 ' +
+            '않는다(기본값 유지).',
+        },
+        resultCount: {
+          type: 'integer',
+          description:
+            '사용자가 명시적으로 말한 추천 개수. "1개만", "하나만 추천해줘", "딱 ' +
+            '하나만"처럼 개수를 콕 집어 말했을 때만 채운다(1~3 사이 값만 의미가 ' +
+            '있다 - 그 범위를 벗어나면 서버가 안쪽으로 clamp한다). 언급이 없으면 ' +
+            '이 필드 자체를 넣지 않는다(기본값 3개 유지, 이전 턴에 이미 채워져 ' +
+            '있었다면 그 값이 그대로 유지된다) - 다시 여러 개를 보고 싶다고 하면 ' +
+            '3처럼 새 숫자를 명시해서 채운다.',
+        },
         interests: {
           type: 'array',
           items: { type: 'string' },
@@ -197,6 +230,20 @@ export function parseExtractConditionsArguments(
       result.dataUsageGb = parsed.dataUsageGb;
     if (typeof parsed.tetheringGb === 'number')
       result.tetheringGb = parsed.tetheringGb;
+    if (
+      parsed.priority === 'priciest' ||
+      parsed.priority === 'cheapest' ||
+      parsed.priority === 'data'
+    ) {
+      result.priority = parsed.priority;
+    } else if (parsed.priority === 'balanced') {
+      // 이전에 채워둔 priority를 명시적으로 되돌린다 - undefined도 own property로
+      // 잡혀서(Object.keys에 포함) mergeKeywords의 스프레드가 이전 값을 지운다.
+      result.priority = undefined;
+    }
+    if (typeof parsed.resultCount === 'number' && Number.isInteger(parsed.resultCount)) {
+      result.resultCount = parsed.resultCount;
+    }
 
     if (Array.isArray(parsed.interests)) {
       const interests = parsed.interests

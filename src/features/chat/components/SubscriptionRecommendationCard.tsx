@@ -48,8 +48,10 @@ export default function SubscriptionRecommendationCard({
   if (recommendations.length === 0) return null;
 
   return (
-    <div className="flex w-[80%] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default">
-      <h3 className="text-14 font-bold text-text-primary">구독 상품 추천</h3>
+    <div className="flex w-[min(80%,440px)] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default">
+      <h3 className="text-16 font-semibold text-text-primary">
+        구독 상품 추천
+      </h3>
 
       <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
         {recommendations.map((item) => (

@@ -293,17 +293,22 @@ function NearbyMembershipMapModal({
   }, [onClose]);
 
   const pins = memberships.filter(hasValidCoords);
-  const center = userLocation ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : null);
+  const center =
+    userLocation ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : null);
   const points = userLocation ? [userLocation, ...pins] : pins;
 
   const handleGoToMyLocation = () => {
     if (!userLocation) return;
-    mapRef.current?.setCenter(new kakao.maps.LatLng(userLocation.lat, userLocation.lng));
+    mapRef.current?.setCenter(
+      new kakao.maps.LatLng(userLocation.lat, userLocation.lng),
+    );
     mapRef.current?.setLevel(4);
   };
 
   /** 목록 카드를 누르면 선택 표시하고, 그 핀이 지도 한가운데로 오도록 부드럽게 이동한다. */
-  const handleSelectItem = (item: NearbyMembership & { lat: number; lng: number }) => {
+  const handleSelectItem = (
+    item: NearbyMembership & { lat: number; lng: number },
+  ) => {
     setSelectedBrandId(item.brand.id);
     mapRef.current?.panTo(new kakao.maps.LatLng(item.lat, item.lng));
   };
@@ -414,7 +419,12 @@ function NearbyMembershipMapModal({
               onSelect={() => handleSelectItem(item)}
               onDirections={() =>
                 window.open(
-                  buildKakaoDirectionsUrl(item.placeName, item.lat, item.lng, userLocation),
+                  buildKakaoDirectionsUrl(
+                    item.placeName,
+                    item.lat,
+                    item.lng,
+                    userLocation,
+                  ),
                   '_blank',
                   'noopener,noreferrer',
                 )
@@ -529,7 +539,7 @@ export default function NearbyMembershipCard({
   if (memberships.length === 0) return null;
 
   return (
-    <div className="flex w-[80%] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default">
+    <div className="flex w-[min(80%,440px)] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default">
       <h3 className="text-14 font-bold text-text-primary">내 주변 혜택</h3>
 
       <NearbyMembershipMapPreview
