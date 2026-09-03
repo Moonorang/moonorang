@@ -16,9 +16,13 @@ interface ChatInputProps {
   onPlusClick?: () => void;
   // 마이크 버튼 클릭
   onMicClick?: () => void;
-  // 응답 생성 중일 때 입력과 전송을 막음
+  // 입력과 전송을 막음 - 이유는 무관하다(응답 생성 중, 대화 복구 중 등).
   disabled?: boolean;
-  // CHAT-008: 응답 생성 중 중단 버튼 클릭. disabled(생성 중)일 때만 전송 버튼 자리에 뜬다.
+  // 지금 응답을 생성하는 중인지 - true일 때만 전송 버튼 자리가 중단 버튼으로
+  // 바뀐다. disabled=true인 다른 이유(예: 대화 복구 중)에는 중단할 게 없으므로
+  // 그냥 막힌 전송 버튼 그대로 둔다.
+  isGenerating?: boolean;
+  // CHAT-008: 응답 생성 중 중단 버튼 클릭. isGenerating일 때만 전송 버튼 자리에 뜬다.
   onStop?: () => void;
 
   isLocked?: boolean;
@@ -34,6 +38,7 @@ export default function ChatInput({
   onPlusClick,
   onMicClick,
   disabled = false,
+  isGenerating = false,
   onStop,
   isLocked = false,
   placeholder = '무너에게 무엇이든 물어보세요!',
@@ -103,7 +108,7 @@ export default function ChatInput({
         </button>
       </div>
 
-      {disabled ? (
+      {isGenerating ? (
         // CHAT-008: 응답 생성 중엔 전송 버튼 자리를 중단 버튼으로 바꾼다.
         // 입력창 자체는 계속 disabled여도, 이 버튼만은 항상 눌러 멈출 수 있어야 한다.
         <Button
