@@ -192,11 +192,30 @@ export default function ChatRoom({
   // ResizeObserver 콜백은 렌더 밖에서 돌아서 state 를 그대로 읽으면 낡은 값을 본다
   const isAtBottomRef = useRef(true);
 
+  /*
+   * scrollToBottom 이 스스로 일으킨 scroll 이벤트인지 표시해 둔다.
+   *
+   * scrollTop 을 코드로 바꾸면 브라우저가 scroll 이벤트를 한 번 더 일으키는데,
+   * 그 이벤트가 도착하는 시점에 카드·지도·이미지처럼 뒤늦게 커지는 내용이 아직 다
+   * 안 자랐으면 handleScroll 이 "바닥이 아니다"로 잘못 읽어 isAtBottom 을 false 로
+   * 굳혀버린다. 한 번 굳으면 아래 ResizeObserver 도 따라 내려가지 않아서, 가입 카드가
+   * "이용 중인지 확인하고 있어요" 한 줄에서 절차 화면으로 커질 때 중간에서 멈춘다.
+   *
+   * 그래서 그 한 번은 판단 자료로 쓰지 않고 건너뛴다.
+   */
+  const isProgrammaticScrollRef = useRef(false);
+
   const scrollToBottom = useCallback(() => {
     const element = scrollAreaRef.current;
     if (!element) return;
 
+    // 실제로 움직였을 때만 표시한다. 이미 바닥이면 scroll 이벤트가 안 와서, 그냥
+    // 켜두면 표시가 남아 있다가 다음에 사용자가 올린 스크롤 한 번을 잡아먹는다.
+    // scrollTop 대입은 그 자리에서 반영되므로(넘치면 최대값으로 잘린다) 바로 비교한다.
+    const before = element.scrollTop;
     element.scrollTop = element.scrollHeight;
+
+    if (element.scrollTop !== before) isProgrammaticScrollRef.current = true;
   }, []);
 
   // 2. 부수 효과
@@ -296,6 +315,13 @@ export default function ChatRoom({
   const handleScroll = () => {
     const element = scrollAreaRef.current;
     if (!element) return;
+
+    // 우리가 방금 옮긴 스크롤이면 판단하지 않는다 - 사용자가 올린 게 아니고,
+    // 아직 안 자란 내용 때문에 "바닥이 아니다"로 잘못 읽힐 수 있다(위 주석 참고)
+    if (isProgrammaticScrollRef.current) {
+      isProgrammaticScrollRef.current = false;
+      return;
+    }
 
     const distanceToBottom =
       element.scrollHeight - element.scrollTop - element.clientHeight;
