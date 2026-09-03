@@ -518,7 +518,7 @@ export default function ChatRoom({
               !message.subscriptionRecommendations?.length &&
               !message.nearbyMemberships?.length &&
               !message.usageAnalysis &&
-              !message.isJoinResult;
+              !message.joinResultKind;
 
             return (
               <Fragment key={message.id}>

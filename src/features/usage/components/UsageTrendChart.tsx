@@ -40,7 +40,6 @@ function formatMonthLabel(billingMonth: string): string {
   return Number.isFinite(month) ? `${month}월` : billingMonth;
 }
 
-
 /** viewBox 좌표를 컨테이너 기준 %로 - 텍스트는 SVG 밖에 HTML로 겹쳐 그려서 글자 크기가
  * viewBox 축소 비율의 영향을 안 받게 한다 (카드 폭이 좁으면 SVG 안 text의 font-size도
  * 같이 줄어들어 10px 지정이 실제로는 더 작게 렌더링되는 문제가 있었다). */
@@ -71,7 +70,8 @@ export default function UsageTrendChart({
   const usagePointsMax = Math.max(...points.map((point) => point.dataUsedMb));
   const usageScaleTop = Math.max(usagePointsMax, planLimitMb ?? 0, 1);
 
-  const valueToY = (mb: number) => baselineY - (mb / usageScaleTop) * plotHeight;
+  const valueToY = (mb: number) =>
+    baselineY - (mb / usageScaleTop) * plotHeight;
 
   const slotWidth = plotWidth / points.length;
   const barWidth = Math.min(MAX_BAR_WIDTH, slotWidth * 0.6);
@@ -82,7 +82,8 @@ export default function UsageTrendChart({
   // 평균선과 한계선의 y좌표가 너무 가까우면(=사용량이 제공량에 거의 다 찬 상황) 따로
   // 안 그리고, 두 색을 섞은 굵은 선 하나로 합쳐서 그린다 - "둘이 사실상 같다"는 걸
   // 위치가 아니라 색 자체로 보여주는 게 억지로 갈라놓는 것보다 더 정확한 표현이다.
-  const isMerged = limitY !== null && Math.abs(limitY - averageY) < LINE_MERGE_THRESHOLD;
+  const isMerged =
+    limitY !== null && Math.abs(limitY - averageY) < LINE_MERGE_THRESHOLD;
   const mergedY = isMerged && limitY !== null ? (averageY + limitY) / 2 : null;
 
   // 막대 위치/크기는 SVG 도형과 HTML 라벨 양쪽에서 똑같이 써야 해서 한 번만 계산해둔다.
@@ -125,8 +126,14 @@ export default function UsageTrendChart({
           <defs>
             {/* 기존 gradient 버튼 variant와 같은 토큰 - 코럴에서 옐로우로 */}
             <linearGradient id={BAR_GRADIENT_ID} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" style={{ stopColor: 'var(--color-gradient-from)' }} />
-              <stop offset="100%" style={{ stopColor: 'var(--color-gradient-to)' }} />
+              <stop
+                offset="0%"
+                style={{ stopColor: 'var(--color-gradient-from)' }}
+              />
+              <stop
+                offset="100%"
+                style={{ stopColor: 'var(--color-gradient-to)' }}
+              />
             </linearGradient>
           </defs>
 
@@ -210,7 +217,10 @@ export default function UsageTrendChart({
             <span
               key={step}
               className="absolute -translate-x-full -translate-y-1/2 text-10 whitespace-nowrap text-text-secondary"
-              style={{ left: xPct(PADDING_LEFT - 6), top: yPct(baselineY - step * plotHeight) }}
+              style={{
+                left: xPct(PADDING_LEFT - 6),
+                top: yPct(baselineY - step * plotHeight),
+              }}
             >
               {formatMbLabel(usageScaleTop * step)}
             </span>
