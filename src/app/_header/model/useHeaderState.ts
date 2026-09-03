@@ -7,6 +7,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { clearSignupPending } from '@/features/auth/server/actions';
 
 import {
+  AUTH_REQUIRED_ROUTES,
   FLOW_ROUTES,
   HISTORY_BACK_ROUTES,
   SIGNOUT_EXIT_ROUTES,
@@ -29,6 +30,7 @@ export function useHeaderState() {
 
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const isExitConfirmRequired = matchesRoute(SIGNOUT_EXIT_ROUTES, pathname);
 
@@ -79,6 +81,30 @@ export function useHeaderState() {
     }
   }, [isExiting, router, signOut]);
 
+  /**
+   * 로그아웃. 마이페이지처럼 로그인해야 볼 수 있는 화면에서 나가면 그 자리에 남을
+   * 수 없으므로 홈으로 보낸다 - 서버에서 이미 그려진 회원 정보가 화면에 그대로
+   * 남아 있는 것을 막는다(PERSONAL-002). 그 외 화면은 자리를 지키되, 서버
+   * 컴포넌트가 비로그인 기준으로 다시 그려지도록 새로고침만 한다.
+   */
+  const logout = useCallback(async () => {
+    // COMMON-004: 처리 중 중복 실행 차단
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+
+    try {
+      await signOut();
+
+      if (matchesRoute(AUTH_REQUIRED_ROUTES, pathname)) {
+        router.replace('/');
+      }
+
+      router.refresh();
+    } finally {
+      setIsLoggingOut(false);
+    }
+  }, [isLoggingOut, pathname, router, signOut]);
+
   // AUTH-014: 지금 보던 화면을 next 로 넘겨 로그인 후 되돌아오게 한다
   const goLogin = useCallback(() => {
     const query =
@@ -98,6 +124,6 @@ export function useHeaderState() {
     cancelExit,
     confirmExit,
     goLogin,
-    signOut,
+    logout,
   };
 }
