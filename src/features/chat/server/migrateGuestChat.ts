@@ -3,6 +3,7 @@ import {
   getJoinBlockMessage,
   getJoinBlockTarget,
 } from '@/features/chat/lib/joinBlock';
+import { mergeKeywords } from '@/features/chat/lib/mergeKeywords';
 import {
   getChatSummary,
   getOrCreateActiveChat,
@@ -29,13 +30,21 @@ interface MigrateGuestChatParams {
  * CHAT-011/012 "로그인 전환": 비회원으로 나눈 대화를 로그인 순간 서버로 승계한다.
  * chatHistory.ts의 splitRows(DB 행 -> 화면 모양)를 뒤집은 방향 - 화면에 있던
  * messages/joinBlocks를 다시 DB 행 순서로 펼쳐서 한 번에 저장한다.
+ *
+ * 주고받은 말이 하나도 없어도 파악해둔 조건(keywords)만 있으면 그것만 승계한다 -
+ * 관심사 화면(InterestKeywordsModal)에서 칩만 고르고 로그인한 경우가 그 모양이라,
+ * 조건이 없는 것으로 치면 방금 고른 관심사가 로그인하는 순간 조용히 사라진다.
  */
 export async function migrateGuestChat(
   userId: string,
   { messages, joinBlocks, keywords, summary }: MigrateGuestChatParams,
 ): Promise<void> {
-  // 말은 없고 가입 카드만 있는 대화도 승계 대상이다(useChat 의 hasGuestConversation 과 같은 이유)
-  if (messages.length === 0 && joinBlocks.length === 0) return;
+  // 말은 없고 가입 카드만 있는 대화도 승계 대상이다(useChat 의 hasGuestConversation 과
+  // 같은 이유). 둘 다 없어도 조건만 있으면 그것만 옮긴다.
+  const hasConversation = messages.length > 0 || joinBlocks.length > 0;
+  const hasKeywords = Object.keys(keywords).length > 0;
+
+  if (!hasConversation && !hasKeywords) return;
 
   const chat = await getOrCreateActiveChat(userId);
 
@@ -128,12 +137,20 @@ export async function migrateGuestChat(
     }
   }
 
-  const inserted = await insertMessages(chat.id, rows);
+  // 조건만 승계하는 경우엔 넣을 행이 없다 - 빈 배열로 굳이 왕복하지 않는다
+  const inserted = rows.length > 0 ? await insertMessages(chat.id, rows) : [];
 
   const tasks: Promise<unknown>[] = [];
 
-  if (Object.keys(keywords).length > 0) {
-    tasks.push(updateChatKeywords(chat.id, keywords));
+  // 회원 쪽에 이미 있던 조건을 게스트 값으로 덮어쓰지 않고 병합한다 - 아래 요약과
+  // 같은 이유다. 이 경로는 두 대화를 "이어서 보기"로 합치는 자리인데, 대화만 이어
+  // 붙이고 조건은 게스트 것으로 갈아치우면 로그아웃 전에 말해둔 예산·데이터 사용량·
+  // 관심사가 통째로 사라진다. 병합 규칙은 chat-api-design.md §2.5 그대로 -
+  // 예산 같은 스칼라는 최신값(게스트)이 이기고, interests 는 합집합으로 쌓인다.
+  if (hasKeywords) {
+    tasks.push(
+      updateChatKeywords(chat.id, mergeKeywords(chat.keywords, keywords)),
+    );
   }
 
   // 게스트 때 이미 요약돼있던 구간이 있으면, 방금 넣은 마지막 메시지를 기준점으로

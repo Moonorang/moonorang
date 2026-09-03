@@ -41,9 +41,15 @@ export async function POST(request: Request) {
     .catch(() => null)) as MigrateRequestBody | null;
   const messages = Array.isArray(body?.messages) ? body.messages : [];
   const joinBlocks = Array.isArray(body?.joinBlocks) ? body.joinBlocks : [];
+  const keywords = body?.keywords ?? {};
 
-  // 말도 카드도 없으면 옮길 것이 없다 - 카드만 있는 대화는 승계 대상이다
-  if (messages.length === 0 && joinBlocks.length === 0) {
+  // 말도 카드도 조건도 없으면 옮길 것이 없다 - 카드만 있는 대화, 조건만 있는 상태
+  // (관심사 화면에서 칩만 고른 경우) 둘 다 승계 대상이다
+  if (
+    messages.length === 0 &&
+    joinBlocks.length === 0 &&
+    Object.keys(keywords).length === 0
+  ) {
     return NextResponse.json({ ok: true });
   }
 
@@ -51,7 +57,7 @@ export async function POST(request: Request) {
     await migrateGuestChat(user.id, {
       messages,
       joinBlocks,
-      keywords: body?.keywords ?? {},
+      keywords,
       summary: body?.summary,
     });
 

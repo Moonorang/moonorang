@@ -11,6 +11,7 @@ import ChatConflictModal from '@/features/chat/components/ChatConflictModal';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
 import ConditionQuestionCard from '@/features/chat/components/ConditionQuestionCard';
+import InterestKeywordsModal from '@/features/chat/components/InterestKeywordsModal';
 import NearbyMembershipCard from '@/features/chat/components/NearbyMembershipCard';
 import PlanCardCarousel from '@/features/chat/components/PlanCardCarousel';
 import PlusMenu from '@/features/chat/components/PlusMenu';
@@ -120,6 +121,8 @@ export default function ChatRoom({
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
   // CHAT-014: 대화 초기화는 되돌릴 수 없어서 한 번 되묻는다
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  // CARD-013/015: 대화에서 파악한 관심사를 보고 고치는 화면
+  const [isInterestsOpen, setIsInterestsOpen] = useState(false);
   const {
     messages,
     isStreaming,
@@ -138,6 +141,7 @@ export default function ChatRoom({
     saveJoinProgress,
     completeJoinBlock,
     setKeywordValue,
+    setInterests,
     pruneVisibleMessages,
     stopGeneration,
     keepBothConversations,
@@ -643,6 +647,14 @@ export default function ChatRoom({
         onClose={() => setIsPlusMenuOpen(false)}
         onReset={() => setIsResetConfirmOpen(true)}
         onPlanTest={onPlanTest}
+        onInterests={() => setIsInterestsOpen(true)}
+      />
+
+      <InterestKeywordsModal
+        isOpen={isInterestsOpen}
+        interests={keywords.interests ?? []}
+        onClose={() => setIsInterestsOpen(false)}
+        onSave={setInterests}
       />
 
       <ConfirmModal

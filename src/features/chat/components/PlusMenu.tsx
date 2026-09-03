@@ -10,6 +10,8 @@ interface PlusMenuProps {
   onClose?: () => void;
   onReset?: () => void;
   onPlanTest?: () => void;
+  /** CARD-013/015: 대화에서 파악한 관심사를 보고 고칠 수 있는 화면을 연다 */
+  onInterests?: () => void;
   appendClassName?: string;
 }
 
@@ -18,6 +20,7 @@ export default function PlusMenu({
   onClose,
   onReset,
   onPlanTest,
+  onInterests,
   appendClassName,
 }: PlusMenuProps) {
   if (!isOpen) return null;
@@ -29,6 +32,11 @@ export default function PlusMenu({
 
   const handlePlanTestClick = () => {
     onPlanTest?.();
+    onClose?.();
+  };
+
+  const handleInterestsClick = () => {
+    onInterests?.();
     onClose?.();
   };
 
@@ -100,7 +108,7 @@ export default function PlusMenu({
           size="none"
           isFullWidth
           gap="md"
-          onClick={onClose}
+          onClick={handleInterestsClick}
           appendClassName="justify-start"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-action-primary-light text-action-primary">
@@ -112,7 +120,7 @@ export default function PlusMenu({
             />
           </div>
           <span className="text-left text-12 font-medium text-text-primary">
-            상담 결과 PDF 출력
+            나의 관심사 알아보기
           </span>
         </Button>
       </div>
