@@ -75,19 +75,23 @@ export default function UsageAnalysisSection({
         usagePercentage={usagePercentage}
       />
 
-      <div className="flex w-[min(80%,440px)] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default">
-        <div className="flex items-center gap-1.5">
-          <TrendingUp size={16} className="text-text-primary" aria-hidden />
-          <h3 className="text-14 font-bold text-text-primary">
-            최근 3개월 데이터 사용량
-          </h3>
+      {/* "내 요금제 정보 알려줘"처럼 현재 상태만 물었을 땐 trend 자체가 없다 -
+          3개월 사용 이력을 조회하지 않은 응답이라 차트를 그릴 데이터가 없다. */}
+      {trend && (
+        <div className="flex w-[min(80%,440px)] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default">
+          <div className="flex items-center gap-1.5">
+            <TrendingUp size={16} className="text-text-primary" aria-hidden />
+            <h3 className="text-14 font-bold text-text-primary">
+              최근 3개월 데이터 사용량
+            </h3>
+          </div>
+          <UsageTrendChart
+            points={trend.points}
+            averageMb={trend.averageMb}
+            planLimitMb={trend.planLimitMb}
+          />
         </div>
-        <UsageTrendChart
-          points={trend.points}
-          averageMb={trend.averageMb}
-          planLimitMb={trend.planLimitMb}
-        />
-      </div>
+      )}
 
       {/* keep일 땐 대안 요금제도, 별도 박스도 없다 - 왜 지금이 최적인지는 챗봇 답변
           텍스트가 savings.reason을 인용해서 말해준다(systemPrompt 참고). */}

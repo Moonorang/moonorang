@@ -35,7 +35,9 @@ export interface UsageAnalysisResult {
   currentPlan: Plan;
   remainingDataGb: number;
   dataLimitGb: number | null;
-  trend: UsageTrendData;
-  /** "절약해줘"처럼 절약 판단까지 요청했을 때만 있음. 추세만 물었을 땐 없음 */
+  /** "내 요금제 정보 알려줘"처럼 현재 상태만 물었을 땐 없음(최근 3개월 사용 이력이
+   * 없어도 이 카드는 떠야 해서, 이 모드는 이력 조회 자체를 안 한다) */
+  trend?: UsageTrendData;
+  /** "절약해줘"처럼 절약 판단까지 요청했을 때만 있음. 추세만/현재 정보만 물었을 땐 없음 */
   savings?: SavingsAnalysis;
 }

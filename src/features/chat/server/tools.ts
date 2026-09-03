@@ -104,6 +104,27 @@ export const RECOMMEND_PLANS_TOOL: ChatCompletionTool = {
 };
 
 /**
+ * CARD-024: 로그인 사용자가 절약 판단도 3개월 추세도 필요 없이 "지금 내가 무슨 요금제를
+ * 쓰고 있는지"만 알고 싶을 때. 최근 3개월 사용 이력이 없어도(가입한 지 얼마 안 된
+ * 사용자 등) 동작한다 - analyze_savings/show_usage_trend와 달리 이력 조회 자체를 안
+ * 한다. 인자는 없다.
+ */
+export const SHOW_CURRENT_PLAN_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'show_current_plan',
+    description:
+      '사용자가 로그인 상태에서 "내 요금제 정보 알려줘", "나 지금 무슨 요금제 써?", ' +
+      '"내 요금제 뭐야", "지금 쓰는 요금제 특징이 뭐야"처럼 - 절약/상향 판단이나 3개월 ' +
+      '추세 없이 지금 이용 중인 요금제 자체(이름, 특징, 잔여 사용량)만 알고 싶을 때 ' +
+      '호출한다. 실제 판단은 서버가 계산하므로 인자는 없다. "절약해줘"/"나에게 맞춰 ' +
+      '추천해줘"면 analyze_savings를, "사용량 추세 알려줘"면 show_usage_trend를 대신 ' +
+      '호출한다 - 셋은 근거·목적이 다른 별개의 도구다.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
+  },
+};
+
+/**
  * CARD-022~028: 로그인 사용자가 "절약해줘"/"나한테 맞는 요금제 추천해줘"처럼 현재 요금제·
  * 실사용 데이터 기준 상담을 원할 때. 사용량 분석 카드 + 3개월 추세를 함께 보낸다.
  * 인자는 없다 - 실제 판단은 서버 계산.
@@ -194,6 +215,7 @@ export const FIND_NEARBY_MEMBERSHIPS_TOOL: ChatCompletionTool = {
 export const CHAT_TOOLS: ChatCompletionTool[] = [
   EXTRACT_CONDITIONS_TOOL,
   RECOMMEND_PLANS_TOOL,
+  SHOW_CURRENT_PLAN_TOOL,
   ANALYZE_SAVINGS_TOOL,
   SHOW_USAGE_TREND_TOOL,
   RECOMMEND_ADD_ONS_TOOL,
@@ -206,6 +228,7 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
 // 이미 끝났으니 다시 후보로 줄 필요가 없다.
 export const ACTION_TOOLS: ChatCompletionTool[] = [
   RECOMMEND_PLANS_TOOL,
+  SHOW_CURRENT_PLAN_TOOL,
   ANALYZE_SAVINGS_TOOL,
   SHOW_USAGE_TREND_TOOL,
   RECOMMEND_ADD_ONS_TOOL,

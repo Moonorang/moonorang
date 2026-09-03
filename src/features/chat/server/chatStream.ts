@@ -49,9 +49,9 @@ interface ToolResultContext {
 }
 
 // 호출된 tool 이름별로 실제 계산/조회를 수행하고, 다음 턴의 tool 결과 메시지 content로
-// 쓸 값을 돌려준다. recommend_plans/analyze_savings/show_usage_trend/recommend_addons/
-// recommend_subscriptions/find_nearby_memberships는 여기서 SSE 이벤트도 같이 내보낸다
-// (카드 데이터를 텍스트보다 먼저 화면에 꽂아 넣기 위함).
+// 쓸 값을 돌려준다. recommend_plans/show_current_plan/analyze_savings/show_usage_trend/
+// recommend_addons/recommend_subscriptions/find_nearby_memberships는 여기서 SSE
+// 이벤트도 같이 내보낸다(카드 데이터를 텍스트보다 먼저 화면에 꽂아 넣기 위함).
 async function getToolResultContent(
   call: ToolCallBuilder,
   {
@@ -70,20 +70,12 @@ async function getToolResultContent(
   switch (call.name) {
     case 'recommend_plans':
       return runPlanRecommendation(plans, mergedKeywords, send);
+    case 'show_current_plan':
+      return runSavingsAnalysis({ userId, allPlans: plans, send, mode: 'plan_info' });
     case 'analyze_savings':
-      return runSavingsAnalysis({
-        userId,
-        allPlans: plans,
-        send,
-        includeSavingsDecision: true,
-      });
+      return runSavingsAnalysis({ userId, allPlans: plans, send, mode: 'savings' });
     case 'show_usage_trend':
-      return runSavingsAnalysis({
-        userId,
-        allPlans: plans,
-        send,
-        includeSavingsDecision: false,
-      });
+      return runSavingsAnalysis({ userId, allPlans: plans, send, mode: 'trend' });
     case 'recommend_addons':
       return runAddOnRecommendation(addOns, addOnAdoptionRates, mergedKeywords, send);
     case 'recommend_subscriptions':
@@ -288,6 +280,9 @@ export function createChatStream(
         let recommendCall = turn1Calls.find(
           (call) => call.name === 'recommend_plans',
         );
+        let showCurrentPlanCall = turn1Calls.find(
+          (call) => call.name === 'show_current_plan',
+        );
         let analyzeSavingsCall = turn1Calls.find(
           (call) => call.name === 'analyze_savings',
         );
@@ -386,6 +381,7 @@ export function createChatStream(
         // 후보만 다시 판단하게 한다(강제 호출 아님 - 필요 없으면 여전히 안 부를 수 있음).
         const calledActionInTurn1 =
           Boolean(recommendCall) ||
+          Boolean(showCurrentPlanCall) ||
           Boolean(analyzeSavingsCall) ||
           Boolean(showUsageTrendCall) ||
           Boolean(recommendAddOnsCall) ||
@@ -404,6 +400,9 @@ export function createChatStream(
 
           recommendCall = decision.toolCalls.find(
             (call) => call.name === 'recommend_plans',
+          );
+          showCurrentPlanCall = decision.toolCalls.find(
+            (call) => call.name === 'show_current_plan',
           );
           analyzeSavingsCall = decision.toolCalls.find(
             (call) => call.name === 'analyze_savings',
@@ -430,6 +429,7 @@ export function createChatStream(
 
         const actionConfirmed =
           Boolean(recommendCall) ||
+          Boolean(showCurrentPlanCall) ||
           Boolean(analyzeSavingsCall) ||
           Boolean(showUsageTrendCall) ||
           Boolean(recommendAddOnsCall) ||
