@@ -42,6 +42,10 @@ interface MemberChatHistoryResponse {
   messages: ChatMessage[];
   joinBlocks: JoinBlock[];
   keywords: ChatKeywords;
+  /** chatStream.ts가 이미 관리하는 chat_summary를 빌려온 화면 표시용 요약 시작값 -
+   * 아래 summarizeIfNeeded/pruneVisibleMessages가 이어서 관리한다. */
+  summary: string;
+  summarizedTurnCount: number;
 }
 
 /**
@@ -198,17 +202,25 @@ export function useChat(isLoggedIn: boolean | undefined) {
   const pendingGuestRef = useRef<StoredChatState | null>(null);
   const pendingMemberRef = useRef<MemberChatHistoryResponse | null>(null);
 
+  /**
+   * 회원 대화를 화면에 반영한다. summary/summarizedTurnCount는 서버(chat_summary)가
+   * 이미 갖고 있던 값을 그대로 시작점으로 삼는다 - 비회원과 같은 방식
+   * (summarizeIfNeeded/pruneVisibleMessages)으로 화면 유지 상한을 관리하기 위한
+   * 것으로, 매번 0부터 다시 요약하면 접속할 때마다 같은 구간을 또 요약하느라
+   * 낭비이기 때문이다. DB 원본(chat_messages)은 그대로 남아있으니, 여기서 화면
+   * 밖으로 걷어내는 것은 비회원의 pruneVisibleMessages와 달리 삭제가 아니다.
+   */
   const applyMemberHistory = useCallback((data: MemberChatHistoryResponse) => {
     messagesRef.current = data.messages;
     keywordsRef.current = data.keywords;
     joinBlocksRef.current = data.joinBlocks;
-    summaryRef.current = '';
-    summarizedTurnCountRef.current = 0;
+    summaryRef.current = data.summary;
+    summarizedTurnCountRef.current = data.summarizedTurnCount;
 
     setMessages(data.messages);
     setKeywords(data.keywords);
     setJoinBlocks(data.joinBlocks);
-    setSummary('');
+    setSummary(data.summary);
   }, []);
 
   /**
@@ -432,9 +444,10 @@ export function useChat(isLoggedIn: boolean | undefined) {
    * 실패해도 대화 자체는 계속되고, 다음 응답 뒤에 다시 시도된다.
    */
   const summarizeIfNeeded = useCallback(async () => {
-    // 회원은 chatStream.ts가 응답을 저장하면서 DB 기준으로 알아서 요약한다.
-    if (isLoggedIn) return;
-
+    // 회원도 화면 표시용 요약은 이 함수가 관리한다(applyMemberHistory 주석 참고).
+    // chatStream.ts가 LLM 컨텍스트용으로 관리하는 chat_summary와는 별개다 - 목적이
+    // 다른 두 요약이 각자 갱신되는 것이라, 서로 어긋나도 문제없다(화면 표시용은
+    // "왜 이 위는 안 보이는지" 설명만 하면 되고, LLM 컨텍스트는 그대로 서버가 책임진다).
     const selection = selectTurnsToSummarize(
       messagesRef.current,
       summarizedTurnCountRef.current,
@@ -465,18 +478,18 @@ export function useChat(isLoggedIn: boolean | undefined) {
     } catch {
       // 네트워크 실패 등 - 다음 응답 뒤에 다시 트리거되므로 조용히 넘어간다
     }
-  }, [isLoggedIn, persist]);
+  }, [persist]);
 
   /**
-   * 화면/로컬 저장에 원문으로 남기는 상한(MAX_VISIBLE_TURNS)을 넘으면, 이미 요약에
-   * 반영된 턴부터 걷어낸다. ChatRoom이 스크롤이 맨 아래일 때만 호출해서, 사용자가
-   * 과거 대화를 보는 도중에 화면에서 메시지가 사라지는 걸 막는다.
-   * 회원은 DB가 전체 기록을 갖고 있고 로컬 저장 용량 문제도 없어서, 화면에서
-   * 걷어내지 않고 전체를 그대로 보여준다.
+   * 화면에 원문으로 유지하는 상한(MAX_VISIBLE_TURNS)을 넘으면, 이미 요약에 반영된
+   * 턴부터 걷어낸다. ChatRoom이 스크롤이 맨 아래일 때만 호출해서, 사용자가 과거
+   * 대화를 보는 도중에 화면에서 메시지가 사라지는 걸 막는다.
+   *
+   * 회원도 이제 같은 방식으로 걷어낸다(applyMemberHistory 주석 참고) - 다만 여기서
+   * "걷어낸다"는 이 훅의 messages 상태(화면에 그릴 목록)에서 빼는 것뿐이다.
+   * DB(chat_messages)는 그대로 남아있어서 비회원처럼 진짜로 사라지는 게 아니다.
    */
   const pruneVisibleMessages = useCallback(() => {
-    if (isLoggedIn) return;
-
     const result = pruneSummarizedMessages(
       messagesRef.current,
       summarizedTurnCountRef.current,
@@ -502,7 +515,25 @@ export function useChat(isLoggedIn: boolean | undefined) {
     }
 
     persist();
-  }, [isLoggedIn, persist]);
+  }, [persist]);
+
+  /**
+   * 회원 복구가 막 끝난 시점(초기 로딩이든, 게스트 대화 승계·충돌 해소를 거친
+   * 뒤든)에 한 번, 화면 표시용 요약이 뒤처져 있으면 따라잡는다. applyMemberHistory가
+   * chat_summary에서 시작값을 물려받긴 하지만, 그걸로도 MAX_VISIBLE_TURNS만큼 걷어낼
+   * 만큼은 못 될 수 있다(예: 마지막 요약 이후 대화가 그만큼 더 쌓인 경우) - 이미
+   * 충분하면 summarizeIfNeeded가 선택할 턴이 없어 그냥 아무 일도 안 하고 끝난다.
+   * 마운트당 한 번만 시도한다 - isRestored는 이 훅이 살아있는 동안 false->true로
+   * 딱 한 번만 전환된다(어느 복구 경로를 타든).
+   */
+  const hasCaughtUpMemberSummaryRef = useRef(false);
+  useEffect(() => {
+    if (!isLoggedIn || !isRestored) return;
+    if (hasCaughtUpMemberSummaryRef.current) return;
+    hasCaughtUpMemberSummaryRef.current = true;
+
+    void summarizeIfNeeded().then(() => pruneVisibleMessages());
+  }, [isLoggedIn, isRestored, summarizeIfNeeded, pruneVisibleMessages]);
 
   const runChatRequest = useCallback(
     async (userText: string, aiMessageId: string, isRetry = false) => {
