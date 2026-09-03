@@ -75,7 +75,7 @@ export default function UsageAnalysisSection({
         usagePercentage={usagePercentage}
       />
 
-      <div className="flex w-[80%] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default">
+      <div className="flex w-[min(80%,440px)] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default">
         <div className="flex items-center gap-1.5">
           <TrendingUp size={16} className="text-text-primary" aria-hidden />
           <h3 className="text-14 font-bold text-text-primary">

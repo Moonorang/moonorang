@@ -47,7 +47,7 @@ export default function JoinCardFrame({
   return (
     <div
       ref={cardRef}
-      className="flex min-h-45 w-[80%] scroll-mt-(--height-header) flex-col rounded-md bg-background-default p-4"
+      className="flex min-h-45 w-[min(80%,440px)] scroll-mt-(--height-header) flex-col rounded-md bg-background-default p-4"
     >
       <div className="flex items-center gap-1">
         {/*
