@@ -1,4 +1,8 @@
-import { buildAddOnJoinMessage, buildPlanJoinMessage } from '@/entities/join';
+import {
+  buildAddOnJoinMessage,
+  buildPlanJoinMessage,
+  buildSubscriptionJoinMessage,
+} from '@/entities/join';
 import type { JoinTarget } from '@/entities/join/types';
 
 import type { JoinBlock } from '@/features/chat/types';
@@ -23,5 +27,7 @@ export function getJoinBlockMessage(block: JoinBlock): string {
       return buildPlanJoinMessage(block.item);
     case 'addOn':
       return buildAddOnJoinMessage(block.item);
+    case 'subscription':
+      return buildSubscriptionJoinMessage(block.item);
   }
 }

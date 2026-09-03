@@ -7,8 +7,8 @@ import type { JoinKind } from '@/entities/join/types';
 /** CARD-043: 가입을 마친 뒤 축하 카드에 적는 문구 */
 export const JOIN_COMPLETE_MESSAGE: Record<JoinKind, string> = {
   plan: '요금제 가입이 완료되었습니다!',
-  addOn: '부가서비스 가입이 완료되었습니다!',
-  subscription: '구독 상품 가입이 완료되었습니다!',
+  addOn: '부가서비스 신청이 완료되었습니다!',
+  subscription: '구독 상품 신청이 완료되었습니다!',
 };
 
 /**

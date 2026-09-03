@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { getAddOnsByIds } from '@/entities/addOn/server';
 import { getPlansByIds } from '@/entities/plan/server/planRepository';
+import { getSubscriptionsByIds } from '@/entities/subscription/server';
 import {
   MEMBER_GUARD_MESSAGE,
   MEMBER_GUARD_STATUS,
@@ -14,7 +15,11 @@ import {
   insertJoinResultMessages,
   updateJoinFlowMarker,
 } from '@/features/chat/server/chatRepository';
-import { buildAddOnJoinMessage, buildPlanJoinMessage } from '@/entities/join';
+import {
+  buildAddOnJoinMessage,
+  buildPlanJoinMessage,
+  buildSubscriptionJoinMessage,
+} from '@/entities/join';
 import type { JoinKind, JoinProgress, JoinTarget } from '@/entities/join/types';
 
 const JOIN_KINDS: JoinKind[] = ['plan', 'addOn', 'subscription'];
@@ -51,8 +56,9 @@ async function buildJoinDisplayText(
     return addOn ? buildAddOnJoinMessage(addOn) : null;
   }
 
-  // 구독은 아직 가입 카드가 없다 - 그때가 되면 여기에 한 갈래를 더한다
-  return null;
+  const [subscription] = await getSubscriptionsByIds([target.itemId]);
+
+  return subscription ? buildSubscriptionJoinMessage(subscription) : null;
 }
 
 /**

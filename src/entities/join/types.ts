@@ -1,5 +1,6 @@
 import type { AddOn } from '@/entities/addOn/types';
 import type { Plan } from '@/entities/plan/types';
+import type { Subscription } from '@/entities/subscription/types';
 import type { Gender } from '@/entities/user/types';
 
 /**
@@ -31,7 +32,9 @@ export interface JoinTarget {
  * 오류로 한 번에 드러난다.
  */
 export type JoinItem =
-  { kind: 'plan'; item: Plan } | { kind: 'addOn'; item: AddOn };
+  | { kind: 'plan'; item: Plan }
+  | { kind: 'addOn'; item: AddOn }
+  | { kind: 'subscription'; item: Subscription };
 
 /**
  * CARD-046: 가입 절차 도중 화면을 떠났다 돌아왔을 때 이어가기 위한 진행 상태.

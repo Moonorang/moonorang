@@ -7,7 +7,6 @@ export { default as CatalogTabs } from './ui/CatalogTabs';
 export { default as PlanDetailModal } from './ui/PlanDetailModal';
 export { default as AddOnDetailModal } from './ui/AddOnDetailModal';
 export { default as SubscriptionDetailModal } from './ui/SubscriptionDetailModal';
-export { default as SubscriptionDetailCard } from './ui/SubscriptionDetailCard';
 export { default as MembershipDetailModal } from './ui/MembershipDetailModal';
 export { default as MembershipDetailCard } from './ui/MembershipDetailCard';
 export { default as EmptyNotice } from './ui/EmptyNotice';

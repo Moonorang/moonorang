@@ -1,5 +1,6 @@
 import { getAddOnsByIds } from '@/entities/addOn/server';
 import { getPlansByIds } from '@/entities/plan/server/planRepository';
+import { getSubscriptionsByIds } from '@/entities/subscription/server';
 import { tryParseCardPayload } from '@/features/chat/lib/chatCard';
 import {
   getActiveChat,
@@ -130,12 +131,16 @@ async function restoreJoinBlocks(
     ),
   ];
 
-  const [plans, addOns] = await Promise.all([
+  const [plans, addOns, subscriptions] = await Promise.all([
     getPlansByIds(idsOf('plan')),
     getAddOnsByIds(idsOf('addOn')),
+    getSubscriptionsByIds(idsOf('subscription')),
   ]);
   const planById = new Map(plans.map((plan) => [plan.id, plan]));
   const addOnById = new Map(addOns.map((addOn) => [addOn.id, addOn]));
+  const subscriptionById = new Map(
+    subscriptions.map((subscription) => [subscription.id, subscription]),
+  );
 
   return markers.reduce<JoinBlock[]>((acc, marker) => {
     const { target, afterMessageId, progress, isCompleted } = marker;
@@ -149,6 +154,13 @@ async function restoreJoinBlocks(
     if (target.kind === 'addOn') {
       const addOn = addOnById.get(target.itemId);
       if (addOn) acc.push({ ...base, kind: 'addOn', item: addOn });
+    }
+
+    if (target.kind === 'subscription') {
+      const subscription = subscriptionById.get(target.itemId);
+      if (subscription) {
+        acc.push({ ...base, kind: 'subscription', item: subscription });
+      }
     }
 
     return acc;

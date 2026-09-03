@@ -97,3 +97,48 @@ export const ADD_ON_JOIN_STEPS = [
 ] as const;
 
 export type AddOnJoinStepId = (typeof ADD_ON_JOIN_STEPS)[number]['id'];
+
+/**
+ * 구독 상품 가입 절차의 단계 (DATA-015).
+ *
+ * 부가서비스보다 한 단계 많은 이유는 결제 방식이 다르기 때문이다 - 부가서비스는
+ * 통신요금에 합산되지만(DATA-012) 구독 상품은 매달 같은 날 따로 결제되므로
+ * (DATA-017, user_subscriptions 는 "개별 결제") 결제 수단을 받아야 한다.
+ * 요금제 가입의 카드 등록 화면(CardStep)을 그대로 쓴다.
+ *
+ * 본인 확인이 없는 것은 부가서비스와 같다 - 이미 계약된 회선에 얹는 일이라
+ * 본인 확인을 다시 받을 이유가 없다.
+ */
+export const SUBSCRIPTION_JOIN_STEPS = [
+  {
+    id: 'subscription',
+    title: '상세 확인',
+    submitLabel: '다음',
+    hasScreen: true,
+    hasProgress: false,
+  },
+  {
+    id: 'terms',
+    title: '약관 동의',
+    submitLabel: '다음',
+    hasScreen: true,
+    hasProgress: true,
+  },
+  {
+    id: 'card',
+    title: '결제 수단 등록',
+    submitLabel: '완료',
+    hasScreen: true,
+    hasProgress: true,
+  },
+  {
+    id: 'confirm',
+    title: '신청 확인',
+    submitLabel: '신청하기',
+    hasScreen: true,
+    hasProgress: true,
+  },
+] as const;
+
+export type SubscriptionJoinStepId =
+  (typeof SUBSCRIPTION_JOIN_STEPS)[number]['id'];

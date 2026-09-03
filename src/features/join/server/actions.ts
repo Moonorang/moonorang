@@ -3,10 +3,17 @@
 import { z } from 'zod';
 
 import { getActiveAddOnIds } from '@/entities/addOn/server';
+import { getActiveSubscriptionIds } from '@/entities/subscription/server';
+import { getNextBillingDate, toIsoDate } from '@/features/join/lib/billing';
 import { createClient } from '@/shared/lib/supabase/server';
 
 /** PostgreSQL unique 제약 위반 - 부분 unique index 로 막아둔 중복 신청이 여기로 온다 */
 const UNIQUE_VIOLATION_CODE = '23505';
+
+const completeSubscriptionJoinSchema = z.object({
+  /** 신청한 구독 상품 */
+  subscriptionId: z.number().int().positive(),
+});
 
 const completeAddOnJoinSchema = z.object({
   /** 신청한 부가서비스 */
@@ -140,6 +147,65 @@ export async function completeAddOnJoin(
     }
 
     console.error('[join] 부가서비스 신청 저장 실패', error);
+
+    return {
+      errorMessage:
+        '신청 정보를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.',
+    };
+  }
+
+  return {};
+}
+
+/**
+ * DATA-015/017: 구독 신청이 확정되는 자리 - user_subscriptions 에 내역을 남긴다.
+ *
+ * 중복을 두 겹으로 막는 것은 부가서비스(completeAddOnJoin)와 같다. 다른 점은
+ * 기준이 ACTIVE 가 아니라 "해지되지 않은 것"이라는 점이다 - 잠시 멈춘(PAUSED)
+ * 구독도 다시 신청할 수는 없고, uq_user_subscriptions_active 도 같은 기준이다.
+ *
+ * next_billing_date 는 NOT NULL 이라 반드시 채워야 하는데, 결제일은 서버가 정해야
+ * 하는 값이라 클라이언트가 보낸 날짜를 쓰지 않는다.
+ */
+export async function completeSubscriptionJoin(
+  input: unknown,
+): Promise<CompleteJoinResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { errorMessage: '로그인이 만료되었어요. 다시 로그인해 주세요.' };
+  }
+
+  const parsed = completeSubscriptionJoinSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { errorMessage: '신청 정보를 확인하지 못했어요.' };
+  }
+
+  const { subscriptionId } = parsed.data;
+
+  const activeSubscriptionIds = await getActiveSubscriptionIds(user.id);
+  if (activeSubscriptionIds.includes(subscriptionId)) {
+    return { errorMessage: '이미 이용 중인 구독 상품이에요.' };
+  }
+
+  const { error } = await supabase.from('user_subscriptions').insert({
+    user_id: user.id,
+    subscription_id: subscriptionId,
+    next_billing_date: toIsoDate(getNextBillingDate(new Date())),
+  });
+
+  if (error) {
+    // 같은 순간에 두 번 들어온 경우 - 결과적으로는 이미 이용 중인 것이 맞다
+    if (error.code === UNIQUE_VIOLATION_CODE) {
+      return { errorMessage: '이미 이용 중인 구독 상품이에요.' };
+    }
+
+    console.error('[join] 구독 신청 저장 실패', error);
 
     return {
       errorMessage:

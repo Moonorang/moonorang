@@ -7,10 +7,12 @@ import ChatRoom from '@/features/chat/components/ChatRoom';
 import AddOnJoinFlowCard from '@/features/join/components/AddOnJoinFlowCard';
 import JoinCompleteCard from '@/features/join/components/JoinCompleteCard';
 import JoinFlowCard from '@/features/join/components/JoinFlowCard';
+import SubscriptionJoinFlowCard from '@/features/join/components/SubscriptionJoinFlowCard';
 import { JOIN_COMPLETE_MESSAGE } from '@/features/join/data/complete';
 import {
   buildAddOnJoinResultMessage,
   buildJoinResultMessage,
+  buildSubscriptionJoinResultMessage,
 } from '@/features/join/lib/joinResultMessage';
 import TestLoadingModal from '@/features/test/components/TestLoadingModal';
 import TestQuestionCard from '@/features/test/components/TestQuestionCard';
@@ -58,6 +60,23 @@ export default function ChatPage() {
             progress,
             onProgressChange,
           };
+
+          if (block.kind === 'subscription') {
+            return (
+              <SubscriptionJoinFlowCard
+                {...shared}
+                subscription={block.item}
+                onComplete={() =>
+                  onComplete(
+                    buildSubscriptionJoinResultMessage({
+                      subscriptionName: block.item.name,
+                      customerName,
+                    }),
+                  )
+                }
+              />
+            );
+          }
 
           if (block.kind === 'addOn') {
             return (

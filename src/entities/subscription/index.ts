@@ -3,3 +3,4 @@
 export type { Subscription, SubscriptionDescription } from './types';
 export { getDiscountedFee } from './lib/getDiscountedFee';
 export { default as SubscriptionListItem } from './ui/SubscriptionListItem';
+export { default as SubscriptionDetailCard } from './ui/SubscriptionDetailCard';

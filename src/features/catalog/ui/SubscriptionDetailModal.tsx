@@ -2,7 +2,7 @@
 
 import FullModal from '@/shared/ui/FullModal';
 
-import SubscriptionDetailCard from '@/features/catalog/ui/SubscriptionDetailCard';
+import SubscriptionDetailCard from '@/entities/subscription/ui/SubscriptionDetailCard';
 import type { Subscription } from '@/entities/subscription/types';
 
 interface SubscriptionDetailModalProps {
