@@ -9,8 +9,3 @@ import type { JoinTarget } from '@/entities/join/types';
 export function getJoinKey({ kind, itemId }: JoinTarget): string {
   return `${kind}:${itemId}`;
 }
-
-/** 두 가입 카드가 같은 상품을 가리키는지 */
-export function isSameJoinTarget(a: JoinTarget, b: JoinTarget): boolean {
-  return a.kind === b.kind && a.itemId === b.itemId;
-}

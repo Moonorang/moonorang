@@ -155,22 +155,10 @@ export default function AddOnJoinFlowCard({
     );
   }
 
-  // 신청 확인 자리에는 상황에 따라 셋 중 하나가 온다 -
-  // 회원가입 안내(비회원) > 처리 중 > 평소의 신청 확인
-  const confirmBody = submission.isSignupRequired ? (
-    <JoinSignupNotice
-      message={
-        <>
-          부가서비스 신청은 회원만 할 수 있어요.
-          <br />
-          카카오로 가입하고 이어서 진행해 주세요.
-        </>
-      }
-      onPrev={submission.closeSignupNotice}
-    >
-      {renderSignup?.()}
-    </JoinSignupNotice>
-  ) : submission.isSubmitting ? (
+  // 신청 확인 자리에는 둘 중 하나가 온다 - 처리 중 > 평소의 신청 확인.
+  // 요금제 카드에는 여기에 회원가입 안내가 한 갈래 더 있는데, 이 절차는 비회원을
+  // 첫 단계에서 이미 막아서므로(위 게이트) 여기까지 비회원이 오지 않는다.
+  const confirmBody = submission.isSubmitting ? (
     <PaymentLoading />
   ) : (
     <AddOnConfirmStep
