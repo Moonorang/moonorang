@@ -976,6 +976,39 @@ export function useChat(isLoggedIn: boolean | undefined) {
     [persist],
   );
 
+  /**
+   * CARD-013/015: 관심사 선택 화면에서 고른 목록으로 keywords.interests 를 통째로
+   * 바꾼다. 대화에서 뽑아낸 값(mergeKeywords)과 달리 합집합으로 누적하지 않는다 -
+   * 칩을 뺀 것도 사용자의 결정이라, 뺀 관심사가 다시 살아나면 안 된다.
+   *
+   * 회원은 DB가 유일한 진짜 기록이라 저장에 성공했을 때만 화면 값을 바꾼다 -
+   * 실패했는데 화면만 바뀌면, 다음 응답에서 예전 값으로 되돌아가는 것처럼 보인다.
+   * 실패는 던져서 호출부(모달)가 사유와 재시도 수단을 보여주게 한다(COMMON-002).
+   */
+  const setInterests = useCallback(
+    async (interests: string[]) => {
+      if (isLoggedIn) {
+        const response = await fetch('/api/chat/keywords', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interests }),
+        });
+
+        if (!response.ok) throw new Error('관심사를 저장하지 못했습니다.');
+      }
+
+      const next: ChatKeywords = { ...keywordsRef.current };
+
+      if (interests.length > 0) next.interests = interests;
+      else delete next.interests;
+
+      keywordsRef.current = next;
+      setKeywords(next);
+      persist();
+    },
+    [isLoggedIn, persist],
+  );
+
   return {
     messages,
     isStreaming,
@@ -994,6 +1027,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     saveJoinProgress,
     completeJoinBlock,
     setKeywordValue,
+    setInterests,
     pruneVisibleMessages,
     stopGeneration,
     keepBothConversations,
