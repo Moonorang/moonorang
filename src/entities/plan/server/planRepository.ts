@@ -2,7 +2,7 @@ import { createClient } from '@/shared/lib/supabase/server';
 import type { Plan, PlanBenefits, PlanOption } from '@/entities/plan/types';
 
 const PLAN_COLUMNS =
-  'id, name, description, monthly_fee, data_allowance, voice_sms, benefits';
+  'id, name, description, monthly_fee, data_allowance, voice_sms, benefits, image';
 
 interface PlanRow {
   id: number;
@@ -12,6 +12,7 @@ interface PlanRow {
   data_allowance: string;
   voice_sms: string;
   benefits: PlanBenefits | string | null;
+  image: string;
 }
 
 function mapPlanRow(row: PlanRow): Plan {
@@ -26,6 +27,7 @@ function mapPlanRow(row: PlanRow): Plan {
     dataAllowance: row.data_allowance,
     voiceSms: row.voice_sms,
     benefits: benefits ?? null,
+    image: row.image,
   };
 }
 

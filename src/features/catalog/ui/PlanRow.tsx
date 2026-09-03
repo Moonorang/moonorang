@@ -1,9 +1,12 @@
+import Image from 'next/image';
+
 import BenefitSummary from '@/features/catalog/ui/BenefitSummary';
 
 import { isMeaningful } from '@/features/catalog/lib/isMeaningful';
 import { parseDataAllowance } from '@/entities/plan/lib/format';
 import type { Plan } from '@/entities/plan/types';
 import CatalogCard from '@/shared/ui/CatalogCard';
+import { CATALOG_IMAGE_BASE_PATH } from '@/shared/utils/catalogImagePath';
 import { formatWon } from '@/shared/utils/formatCurrency';
 
 interface PlanRowProps {
@@ -17,6 +20,7 @@ export default function PlanRow({ plan, onSelect }: PlanRowProps) {
   const { amount } = parseDataAllowance(plan.dataAllowance);
   const tetheringSharing = plan.benefits?.tethering_sharing;
   const maxBenefitValue = plan.benefits?.max_benefit_value;
+  const imageSrc = `${CATALOG_IMAGE_BASE_PATH}/${plan.image}`;
 
   return (
     <CatalogCard>
@@ -26,9 +30,13 @@ export default function PlanRow({ plan, onSelect }: PlanRowProps) {
         className="flex w-full flex-1 cursor-pointer flex-col text-left"
       >
         <div className="flex w-full flex-1 items-center gap-3 px-4 pt-5 pb-2">
-          <p className="w-14 shrink-0 pl-1 text-14 font-medium text-text-primary">
-            {plan.name}
-          </p>
+          <Image
+            src={imageSrc}
+            alt={plan.name}
+            width={300}
+            height={174}
+            className="h-9 w-auto shrink-0 rounded-md object-contain"
+          />
 
           <div className="min-w-0 flex-1">
             <p className="truncate text-12 font-medium text-text-primary">

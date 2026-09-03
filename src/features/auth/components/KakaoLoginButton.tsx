@@ -61,16 +61,14 @@ export default function KakaoLoginButton({
 
   // 3. 렌더링
   return (
-    <div className="flex w-full flex-col gap-3">
+    <div className="flex w-full flex-col items-center gap-3">
       <button
         type="button"
         onClick={handleKakaoLoginClick}
         disabled={isSubmitting}
         aria-label="카카오로 로그인"
         className={cn(
-          'w-full hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60',
-          // 256px 상한은 같은 카드에 서는 다른 버튼(JoinStepLayout 의 size="lg",
-          // 높이 38px)과 키를 맞춘 값이다 - 600:90 비율에서 256px 이면 38.4px 이다.
+          'w-full max-w-100 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60',
           isCompact && 'max-w-64 self-center',
         )}
       >
@@ -80,8 +78,6 @@ export default function KakaoLoginButton({
           width={600}
           height={90}
           className="h-auto w-full"
-          // 로그인 화면에서는 이 그림이 첫 화면의 주된 요소라 미리 받아둔다.
-          // 대화 속 카드에서는 조건부로 잠깐 뜨는 것이라 미리 받을 이유가 없다.
           priority={!isCompact}
         />
       </button>

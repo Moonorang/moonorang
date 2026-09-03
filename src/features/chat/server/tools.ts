@@ -1,5 +1,6 @@
 import type { ChatCompletionTool } from 'openai/resources/chat/completions';
 
+import type { PlanRecommendationScope } from '@/features/chat/lib/selectPlans';
 import type { ChatKeywords } from '@/features/chat/types';
 
 /**
@@ -30,6 +31,39 @@ export const EXTRACT_CONDITIONS_TOOL: ChatCompletionTool = {
             '한 달 예상 테더링/쉐어링 사용량(GB). 생활 패턴 표현을 이 기준으로 추정: ' +
             '거의 안 함=0, 노트북 가끔 잠깐=10, 자주 씀=30, 거의 매일 씀=60',
         },
+        priority: {
+          type: 'string',
+          enum: ['priciest', 'cheapest', 'data', 'balanced'],
+          description:
+            '예산과 데이터 중 뭘 우선할지의 상대적 선호. **규칙: 이번 발화에서 예산은 ' +
+            '알게 됐는데(이번 발화든 이전 턴이든) 데이터 사용량은 숫자로도 생활 ' +
+            '패턴으로도 전혀 모르면, 항상 "priciest"를 채운다** - "요금제 추천해줘 월 ' +
+            '5만원대로", "5만원 정도로 뭐 있어?"처럼 데이터 언급이 아예 없는 짧은 ' +
+            '요청이 전형적인 예다. 이 경우를 놓치고 필드를 안 채우면, 서버가 데이터 ' +
+            '사용량을 임의의 기본값(15GB)으로 가정해버려서 예산과 무관하게 늘 저가 ' +
+            '요금제만 추천된다. "priciest": 위 규칙 외에도 "제일 비싼 걸로", "가장 ' +
+            '혜택 큰 걸로"처럼 명시적으로 말했을 때도 채운다. "cheapest": "제일 싼 ' +
+            '걸로", "가장 저렴한 걸로", "가성비로"처럼 반대로 가장 저렴한 쪽을 원할 ' +
+            '때. "data": "이전 추천보다 데이터 더 많이", "데이터 넉넉하게", ' +
+            '"무제한으로" 처럼 dataUsageGb를 구체적 숫자로 못 박기보다 예산 안에서 ' +
+            '데이터가 가장 많은 쪽을 원할 때 - dataUsageGb를 억지로 큰 숫자로 ' +
+            '추정해서 흉내 내지 않는다(그 숫자 하나에 따라 결과가 들쭉날쭉해진다). ' +
+            '"balanced": 사용자가 다시 "적당한/무난한 걸로"처럼 어느 한쪽 우선도 그만 ' +
+            '원하면 명시해서 되돌린다(언급이 없으면 이전 값이 그대로 유지되므로, ' +
+            '되돌릴 때는 반드시 이 필드를 balanced로 채워야 한다). budget·dataUsageGb를 ' +
+            '둘 다 숫자로 알고 있어서 균형 있게 추천받고 싶으면 이 필드 자체를 넣지 ' +
+            '않는다(기본값 유지).',
+        },
+        resultCount: {
+          type: 'integer',
+          description:
+            '사용자가 명시적으로 말한 추천 개수. "1개만", "하나만 추천해줘", "딱 ' +
+            '하나만"처럼 개수를 콕 집어 말했을 때만 채운다(1~3 사이 값만 의미가 ' +
+            '있다 - 그 범위를 벗어나면 서버가 안쪽으로 clamp한다). 언급이 없으면 ' +
+            '이 필드 자체를 넣지 않는다(기본값 3개 유지, 이전 턴에 이미 채워져 ' +
+            '있었다면 그 값이 그대로 유지된다) - 다시 여러 개를 보고 싶다고 하면 ' +
+            '3처럼 새 숫자를 명시해서 채운다.',
+        },
         interests: {
           type: 'array',
           items: { type: 'string' },
@@ -58,15 +92,96 @@ export const RECOMMEND_PLANS_TOOL: ChatCompletionTool = {
     name: 'recommend_plans',
     description:
       '사용자가 이번 대화에서 직접 말해준 조건(예산, 예상 데이터/테더링 사용량)을 기준으로 ' +
-      '요금제 추천을 원할 때 호출한다. 실제 추천 요금제·순위는 서버가 계산하므로 인자는 없다. ' +
+      '요금제 추천을 원할 때 호출한다. 실제 추천 요금제·순위는 서버가 계산한다. ' +
       '조건을 아직 잘 모르겠으면 호출하지 말고 먼저 물어본다. "내 실제 이용 데이터/사용 패턴에 ' +
       '맞춰서" 추천해달라는 뜻이면(로그인 사용자의 실제 사용 이력 기반) 이 tool이 아니라 ' +
       'analyze_savings를 호출한다 - 둘은 근거 데이터가 다르다.',
     parameters: {
       type: 'object',
-      properties: {},
+      properties: {
+        scope: {
+          type: 'string',
+          enum: ['recommended', 'catalog', 'alternative'],
+          description:
+            '평소의 "지금까지 파악된 조건으로 추천" 요청이면 이 필드 자체를 넣지 않는다. ' +
+            '아래 세 경우에만 채운다. "recommended": "그중에 제일 비싼/싼 거", "추천해준 ' +
+            '것 중에서"처럼 방금 추천한 요금제들 범위 안에서만 다시 고를 때. "catalog": ' +
+            '"요금제 전체에서 제일 비싼/싼 거", "모든 요금제 중에"처럼 지금까지 파악된 ' +
+            '예산·데이터 조건과 무관하게 카탈로그 전체를 통틀어 찾을 때. "alternative": ' +
+            '"~하나만 더", "방금 추천해준 거랑 가장 비슷한 다른 요금제"처럼 이미 보여준 ' +
+            '것과는 다른, 원래 조건에 그다음으로 잘 맞는 요금제를 새로 찾을 때. ' +
+            '**recommended/catalog 판단이 애매하면(범위를 가리키는 말이 전혀 없이 그냥 ' +
+            '"제일 비싼 요금제 골라봐"처럼만 말하면) 이 tool을 호출하지 말고 먼저 어느 ' +
+            '쪽인지 사용자에게 되물어야 한다** - 시스템 프롬프트의 해당 규칙을 참고할 것.',
+        },
+        direction: {
+          type: 'string',
+          enum: ['priciest', 'cheapest'],
+          description:
+            'scope가 "recommended" 또는 "catalog"일 때 **반드시 이번 발화 기준으로 ' +
+            '직접 채운다** - "제일 비싼"이면 "priciest", "제일 싼/저렴한"이면 "cheapest". ' +
+            '이전 턴에 extract_conditions로 채워둔 priority가 남아있어도 이 필드로 ' +
+            '넘긴 값을 우선 쓴다 - "이번엔 반대로 싼 걸로"처럼 방향이 바뀌었는데 이 ' +
+            '필드를 안 채우거나 이전 방향 그대로 채우면, 서버가 예전 방향으로 계산한 ' +
+            '결과를 돌려주는데 그걸 반대 방향이라고 잘못 설명하게 된다. scope가 ' +
+            '"alternative"이거나 아예 없으면(평소 추천) 이 필드는 넣지 않는다.',
+        },
+      },
       additionalProperties: false,
     },
+  },
+};
+
+export interface RecommendPlansArguments {
+  scope?: PlanRecommendationScope;
+  direction?: 'priciest' | 'cheapest';
+}
+
+// recommend_plans tool call의 JSON 문자열에서 scope·direction을 뽑아낸다. 스키마를
+// 안 지킨 값이 와도(오타·다른 문자열 등) 조용히 무시하고 undefined로 처리해서 평소
+// 추천으로 넘어간다(CARD-014와 같은 원칙 - 파싱 실패로 대화가 끊기면 안 된다).
+export function parseRecommendPlansArguments(
+  rawArguments: string,
+): RecommendPlansArguments {
+  try {
+    const parsed = JSON.parse(rawArguments) as Record<string, unknown>;
+    const result: RecommendPlansArguments = {};
+
+    if (
+      parsed.scope === 'recommended' ||
+      parsed.scope === 'catalog' ||
+      parsed.scope === 'alternative'
+    ) {
+      result.scope = parsed.scope;
+    }
+    if (parsed.direction === 'priciest' || parsed.direction === 'cheapest') {
+      result.direction = parsed.direction;
+    }
+
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * CARD-024: 로그인 사용자가 절약 판단도 3개월 추세도 필요 없이 "지금 내가 무슨 요금제를
+ * 쓰고 있는지"만 알고 싶을 때. 최근 3개월 사용 이력이 없어도(가입한 지 얼마 안 된
+ * 사용자 등) 동작한다 - analyze_savings/show_usage_trend와 달리 이력 조회 자체를 안
+ * 한다. 인자는 없다.
+ */
+export const SHOW_CURRENT_PLAN_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'show_current_plan',
+    description:
+      '사용자가 로그인 상태에서 "내 요금제 정보 알려줘", "나 지금 무슨 요금제 써?", ' +
+      '"내 요금제 뭐야", "지금 쓰는 요금제 특징이 뭐야"처럼 - 절약/상향 판단이나 3개월 ' +
+      '추세 없이 지금 이용 중인 요금제 자체(이름, 특징, 잔여 사용량)만 알고 싶을 때 ' +
+      '호출한다. 실제 판단은 서버가 계산하므로 인자는 없다. "절약해줘"/"나에게 맞춰 ' +
+      '추천해줘"면 analyze_savings를, "사용량 추세 알려줘"면 show_usage_trend를 대신 ' +
+      '호출한다 - 셋은 근거·목적이 다른 별개의 도구다.',
+    parameters: { type: 'object', properties: {}, additionalProperties: false },
   },
 };
 
@@ -161,6 +276,7 @@ export const FIND_NEARBY_MEMBERSHIPS_TOOL: ChatCompletionTool = {
 export const CHAT_TOOLS: ChatCompletionTool[] = [
   EXTRACT_CONDITIONS_TOOL,
   RECOMMEND_PLANS_TOOL,
+  SHOW_CURRENT_PLAN_TOOL,
   ANALYZE_SAVINGS_TOOL,
   SHOW_USAGE_TREND_TOOL,
   RECOMMEND_ADD_ONS_TOOL,
@@ -173,6 +289,7 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
 // 이미 끝났으니 다시 후보로 줄 필요가 없다.
 export const ACTION_TOOLS: ChatCompletionTool[] = [
   RECOMMEND_PLANS_TOOL,
+  SHOW_CURRENT_PLAN_TOOL,
   ANALYZE_SAVINGS_TOOL,
   SHOW_USAGE_TREND_TOOL,
   RECOMMEND_ADD_ONS_TOOL,
@@ -197,6 +314,23 @@ export function parseExtractConditionsArguments(
       result.dataUsageGb = parsed.dataUsageGb;
     if (typeof parsed.tetheringGb === 'number')
       result.tetheringGb = parsed.tetheringGb;
+    if (
+      parsed.priority === 'priciest' ||
+      parsed.priority === 'cheapest' ||
+      parsed.priority === 'data'
+    ) {
+      result.priority = parsed.priority;
+    } else if (parsed.priority === 'balanced') {
+      // 이전에 채워둔 priority를 명시적으로 되돌린다 - undefined도 own property로
+      // 잡혀서(Object.keys에 포함) mergeKeywords의 스프레드가 이전 값을 지운다.
+      result.priority = undefined;
+    }
+    if (
+      typeof parsed.resultCount === 'number' &&
+      Number.isInteger(parsed.resultCount)
+    ) {
+      result.resultCount = parsed.resultCount;
+    }
 
     if (Array.isArray(parsed.interests)) {
       const interests = parsed.interests

@@ -42,6 +42,10 @@ interface MemberChatHistoryResponse {
   messages: ChatMessage[];
   joinBlocks: JoinBlock[];
   keywords: ChatKeywords;
+  /** chatStream.ts가 이미 관리하는 chat_summary를 빌려온 화면 표시용 요약 시작값 -
+   * 아래 summarizeIfNeeded/pruneVisibleMessages가 이어서 관리한다. */
+  summary: string;
+  summarizedTurnCount: number;
 }
 
 /**
@@ -110,12 +114,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
   // CHAT-008: 응답 생성 중단용. 진행 중인 요청이 있을 때만 값이 있다.
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // CARD-028: 브라우저 위치 정보. 페이지 진입 시가 아니라 메시지를 보낼 때 요청한다 -
-  // 채팅을 아예 안 쓰는 사용자에게 미리 위치 권한을 묻지 않기 위함이다. 아직 위치를
-  // 못 얻었으면 메시지를 보낼 때마다 다시 시도한다(이미 얻었으면 재요청 안 함) -
-  // 처음엔 거부했다가 나중에 브라우저 설정에서 허용해도, 다음 메시지에서 자연스럽게
-  // 다시 시도되는 게 COMMON-002의 "재시도 수단"이다. 실패해도 조용히 넘어간다 -
-  // find_nearby_memberships를 실제로 부를 때만 서버가 "위치가 없다"고 안내한다.
+  // CARD-028: 브라우저 위치 정보. 아무 메시지에나 미리 물어보지 않고, 서버가
+  // "지금 이 요청에 실제로 위치가 필요했다"고 알려준 순간(locationNeeded 이벤트 -
+  // find_nearby_memberships가 위치 없이 불렸을 때만 온다)에만 권한을 요청한다.
+  // 그 전까지 메시지는 그냥 location 없이(undefined) 나간다. 처음엔 거부했다가
+  // 나중에 브라우저 설정에서 허용해도, 그다음 주변 혜택을 다시 물어볼 때 자연스럽게
+  // 다시 시도되는 게 COMMON-002의 "재시도 수단"이다.
   // ref는 runChatRequest가 요청 직전에 최신값을 동기로 읽기 위한 것이고, state는
   // NearbyMembershipCard의 미니 지도가 "내 위치" 핀을 찍을 수 있게 화면에 내려주기
   // 위한 것 - 둘이 항상 같은 값을 가리키도록 같이 갱신한다.
@@ -123,12 +127,10 @@ export function useChat(isLoggedIn: boolean | undefined) {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
     null,
   );
-  // getCurrentPosition은 비동기라, 예전엔 이 결과를 기다리지 않고 곧바로 fetch를
-  // 보내서 - 권한이 이미 허용돼 있어도 매번 위치 없이 요청이 나가는 레이스가 있었다
-  // (locationRef.current가 아직 null인 채로 fetch 본문이 만들어짐). 그래서
-  // runChatRequest가 이 promise를 await해서 요청을 보내기 직전에 위치가 반영되게
-  // 한다. 이미 얻은 뒤(locationRef.current 있음)나 요청이 이미 진행 중일 때는
-  // 새로 묻지 않고 같은 promise/값을 재사용한다.
+  // locationNeeded 이벤트가 응답 하나 안에서 여러 번 오거나, 사용자가 아직 권한
+  // 대화상자에 답하기 전에 또 주변 혜택을 물어봐도 getCurrentPosition을 중복 호출하지
+  // 않도록 진행 중인 promise를 재사용한다. 이미 얻은 뒤(locationRef.current 있음)면
+  // 아예 다시 묻지 않는다.
   const locationPromiseRef = useRef<Promise<{
     lat: number;
     lng: number;
@@ -156,9 +158,21 @@ export function useChat(isLoggedIn: boolean | undefined) {
             setLocation(nextLocation);
             resolve(nextLocation);
           },
-          () => {
-            // 거부·타임아웃 등 - promise를 비워서 다음 메시지를 보낼 때 다시
+          (positionError) => {
+            // 브라우저 권한을 "허용"해도 이 콜백으로 올 수 있다 - 권한과 실제 위치
+            // 취득은 별개라, OS 자체의 위치 서비스가 꺼져 있으면(Windows 설정 ->
+            // 개인정보 및 보안 -> 위치) code 2(POSITION_UNAVAILABLE)로 실패한다.
+            // 원인 구분 없이 조용히 넘어가면 "허용했는데 왜 안 되는지" 못 알아채므로
+            // 콘솔에 남긴다. resolve(null)로 promise를 비워서 다음에 다시
             // 시도되게 한다(COMMON-002의 "재시도 수단").
+            const reason =
+              positionError.code === positionError.PERMISSION_DENIED
+                ? '권한 거부'
+                : positionError.code === positionError.POSITION_UNAVAILABLE
+                  ? '위치를 가져올 수 없음(OS 위치 서비스가 꺼져 있을 수 있음)'
+                  : '시간 초과';
+            console.warn(`[chat] 위치 정보 요청 실패 - ${reason}:`, positionError.message);
+
             locationPromiseRef.current = null;
             resolve(null);
           },
@@ -198,20 +212,32 @@ export function useChat(isLoggedIn: boolean | undefined) {
   const pendingGuestRef = useRef<StoredChatState | null>(null);
   const pendingMemberRef = useRef<MemberChatHistoryResponse | null>(null);
 
+  /**
+   * 회원 대화를 화면에 반영한다. summary/summarizedTurnCount는 서버(chat_summary)가
+   * 이미 갖고 있던 값을 그대로 시작점으로 삼는다 - 비회원과 같은 방식
+   * (summarizeIfNeeded/pruneVisibleMessages)으로 화면 유지 상한을 관리하기 위한
+   * 것으로, 매번 0부터 다시 요약하면 접속할 때마다 같은 구간을 또 요약하느라
+   * 낭비이기 때문이다. DB 원본(chat_messages)은 그대로 남아있으니, 여기서 화면
+   * 밖으로 걷어내는 것은 비회원의 pruneVisibleMessages와 달리 삭제가 아니다.
+   */
   const applyMemberHistory = useCallback((data: MemberChatHistoryResponse) => {
     messagesRef.current = data.messages;
     keywordsRef.current = data.keywords;
     joinBlocksRef.current = data.joinBlocks;
-    summaryRef.current = '';
-    summarizedTurnCountRef.current = 0;
+    summaryRef.current = data.summary;
+    summarizedTurnCountRef.current = data.summarizedTurnCount;
 
     setMessages(data.messages);
     setKeywords(data.keywords);
     setJoinBlocks(data.joinBlocks);
-    setSummary('');
+    setSummary(data.summary);
   }, []);
 
-  /** 게스트 대화를 서버로 승계한 뒤, 승계가 반영된 최신 기록을 다시 받아와 화면에 반영한다. */
+  /**
+   * 게스트 대화를 서버로 승계한 뒤, 승계가 반영된 최신 기록을 다시 받아와 화면에
+   * 반영한다. 대화 없이 조건(keywords)만 있는 경우에도 같은 길을 쓴다 - 승계 결과가
+   * 회원 DB 값과 병합된 모양이라(migrateGuestChat), 다시 받아와야 화면이 맞는다.
+   */
   const migrateGuestToMember = useCallback(
     (guestStored: StoredChatState) =>
       fetch('/api/chat/migrate', {
@@ -267,6 +293,12 @@ export function useChat(isLoggedIn: boolean | undefined) {
         guestStored &&
         (guestStored.messages.length > 0 || guestStored.joinBlocks.length > 0),
       );
+      // 말은 한 마디도 안 했지만 조건만 남긴 경우 - 관심사 화면에서 칩만 고르고
+      // 로그인하면 이 모양이 된다. 대화가 아니라 조건만 옮기면 되므로 아래 충돌
+      // 모달을 거치지 않는다(합칠 대화가 없어서 물어볼 것도 없다).
+      const hasGuestKeywords = Boolean(
+        guestStored && Object.keys(guestStored.keywords).length > 0,
+      );
 
       fetch('/api/chat/history')
         .then((response) => (response.ok ? response.json() : null))
@@ -293,8 +325,10 @@ export function useChat(isLoggedIn: boolean | undefined) {
             return;
           }
 
-          if (hasGuestConversation && guestStored) {
+          if ((hasGuestConversation || hasGuestKeywords) && guestStored) {
             // 회원 DB가 비어있으면(첫 대화) 충돌이 아니므로 그냥 이어붙인다.
+            // 조건만 있는 경우도 여기로 온다 - 회원 대화가 이미 있어도 덮어쓸
+            // 대화가 없으니 조건만 병합하고 끝난다.
             void migrateGuestToMember(guestStored);
             return;
           }
@@ -420,9 +454,10 @@ export function useChat(isLoggedIn: boolean | undefined) {
    * 실패해도 대화 자체는 계속되고, 다음 응답 뒤에 다시 시도된다.
    */
   const summarizeIfNeeded = useCallback(async () => {
-    // 회원은 chatStream.ts가 응답을 저장하면서 DB 기준으로 알아서 요약한다.
-    if (isLoggedIn) return;
-
+    // 회원도 화면 표시용 요약은 이 함수가 관리한다(applyMemberHistory 주석 참고).
+    // chatStream.ts가 LLM 컨텍스트용으로 관리하는 chat_summary와는 별개다 - 목적이
+    // 다른 두 요약이 각자 갱신되는 것이라, 서로 어긋나도 문제없다(화면 표시용은
+    // "왜 이 위는 안 보이는지" 설명만 하면 되고, LLM 컨텍스트는 그대로 서버가 책임진다).
     const selection = selectTurnsToSummarize(
       messagesRef.current,
       summarizedTurnCountRef.current,
@@ -453,18 +488,18 @@ export function useChat(isLoggedIn: boolean | undefined) {
     } catch {
       // 네트워크 실패 등 - 다음 응답 뒤에 다시 트리거되므로 조용히 넘어간다
     }
-  }, [isLoggedIn, persist]);
+  }, [persist]);
 
   /**
-   * 화면/로컬 저장에 원문으로 남기는 상한(MAX_VISIBLE_TURNS)을 넘으면, 이미 요약에
-   * 반영된 턴부터 걷어낸다. ChatRoom이 스크롤이 맨 아래일 때만 호출해서, 사용자가
-   * 과거 대화를 보는 도중에 화면에서 메시지가 사라지는 걸 막는다.
-   * 회원은 DB가 전체 기록을 갖고 있고 로컬 저장 용량 문제도 없어서, 화면에서
-   * 걷어내지 않고 전체를 그대로 보여준다.
+   * 화면에 원문으로 유지하는 상한(MAX_VISIBLE_TURNS)을 넘으면, 이미 요약에 반영된
+   * 턴부터 걷어낸다. ChatRoom이 스크롤이 맨 아래일 때만 호출해서, 사용자가 과거
+   * 대화를 보는 도중에 화면에서 메시지가 사라지는 걸 막는다.
+   *
+   * 회원도 이제 같은 방식으로 걷어낸다(applyMemberHistory 주석 참고) - 다만 여기서
+   * "걷어낸다"는 이 훅의 messages 상태(화면에 그릴 목록)에서 빼는 것뿐이다.
+   * DB(chat_messages)는 그대로 남아있어서 비회원처럼 진짜로 사라지는 게 아니다.
    */
   const pruneVisibleMessages = useCallback(() => {
-    if (isLoggedIn) return;
-
     const result = pruneSummarizedMessages(
       messagesRef.current,
       summarizedTurnCountRef.current,
@@ -490,7 +525,25 @@ export function useChat(isLoggedIn: boolean | undefined) {
     }
 
     persist();
-  }, [isLoggedIn, persist]);
+  }, [persist]);
+
+  /**
+   * 회원 복구가 막 끝난 시점(초기 로딩이든, 게스트 대화 승계·충돌 해소를 거친
+   * 뒤든)에 한 번, 화면 표시용 요약이 뒤처져 있으면 따라잡는다. applyMemberHistory가
+   * chat_summary에서 시작값을 물려받긴 하지만, 그걸로도 MAX_VISIBLE_TURNS만큼 걷어낼
+   * 만큼은 못 될 수 있다(예: 마지막 요약 이후 대화가 그만큼 더 쌓인 경우) - 이미
+   * 충분하면 summarizeIfNeeded가 선택할 턴이 없어 그냥 아무 일도 안 하고 끝난다.
+   * 마운트당 한 번만 시도한다 - isRestored는 이 훅이 살아있는 동안 false->true로
+   * 딱 한 번만 전환된다(어느 복구 경로를 타든).
+   */
+  const hasCaughtUpMemberSummaryRef = useRef(false);
+  useEffect(() => {
+    if (!isLoggedIn || !isRestored) return;
+    if (hasCaughtUpMemberSummaryRef.current) return;
+    hasCaughtUpMemberSummaryRef.current = true;
+
+    void summarizeIfNeeded().then(() => pruneVisibleMessages());
+  }, [isLoggedIn, isRestored, summarizeIfNeeded, pruneVisibleMessages]);
 
   const runChatRequest = useCallback(
     async (userText: string, aiMessageId: string, isRetry = false) => {
@@ -580,11 +633,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
       abortControllerRef.current = abortController;
 
       try {
-        // CARD-028: 요청을 보내기 직전에 위치를 기다린다 - fetch를 먼저 쏘고
-        // 위치는 나중에 오는 레이스가 있으면, 권한이 이미 허용돼 있어도 매번
-        // location 없이 요청이 나간다. 이미 얻었으면(또는 이미 실패했으면)
-        // 즉시 반환되므로 두 번째 메시지부터는 지연이 없다.
-        const location = await ensureLocationRequested();
+        // CARD-028: 여기서는 권한을 요청하지 않는다 - 이미 얻어둔 값(locationRef)이
+        // 있으면 그걸 실어 보내고, 없으면 그냥 undefined로 보낸다. 이번 메시지가
+        // 실제로 위치가 필요한 요청이었다면, 서버가 locationNeeded 이벤트로 알려주고
+        // 그때 가서야 권한을 요청한다(아래 스트림 처리 부분).
+        const location = locationRef.current;
 
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -644,6 +697,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
               );
             } else if (parsed?.event === 'nearbyMembership') {
               setAiMessageNearbyMemberships(parsed.data.memberships);
+            } else if (parsed?.event === 'locationNeeded') {
+              // 이번 요청이 실제로 위치가 필요했는데 없었다는 신호 - 그제서야
+              // 브라우저 권한을 요청한다. 지금 이 응답에 자동으로 반영되진 않고
+              // (이미 흘러가는 중), 다음에 다시 물어보거나 재시도할 때 실린다.
+              void ensureLocationRequested();
             } else if (parsed?.event === 'keywords') {
               updateKeywords(parsed.data.keywords);
             } else if (parsed?.event === 'usageAnalysis') {
@@ -976,6 +1034,39 @@ export function useChat(isLoggedIn: boolean | undefined) {
     [persist],
   );
 
+  /**
+   * CARD-013/015: 관심사 선택 화면에서 고른 목록으로 keywords.interests 를 통째로
+   * 바꾼다. 대화에서 뽑아낸 값(mergeKeywords)과 달리 합집합으로 누적하지 않는다 -
+   * 칩을 뺀 것도 사용자의 결정이라, 뺀 관심사가 다시 살아나면 안 된다.
+   *
+   * 회원은 DB가 유일한 진짜 기록이라 저장에 성공했을 때만 화면 값을 바꾼다 -
+   * 실패했는데 화면만 바뀌면, 다음 응답에서 예전 값으로 되돌아가는 것처럼 보인다.
+   * 실패는 던져서 호출부(모달)가 사유와 재시도 수단을 보여주게 한다(COMMON-002).
+   */
+  const setInterests = useCallback(
+    async (interests: string[]) => {
+      if (isLoggedIn) {
+        const response = await fetch('/api/chat/keywords', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interests }),
+        });
+
+        if (!response.ok) throw new Error('관심사를 저장하지 못했습니다.');
+      }
+
+      const next: ChatKeywords = { ...keywordsRef.current };
+
+      if (interests.length > 0) next.interests = interests;
+      else delete next.interests;
+
+      keywordsRef.current = next;
+      setKeywords(next);
+      persist();
+    },
+    [isLoggedIn, persist],
+  );
+
   return {
     messages,
     isStreaming,
@@ -994,6 +1085,7 @@ export function useChat(isLoggedIn: boolean | undefined) {
     saveJoinProgress,
     completeJoinBlock,
     setKeywordValue,
+    setInterests,
     pruneVisibleMessages,
     stopGeneration,
     keepBothConversations,

@@ -9,7 +9,7 @@ const SUBSCRIPTION_COLUMNS =
 
 // description 안의 키는 snake_case 라 컬럼과 같이 camelCase 로 옮긴다.
 interface SubscriptionDescriptionRow {
-  image?: string;
+  icon?: string;
   sub_title?: string;
   features?: string[];
 }
@@ -29,7 +29,7 @@ function mapDescription(
   if (!description || typeof description === 'string') return null;
 
   return {
-    image: description.image,
+    icon: description.icon,
     subTitle: description.sub_title,
     features: description.features,
   };

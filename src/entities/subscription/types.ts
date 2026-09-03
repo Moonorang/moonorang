@@ -1,6 +1,7 @@
-// subscriptions.description 은 jsonb 로, 목록 카드에 쓰는 이미지 파일명이 들어 있다.
+// subscriptions.description 은 jsonb 로, 목록 카드에 쓰는 아이콘 키가 들어 있다.
 export interface SubscriptionDescription {
-  image?: string;
+  // 목록에서 보여줄 아이콘 키 (예: icon_video)
+  icon?: string;
   subTitle?: string;
   features?: string[];
 }

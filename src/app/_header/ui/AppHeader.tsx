@@ -19,7 +19,7 @@ export default function AppHeader() {
     cancelExit,
     confirmExit,
     goLogin,
-    signOut,
+    logout,
   } = useHeaderState();
 
   return (
@@ -31,7 +31,7 @@ export default function AppHeader() {
         onBackClick={requestExit}
         isLoggedIn={isLoggedIn}
         onLoginClick={goLogin}
-        onLogoutClick={signOut}
+        onLogoutClick={logout}
       />
 
       {isExitConfirmOpen && (

@@ -19,8 +19,12 @@ interface AddOnRecommendationCardProps {
 
 /**
  * CARD-027~028: 관심사에 맞춘(없으면 인기순) 부가서비스 추천 카드.
- * addOnRecommendation 이벤트 하나를 그대로 받아 그린다 - 항목이 많아도 카드 높이는
- * 고정하고 내부 스크롤로 본다. "둘러보기"는 부가서비스 탭이 활성화된 상품 목록으로 이동한다.
+ * addOnRecommendation 이벤트 하나를 그대로 받아 그린다 - 목록 전체 높이는 제한을
+ * 두고(관심사 매칭이 많으면 최대 6개까지 나올 수 있다 - selectAddOns.ts의
+ * MAX_ADD_ON_RESULTS) 넘치는 만큼만 내부 스크롤로 본다. 카드 하나하나는
+ * shared/ui/CatalogCard의 shrink-0 덕분에 항상 자기 내용만큼의 높이를 유지하고
+ * (넘칠 때 개별 카드가 찌그러지는 대신 목록 스크롤이 뜬다).
+ * "둘러보기"는 부가서비스 탭이 활성화된 상품 목록으로 이동한다.
  *
  * 목록 페이지(features/catalog)의 AddOnRow와 같은 entities/addOn의 AddOnListItem +
  * shared/ui/CatalogCard를 그대로 재사용한다 - 새로 만들지 않는다. 상세 모달도
@@ -50,8 +54,10 @@ export default function AddOnRecommendationCard({
   if (recommendations.length === 0) return null;
 
   return (
-    <div className="flex w-[80%] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default">
-      <h3 className="text-14 font-bold text-text-primary">부가서비스 추천</h3>
+    <div className="flex w-[min(80%,440px)] flex-col gap-3 rounded-md bg-background-default p-4 shadow-default">
+      <h3 className="text-16 font-semibold text-text-primary">
+        부가서비스 추천
+      </h3>
 
       <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
         {recommendations.map((item) => (

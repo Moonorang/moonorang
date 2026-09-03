@@ -22,13 +22,24 @@ import {
   persistMemberAiTurn,
   persistMemberUserMessage,
 } from '@/features/chat/server/memberChat';
-import { streamCompletion, type ToolCallBuilder } from '@/features/chat/server/openaiStream';
+import {
+  streamCompletion,
+  type ToolCallBuilder,
+} from '@/features/chat/server/openaiStream';
 import { runAddOnRecommendation } from '@/features/chat/server/recommendAddOns';
 import { runPlanRecommendation } from '@/features/chat/server/recommendPlans';
 import { runSubscriptionRecommendation } from '@/features/chat/server/recommendSubscriptions';
 import { buildSystemPrompt } from '@/features/chat/server/systemPrompt';
-import { ACTION_TOOLS, parseExtractConditionsArguments } from '@/features/chat/server/tools';
-import type { ChatCardPayload, ChatKeywords, SummarizeTurnMessage } from '@/features/chat/types';
+import {
+  ACTION_TOOLS,
+  parseExtractConditionsArguments,
+  parseRecommendPlansArguments,
+} from '@/features/chat/server/tools';
+import type {
+  ChatCardPayload,
+  ChatKeywords,
+  SummarizeTurnMessage,
+} from '@/features/chat/types';
 
 import type { AddOn } from '@/entities/addOn/types';
 import type { MembershipBrand } from '@/entities/membershipBrand/types';
@@ -49,9 +60,9 @@ interface ToolResultContext {
 }
 
 // 호출된 tool 이름별로 실제 계산/조회를 수행하고, 다음 턴의 tool 결과 메시지 content로
-// 쓸 값을 돌려준다. recommend_plans/analyze_savings/show_usage_trend/recommend_addons/
-// recommend_subscriptions/find_nearby_memberships는 여기서 SSE 이벤트도 같이 내보낸다
-// (카드 데이터를 텍스트보다 먼저 화면에 꽂아 넣기 위함).
+// 쓸 값을 돌려준다. recommend_plans/show_current_plan/analyze_savings/show_usage_trend/
+// recommend_addons/recommend_subscriptions/find_nearby_memberships는 여기서 SSE
+// 이벤트도 같이 내보낸다(카드 데이터를 텍스트보다 먼저 화면에 꽂아 넣기 위함).
 async function getToolResultContent(
   call: ToolCallBuilder,
   {
@@ -68,24 +79,46 @@ async function getToolResultContent(
   }: ToolResultContext,
 ): Promise<unknown> {
   switch (call.name) {
-    case 'recommend_plans':
-      return runPlanRecommendation(plans, mergedKeywords, send);
+    case 'recommend_plans': {
+      const { scope, direction } = parseRecommendPlansArguments(
+        call.argsBuffer,
+      );
+      return runPlanRecommendation(
+        plans,
+        mergedKeywords,
+        send,
+        scope,
+        direction,
+      );
+    }
+    case 'show_current_plan':
+      return runSavingsAnalysis({
+        userId,
+        allPlans: plans,
+        send,
+        mode: 'plan_info',
+      });
     case 'analyze_savings':
       return runSavingsAnalysis({
         userId,
         allPlans: plans,
         send,
-        includeSavingsDecision: true,
+        mode: 'savings',
       });
     case 'show_usage_trend':
       return runSavingsAnalysis({
         userId,
         allPlans: plans,
         send,
-        includeSavingsDecision: false,
+        mode: 'trend',
       });
     case 'recommend_addons':
-      return runAddOnRecommendation(addOns, addOnAdoptionRates, mergedKeywords, send);
+      return runAddOnRecommendation(
+        addOns,
+        addOnAdoptionRates,
+        mergedKeywords,
+        send,
+      );
     case 'recommend_subscriptions':
       return runSubscriptionRecommendation(
         subscriptions,
@@ -119,11 +152,29 @@ async function appendToolRound(
     }),
   );
 
+  // 모델이 같은 tool을 같은 인자로 한 턴에 두 번 부르는 경우가 실측으로 관측됐다
+  // (예: recommend_plans 중복 호출). 실행 도구(recommend_plans 등)는 전부 인자가
+  // 없어서 두 번째 호출도 항상 첫 번째와 완전히 같은 결과가 나오는데, 그대로 두면
+  // recommendation 같은 SSE 카드 이벤트가 중복으로 나가고 계산도 두 번 한다.
+  // name+argsBuffer가 같은 호출은 결과(Promise)를 재사용한다 - 다만 OpenAI에 보낼
+  // tool 메시지는 호출된 tool_call_id 개수만큼 여전히 다 채워야 한다(요청 계약상
+  // 모든 tool_call에 대응하는 tool 메시지가 있어야 함).
+  const resultCache = new Map<string, Promise<unknown>>();
+  const getCachedResult = (call: ToolCallBuilder) => {
+    const key = `${call.name}:${call.argsBuffer}`;
+    const cached = resultCache.get(key);
+    if (cached) return cached;
+
+    const result = getToolResultContent(call, context);
+    resultCache.set(key, result);
+    return result;
+  };
+
   const toolResultMessages: ChatCompletionMessageParam[] = await Promise.all(
     calls.map(async (call) => ({
       role: 'tool' as const,
       tool_call_id: call.id,
-      content: JSON.stringify(await getToolResultContent(call, context)),
+      content: JSON.stringify(await getCachedResult(call)),
     })),
   );
 
@@ -244,12 +295,10 @@ export function createChatStream(
           },
           // §2.4 "최근 채팅 메시지 N개" - summary가 아직 못 따라잡은 구간의 원문.
           // ChatMessage/SummarizeTurnMessage의 'ai' role을 OpenAI의 'assistant'로 바꿔준다.
-          ...recentMessages.map(
-            (turn): ChatCompletionMessageParam => ({
-              role: turn.role === 'ai' ? 'assistant' : 'user',
-              content: turn.content,
-            }),
-          ),
+          ...recentMessages.map((turn): ChatCompletionMessageParam => ({
+            role: turn.role === 'ai' ? 'assistant' : 'user',
+            content: turn.content,
+          })),
           { role: 'user', content: message },
         ];
 
@@ -269,6 +318,9 @@ export function createChatStream(
         );
         let recommendCall = turn1Calls.find(
           (call) => call.name === 'recommend_plans',
+        );
+        let showCurrentPlanCall = turn1Calls.find(
+          (call) => call.name === 'show_current_plan',
         );
         let analyzeSavingsCall = turn1Calls.find(
           (call) => call.name === 'analyze_savings',
@@ -299,7 +351,10 @@ export function createChatStream(
         const capturedCards: ChatCardPayload[] = [];
         const trackingSend: SSESend = (event) => {
           if (event.event === 'recommendation') {
-            capturedCards.push({ type: 'recommendation', plans: event.data.plans });
+            capturedCards.push({
+              type: 'recommendation',
+              plans: event.data.plans,
+            });
           } else if (event.event === 'addOnRecommendation') {
             capturedCards.push({
               type: 'add_on_recommendation',
@@ -368,6 +423,7 @@ export function createChatStream(
         // 후보만 다시 판단하게 한다(강제 호출 아님 - 필요 없으면 여전히 안 부를 수 있음).
         const calledActionInTurn1 =
           Boolean(recommendCall) ||
+          Boolean(showCurrentPlanCall) ||
           Boolean(analyzeSavingsCall) ||
           Boolean(showUsageTrendCall) ||
           Boolean(recommendAddOnsCall) ||
@@ -386,6 +442,9 @@ export function createChatStream(
 
           recommendCall = decision.toolCalls.find(
             (call) => call.name === 'recommend_plans',
+          );
+          showCurrentPlanCall = decision.toolCalls.find(
+            (call) => call.name === 'show_current_plan',
           );
           analyzeSavingsCall = decision.toolCalls.find(
             (call) => call.name === 'analyze_savings',
@@ -412,6 +471,7 @@ export function createChatStream(
 
         const actionConfirmed =
           Boolean(recommendCall) ||
+          Boolean(showCurrentPlanCall) ||
           Boolean(analyzeSavingsCall) ||
           Boolean(showUsageTrendCall) ||
           Boolean(recommendAddOnsCall) ||
@@ -426,7 +486,13 @@ export function createChatStream(
         // 안 나간 상태이므로 그대로 버리고 에러로 전환한다(CARD-006: 재시도 가능).
         if (
           !actionConfirmed &&
-          containsCatalogName(turn1Text, plans, addOns, subscriptions, membershipBrands)
+          containsCatalogName(
+            turn1Text,
+            plans,
+            addOns,
+            subscriptions,
+            membershipBrands,
+          )
         ) {
           console.error(
             '[api/chat] 가드레일: 추천 도구 없이 요금제·부가서비스·구독명 언급 감지 -',

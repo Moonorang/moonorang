@@ -11,12 +11,14 @@ import ChatConflictModal from '@/features/chat/components/ChatConflictModal';
 import ChatErrorNotice from '@/features/chat/components/ChatErrorNotice';
 import ChatInput from '@/features/chat/components/ChatInput';
 import ConditionQuestionCard from '@/features/chat/components/ConditionQuestionCard';
+import InterestKeywordsModal from '@/features/chat/components/InterestKeywordsModal';
 import NearbyMembershipCard from '@/features/chat/components/NearbyMembershipCard';
 import PlanCardCarousel from '@/features/chat/components/PlanCardCarousel';
 import PlusMenu from '@/features/chat/components/PlusMenu';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import SubscriptionRecommendationCard from '@/features/chat/components/SubscriptionRecommendationCard';
 import SuggestionChips from '@/features/chat/components/SuggestionChips';
+import TypingIndicator from '@/features/chat/components/TypingIndicator';
 import UserMessage from '@/features/chat/components/UserMessage';
 import { WELCOME_MESSAGE } from '@/features/chat/constants';
 import { useChat } from '@/features/chat/hooks/useChat';
@@ -120,6 +122,8 @@ export default function ChatRoom({
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
   // CHAT-014: 대화 초기화는 되돌릴 수 없어서 한 번 되묻는다
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  // CARD-013/015: 대화에서 파악한 관심사를 보고 고치는 화면
+  const [isInterestsOpen, setIsInterestsOpen] = useState(false);
   const {
     messages,
     isStreaming,
@@ -138,6 +142,7 @@ export default function ChatRoom({
     saveJoinProgress,
     completeJoinBlock,
     setKeywordValue,
+    setInterests,
     pruneVisibleMessages,
     stopGeneration,
     keepBothConversations,
@@ -464,174 +469,221 @@ export default function ChatRoom({
     // COMMON-006: 폭을 768px로 제한하고 중앙 정렬한다. relative로 두는 이유는
     // 아래 PlusMenu의 absolute 팝업이 뷰포트가 아니라 이 폭 제한된 컬럼 기준으로
     // 자리잡게 하기 위함이다(안 그러면 넓은 화면에서 컬럼과 팝업 위치가 어긋난다).
-    <div className="relative mx-auto flex h-dvh w-full max-w-(--width-container) flex-col bg-background-subtle">
+    <div className="relative mx-auto flex h-dvh w-full max-w-(--width-container) min-w-(--width-container-min) flex-col overflow-x-clip bg-background-subtle">
       {/* height-header, height-chat-input 만큼 여백을 준다 (메시지가 가려지지 않도록) */}
       <div
         ref={scrollAreaRef}
         onScroll={handleScroll}
-        className="flex flex-1 flex-col overflow-y-auto pt-(--height-header) pb-(--height-chat-input)"
+        className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto pt-(--height-header) pb-(--height-chat-input)"
       >
-        {/* 채팅 내역 영역 */}
-        <div ref={contentRef} className="flex flex-col gap-3 px-4 py-6">
-          <AiMessage content={WELCOME_MESSAGE} />
+        {/*
+          복구가 아직 안 끝났다(주로 회원 - 서버에서 대화를 받아오는 1~2초 구간).
+          비회원은 localStorage 읽기라 사실상 바로 끝나지만, 로그인 여부 자체를
+          아직 모르는 순간까지 포함해 isRestored 하나로 통일해서 판단한다 -
+          안 그러면 "환영 메시지만 있는 새 대화처럼 보였다가 갑자기 실제 대화로
+          바뀌는" 순간이 생기고, 그 사이에 사용자가 보낸 메시지는 복구가 messages를
+          통째로 덮어쓸 때 같이 사라질 수 있다.
+        */}
+        {!isRestored ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex flex-1 flex-col items-center justify-center gap-2"
+          >
+            <TypingIndicator />
+            <p className="text-16 font-medium text-text-secondary">
+              대화를 불러오는 중이에요
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* 채팅 내역 영역 */}
+            <div ref={contentRef} className="flex flex-col gap-3 px-4 py-6">
+              <AiMessage content={WELCOME_MESSAGE} />
 
-          {/*
+              {/*
             CHAT-011/012: 오래된 대화가 요약돼서 화면에서는 걷어내진 상태임을 알려주는
             안내선. summary가 있다는 건 지금 안 보이는 이전 대화가 있다는 뜻이라, 갑자기
             대화가 끊긴 것처럼 보이지 않도록 경계를 표시한다.
           */}
-          {summary && (
-            <div className="flex items-center gap-2 text-10 text-text-secondary">
-              <span className="h-px flex-1 bg-border-light" />
-              이전 대화 내용이 요약되었어요
-              <span className="h-px flex-1 bg-border-light" />
-            </div>
-          )}
+              {summary && (
+                <div className="flex items-center gap-2 text-10 text-text-secondary">
+                  <span className="h-px flex-1 bg-border-light" />
+                  {/*
+                왜 이 위가 안 보이는지를 짧은 안내선 문구만으로는 다 말할 수 없어서,
+                자세한 설명은 가리켰을 때만 펼친다. 버튼으로 두는 이유는 마우스가 없는
+                환경(NFR-010의 375px 모바일) 때문이다 - 탭하면 포커스가 잡혀 hover와
+                같은 안내가 뜬다.
+              */}
+                  <button
+                    type="button"
+                    className="group relative shrink-0 cursor-help text-text-secondary"
+                  >
+                    이전 대화 내용이 요약되었어요
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none invisible absolute top-full left-1/2 z-10 mt-1.5 w-74 -translate-x-1/2 rounded-md bg-background-default px-3 py-2 text-left text-12 text-text-primary opacity-0 shadow-default transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100"
+                    >
+                      대화 내용이 길어지면 이전 내용을 요약해서 기억해요.
+                      <br />
+                      핵심을 압축해서 더 빠르고 원활하게 채팅을 도와드릴게요.
+                    </span>
+                  </button>
+                  <span className="h-px flex-1 bg-border-light" />
+                </div>
+              )}
 
-          {/*
+              {/*
             아직 주고받은 말이 없을 때 띄운 가입 카드 - 붙을 메시지가 없어서
             환영 메시지 바로 뒤, 대화가 시작되기 전 자리에 그린다.
           */}
-          {joinBlocks
-            .filter((block) => block.afterMessageId === null)
-            .map(renderJoinBlock)}
+              {joinBlocks
+                .filter((block) => block.afterMessageId === null)
+                .map(renderJoinBlock)}
 
-          {messages.map((message) => {
-            // 이 메시지가 아직 생성 중인지. 카드를 이 값으로 잠가둔다 - 서버는 카드
-            // 데이터를 마무리 텍스트보다 먼저 내보내는데(chatStream.ts 2턴), 그대로
-            // 그리면 말풍선이 빈 채로 카드가 먼저 떠서 순서가 뒤집혀 보인다.
-            const isMessageStreaming =
-              isStreaming && message.id === lastMessageId;
+              {messages.map((message) => {
+                // 이 메시지가 아직 생성 중인지. 카드를 이 값으로 잠가둔다 - 서버는 카드
+                // 데이터를 마무리 텍스트보다 먼저 내보내는데(chatStream.ts 2턴), 그대로
+                // 그리면 말풍선이 빈 채로 카드가 먼저 떠서 순서가 뒤집혀 보인다.
+                const isMessageStreaming =
+                  isStreaming && message.id === lastMessageId;
 
-            // 생성이 끝났는데도(스트리밍 중이 아닌데도) 내용도 카드도 아무것도 없는
-            // AI 메시지 - 응답을 하나도 못 받은 채 실패한 자리다. 이럴 땐 빈 말풍선을
-            // 그리는 대신 통째로 숨긴다 - 실패 사유는 밑에 있는 ChatErrorNotice가
-            // 이미 전달하므로, 빈 말풍선은 정보 없이 자리만 차지하는 노이즈다.
-            // 스트리밍 중(아직 첫 토큰을 기다리는 중)일 때는 그대로 두어 타이핑
-            // 표시가 나오게 한다 - 지금 만들어지는 중이라는 신호는 필요하다.
-            const isEmptyAiPlaceholder =
-              message.role === 'ai' &&
-              !isMessageStreaming &&
-              message.content.length === 0 &&
-              !message.recommendations?.length &&
-              !message.addOnRecommendations?.length &&
-              !message.subscriptionRecommendations?.length &&
-              !message.nearbyMemberships?.length &&
-              !message.usageAnalysis &&
-              !message.joinResultKind;
+                // 생성이 끝났는데도(스트리밍 중이 아닌데도) 내용도 카드도 아무것도 없는
+                // AI 메시지 - 응답을 하나도 못 받은 채 실패한 자리다. 이럴 땐 빈 말풍선을
+                // 그리는 대신 통째로 숨긴다 - 실패 사유는 밑에 있는 ChatErrorNotice가
+                // 이미 전달하므로, 빈 말풍선은 정보 없이 자리만 차지하는 노이즈다.
+                // 스트리밍 중(아직 첫 토큰을 기다리는 중)일 때는 그대로 두어 타이핑
+                // 표시가 나오게 한다 - 지금 만들어지는 중이라는 신호는 필요하다.
+                const isEmptyAiPlaceholder =
+                  message.role === 'ai' &&
+                  !isMessageStreaming &&
+                  message.content.length === 0 &&
+                  !message.recommendations?.length &&
+                  !message.addOnRecommendations?.length &&
+                  !message.subscriptionRecommendations?.length &&
+                  !message.nearbyMemberships?.length &&
+                  !message.usageAnalysis &&
+                  !message.joinResultKind;
 
-            return (
-              <Fragment key={message.id}>
-                {message.role === 'user' ? (
-                  <UserMessage content={message.content} />
-                ) : isEmptyAiPlaceholder ? null : (
-                  <AiMessage
-                    content={message.content}
-                    isStreaming={isMessageStreaming}
-                  >
-                    {/* 말이 끝난 뒤에 붙인다 - 설명보다 카드가 먼저 나오지 않도록 */}
-                    {!isMessageStreaming &&
-                      message.recommendations &&
-                      message.recommendations.length > 0 && (
-                        <PlanCardCarousel
-                          recommendations={message.recommendations}
-                          onJoin={handleJoin}
-                        />
-                      )}
-                    {!isMessageStreaming &&
-                      message.addOnRecommendations &&
-                      message.addOnRecommendations.length > 0 && (
-                        <AddOnRecommendationCard
-                          recommendations={message.addOnRecommendations}
-                          onJoin={(addOn) =>
-                            handleJoinItem({ kind: 'addOn', item: addOn })
-                          }
-                        />
-                      )}
-                    {!isMessageStreaming &&
-                      message.subscriptionRecommendations &&
-                      message.subscriptionRecommendations.length > 0 && (
-                        <SubscriptionRecommendationCard
-                          recommendations={message.subscriptionRecommendations}
-                          onJoin={(subscription) =>
-                            handleJoinItem({
-                              kind: 'subscription',
-                              item: subscription,
-                            })
-                          }
-                        />
-                      )}
-                    {!isMessageStreaming &&
-                      message.nearbyMemberships &&
-                      message.nearbyMemberships.length > 0 && (
-                        <NearbyMembershipCard
-                          memberships={message.nearbyMemberships}
-                          userLocation={location}
-                        />
-                      )}
-                    {message.usageAnalysis &&
-                      renderUsageAnalysis?.(message.usageAnalysis, {
-                        onJoin: handleJoin,
-                      })}
-                    {message.joinResultKind &&
-                      renderJoinResult?.(message.joinResultKind)}
-                  </AiMessage>
-                )}
+                return (
+                  <Fragment key={message.id}>
+                    {message.role === 'user' ? (
+                      <UserMessage content={message.content} />
+                    ) : isEmptyAiPlaceholder ? null : (
+                      <AiMessage
+                        content={message.content}
+                        isStreaming={isMessageStreaming}
+                      >
+                        {/* 말이 끝난 뒤에 붙인다 - 설명보다 카드가 먼저 나오지 않도록 */}
+                        {!isMessageStreaming &&
+                          message.recommendations &&
+                          message.recommendations.length > 0 && (
+                            <PlanCardCarousel
+                              recommendations={message.recommendations}
+                              onJoin={handleJoin}
+                            />
+                          )}
+                        {!isMessageStreaming &&
+                          message.addOnRecommendations &&
+                          message.addOnRecommendations.length > 0 && (
+                            <AddOnRecommendationCard
+                              recommendations={message.addOnRecommendations}
+                              onJoin={(addOn) =>
+                                handleJoinItem({ kind: 'addOn', item: addOn })
+                              }
+                            />
+                          )}
+                        {!isMessageStreaming &&
+                          message.subscriptionRecommendations &&
+                          message.subscriptionRecommendations.length > 0 && (
+                            <SubscriptionRecommendationCard
+                              recommendations={
+                                message.subscriptionRecommendations
+                              }
+                              onJoin={(subscription) =>
+                                handleJoinItem({
+                                  kind: 'subscription',
+                                  item: subscription,
+                                })
+                              }
+                            />
+                          )}
+                        {!isMessageStreaming &&
+                          message.nearbyMemberships &&
+                          message.nearbyMemberships.length > 0 && (
+                            <NearbyMembershipCard
+                              memberships={message.nearbyMemberships}
+                              userLocation={location}
+                            />
+                          )}
+                        {message.usageAnalysis &&
+                          renderUsageAnalysis?.(message.usageAnalysis, {
+                            onJoin: handleJoin,
+                          })}
+                        {message.joinResultKind &&
+                          renderJoinResult?.(message.joinResultKind)}
+                      </AiMessage>
+                    )}
 
-                {/* 이 메시지 뒤에 띄운 가입 카드 - 대화 순서를 그대로 지킨다 */}
-                {joinBlocks
-                  .filter((block) => block.afterMessageId === message.id)
-                  .map(renderJoinBlock)}
-              </Fragment>
-            );
-          })}
+                    {/* 이 메시지 뒤에 띄운 가입 카드 - 대화 순서를 그대로 지킨다 */}
+                    {joinBlocks
+                      .filter((block) => block.afterMessageId === message.id)
+                      .map(renderJoinBlock)}
+                  </Fragment>
+                );
+              })}
 
-          {error && (
-            <ChatErrorNotice
-              reason={error.reason}
-              onRetry={retry}
-              isRetrying={isRetrying}
-            />
-          )}
-        </div>
+              {error && (
+                <ChatErrorNotice
+                  reason={error.reason}
+                  onRetry={retry}
+                  isRetrying={isRetrying}
+                />
+              )}
+            </div>
 
-        {/* 메시지 리스트 하단에 추천 질문 칩 배치 (입력창 위로 떠 있는 듯한 위치) */}
-        {/* 최초 진입 시에만 보여준다 - AI가 조건을 물어본 시점엔 별도 버튼 UI 없이
+            {/* 메시지 리스트 하단에 추천 질문 칩 배치 (입력창 위로 떠 있는 듯한 위치) */}
+            {/* 최초 진입 시에만 보여준다 - AI가 조건을 물어본 시점엔 별도 버튼 UI 없이
             AI 메시지 자체가 "선택지로 해드릴까요, 텍스트로 하실래요?"라고 물어보고,
             사용자의 다음 답을 handleSend가 감지해 선택형 카드를 열지 판단한다. */}
-        {messages.length === 0 && !resolvedOverlay && (
-          <div className="mt-auto">
-            <SuggestionChips
-              onSuggest={handleSuggest}
-              onPlanTest={onPlanTest}
-            />
-          </div>
-        )}
+            {messages.length === 0 && !resolvedOverlay && (
+              <div className="mt-auto">
+                <SuggestionChips
+                  onSuggest={handleSuggest}
+                  onPlanTest={onPlanTest}
+                />
+              </div>
+            )}
 
-        {/*
+            {/*
           대화가 짧아도 카드가 위로 밀려 올라가지 않도록 입력창 바로 위에 둔다.
           mt-auto 로 남는 공간을 흡수하고, sticky 로 스크롤해도 자리를 지킨다.
           스크롤 영역이 이미 pb-(--height-chat-input) 로 입력창 자리를 비워두므로
           여기서 또 띄우면 간격이 두 배가 된다 - bottom-0 으로 그 여백에 붙인다.
         */}
-        {resolvedOverlay && (
-          <div className="sticky bottom-0 z-10 mt-auto px-4 pb-1">
-            {resolvedOverlay}
-          </div>
+            {resolvedOverlay && (
+              <div className="sticky bottom-0 z-10 mt-auto px-4 pb-1">
+                {resolvedOverlay}
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/*
         최하단 이동 버튼. 입력창 우측 전송 버튼 바로 위에 오도록
         입력창 높이만큼 띄우고(pb-2 로 8px 간격), 전송 버튼과 같은 px-4 기준에 맞춘다.
+        선택지 카드(resolvedOverlay)가 떠 있을 때는 감춘다 - 이 버튼은 입력창 기준
+        고정 위치라 카드 실제 높이를 모르고, 카드가 조금만 높아져도 카드 위에
+        겹쳐 보인다.
       */}
-      {!isAtBottom && (
+      {!isAtBottom && !resolvedOverlay && (
         // 헤더/입력창과 같은 폭 제한 컬럼 기준으로 우측에 붙인다 - fixed는 relative
         // 부모(위 루트 div)가 아니라 뷰포트 기준이라, 폭을 그냥 맞추면 넓은 화면에서
         // 컬럼 오른쪽 끝이 아니라 뷰포트 오른쪽 끝에 붙어버린다. 그래서 이 감싸는
         // div 자체를 컬럼 폭으로 맞춰 늘린 뒤(pointer-events-none), 그 안에서
         // 버튼만 오른쪽 정렬한다(pointer-events-auto로 다시 클릭 가능하게).
-        <div className="pointer-events-none fixed inset-x-0 bottom-(--height-chat-input) z-(--z-chat-input) mx-auto flex w-full max-w-(--width-container) justify-end px-4 pb-2">
+        <div className="pointer-events-none fixed inset-x-0 bottom-(--height-chat-input) z-(--z-chat-input) mx-auto flex w-full max-w-(--width-container) min-w-(--width-container-min) justify-end px-4 pb-2">
           <div className="pointer-events-auto">
             <ScrollToBottomButton onClick={scrollToBottom} />
           </div>
@@ -643,6 +695,14 @@ export default function ChatRoom({
         onClose={() => setIsPlusMenuOpen(false)}
         onReset={() => setIsResetConfirmOpen(true)}
         onPlanTest={onPlanTest}
+        onInterests={() => setIsInterestsOpen(true)}
+      />
+
+      <InterestKeywordsModal
+        isOpen={isInterestsOpen}
+        interests={keywords.interests ?? []}
+        onClose={() => setIsInterestsOpen(false)}
+        onSave={setInterests}
       />
 
       <ConfirmModal
@@ -660,7 +720,11 @@ export default function ChatRoom({
         onSend={handleSend}
         onPlusClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
         isPlusOpen={isPlusMenuOpen}
-        disabled={isStreaming}
+        // 복구가 안 끝난 동안 보내면, 복구가 messages를 통째로 덮어쓸 때 방금
+        // 보낸 메시지가 같이 사라질 수 있어서 같이 막는다 - 다만 이땐 중단할
+        // 생성이 없으므로 isGenerating은 isStreaming으로만 판단한다.
+        disabled={isStreaming || !isRestored}
+        isGenerating={isStreaming}
         onStop={stopGeneration}
         isLocked={isConditionFreeTextEditing}
       />

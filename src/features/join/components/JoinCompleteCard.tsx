@@ -14,7 +14,7 @@ interface JoinCompleteCardProps {
  */
 export default function JoinCompleteCard({ message }: JoinCompleteCardProps) {
   return (
-    <div className="w-[80%] rounded-md bg-background-default p-4">
+    <div className="w-[min(80%,440px)] rounded-md bg-background-default p-4">
       {/* 캐릭터는 장식이라 대체 텍스트를 비워 읽지 않게 한다 */}
       <Image
         src="/images/join/complete-character.png"

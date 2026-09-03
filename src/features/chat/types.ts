@@ -23,6 +23,29 @@ export interface ChatKeywords {
   /** 예상 월 테더링/쉐어링 사용량 (GB) */
   tetheringGb?: number;
   /**
+   * 예산·데이터 중 뭘 우선할지에 대한 상대적 선호 - 둘 다 구체적 숫자로 균형 있게
+   * 준 경우(기본, undefined)가 아니라 한쪽에 확실히 무게를 실었을 때만 채운다.
+   * - 'data': "이전 추천보다 데이터 더 많이", "무제한으로" 처럼 dataUsageGb를 숫자로
+   *   못 박기보다 예산 안에서 데이터가 가장 많은 쪽을 원할 때.
+   * - 'priciest': "월 5만원대로 추천해줘"처럼 데이터 언급 없이 예산만 줬을 때, 또는
+   *   "제일 비싼 걸로"처럼 명시적으로 말했을 때 - 예산을 최대한 활용하는(그 안에서
+   *   가장 비싼) 쪽을 원한다는 뜻으로 본다.
+   * - 'cheapest': "제일 싼 걸로", "가장 저렴한 걸로"처럼 반대로 가장 저렴한 쪽을
+   *   원할 때.
+   * selectPlans.ts가 이 값에 따라 적합도 가중치 정렬 대신(예산·데이터 하한 등 하드
+   * 필터를 통과한 후보 안에서) 데이터 제공량 내림차순 또는 월 요금 내림차순/오름차순으로
+   * 직접 정렬한다 - dataUsageGb를 억지로 큰 숫자로 추정해서 흉내 내려 하면, 그 숫자
+   * 하나에 따라 "middle-tier 요금제가 다 밀려나거나" "무제한만 셋 다 뽑히거나"
+   * 결과가 들쭉날쭉해지는 문제가 있었다(실측).
+   */
+  priority?: 'priciest' | 'cheapest' | 'data';
+  /**
+   * 사용자가 명시적으로 말한 추천 개수 (예: "1개만", "하나만 추천해줘"). 언급이
+   * 없으면 undefined - selectPlans.ts가 기본값(3개)을 쓴다. "1개만 추천해줘"라고
+   * 했는데 3개가 나오는 문제(실측)를 이 필드로 고친다 - 1~3 사이로 clamp된다.
+   */
+  resultCount?: number;
+  /**
    * 대화에서 드러난 관심사·선호·흥미 키워드 (예: "넷플릭스", "게임", "여행", "카페").
    * CARD-013 중 아직 비어있던 "부가서비스 선호" 부분 - 부가서비스/구독 상품 개인화
    * 추천(CARD-027~028)의 재료가 된다.
@@ -85,6 +108,9 @@ export type ChatStreamEvent =
     }
   // CARD-028: 주변 멤버십 사용처 카드
   | { event: 'nearbyMembership'; data: { memberships: NearbyMembership[] } }
+  // CARD-028: find_nearby_memberships가 위치 없이 호출됐을 때 - 이 신호를 받은
+  // 클라이언트가 그제서야 브라우저 위치 권한을 요청한다(처음부터 미리 묻지 않음).
+  | { event: 'locationNeeded'; data: Record<string, never> }
   // 이번 턴까지 반영된 최신 조건 - 클라이언트가 다음 요청에 그대로 실어 보낸다
   | { event: 'keywords'; data: { keywords: ChatKeywords } }
   // CARD-022~026/028 - entities/usage(features/usage와 공유하는 도메인 개념)를 그대로 실어 보낸다
@@ -118,6 +144,18 @@ export interface ChatRequestBody {
    * 않는다 - keywords/summary와 같은 "요청마다 왕복" 방식이다.
    */
   location?: { lat: number; lng: number };
+}
+
+/**
+ * POST /api/chat/keywords 요청 바디 - 관심사 선택 화면에서 고른 목록을 회원의
+ * chats.keywords 에 반영한다. 회원은 서버 DB가 유일한 진짜 기록이라(chatStream이
+ * 클라이언트가 보낸 keywords를 무시하고 DB 값을 쓴다) 화면에서 고친 값을 이렇게
+ * 따로 저장해줘야 다음 대화에 반영된다. 비회원은 이 엔드포인트 없이
+ * localStorage에만 남긴다(CHAT-011).
+ */
+export interface ChatKeywordsRequestBody {
+  /** 고른 관심사 전체. 비운 것도 뜻이 있으므로 빈 배열이 그대로 온다 */
+  interests: string[];
 }
 
 /** 요약 대상이 되는 메시지 한 개 - chat completions 메시지보다 가벼운 형태만 필요하다 */

@@ -18,8 +18,10 @@ import JoinFlowCard from '@/features/join/components/JoinFlowCard';
 import AiMessage from '@/features/chat/components/AiMessage';
 import ChatAvatar from '@/features/chat/components/ChatAvatar';
 import ChatConflictModal from '@/features/chat/components/ChatConflictModal';
+import NearbyMembershipCard from '@/features/chat/components/NearbyMembershipCard';
 import ScrollToBottomButton from '@/features/chat/components/ScrollToBottomButton';
 import UserMessage from '@/features/chat/components/UserMessage';
+import type { NearbyMembership } from '@/features/chat/types';
 
 // 임시: 모달 3종 디자인 확인용 - app/_header는 원래 라우트 전용 조립 폴더라 다른 곳에서
 // 잘 안 끌어오지만, 여기는 컴포넌트 갤러리 페이지라 미리보기 목적으로만 예외적으로 가져온다.
@@ -43,7 +45,9 @@ const usageAnalysisDemo: UsageAnalysisResult = {
       max_benefit_value: '24,400원/월',
       tethering_sharing: '60GB',
     },
+    image: 'plan/49.png',
   },
+  billingMonth: 8,
   remainingDataGb: 85,
   dataLimitGb: 120,
   trend: {
@@ -68,11 +72,57 @@ const usageAnalysisDemo: UsageAnalysisResult = {
         dataAllowance: '11GB (소진 후 1Mbps)',
         voiceSms: '기본제공 / 기본제공 / 300분 무료',
         benefits: null,
+        image: 'plan/26.png',
       },
       annualSavings: (49000 - 26000) * 12,
     },
   },
 };
+
+// NearbyMembershipCard 데모용 - 실제 검색 결과가 0건이면 카드 자체가(모달을 열
+// 버튼까지) 안 뜨므로, 여기서는 항상 뜨는 가짜 데이터로 채운다. 강남역 인근 좌표.
+const nearbyMembershipDemo: NearbyMembership[] = [
+  {
+    brand: {
+      id: 'B001',
+      name: 'CGV',
+      category: '영화',
+      icon: null,
+      discountRules: { summary: '영화 최대 4,000원 할인' },
+    },
+    placeName: 'CGV 강남',
+    distanceMeters: 320,
+    lat: 37.4983,
+    lng: 127.0278,
+  },
+  {
+    brand: {
+      id: 'B002',
+      name: '스타벅스',
+      category: '카페',
+      icon: null,
+      discountRules: { summary: '사이렌오더 시 별 2배 적립' },
+    },
+    placeName: '스타벅스 강남역점',
+    distanceMeters: 150,
+    lat: 37.4975,
+    lng: 127.0281,
+  },
+  {
+    brand: {
+      id: 'B003',
+      name: 'GS25',
+      category: '편의점',
+      icon: null,
+      discountRules: { summary: '전 품목 5~10% 할인' },
+    },
+    placeName: 'GS25 강남대치점',
+    distanceMeters: 480,
+    lat: 37.4991,
+    lng: 127.0265,
+  },
+];
+const nearbyMembershipDemoLocation = { lat: 37.497942, lng: 127.027621 };
 
 export default function NotFoundPage() {
   // 모달 3종 미리보기용 상태 (임시)
@@ -114,7 +164,7 @@ export default function NotFoundPage() {
     // 중앙 정렬한다 - 이게 없으면 데모 박스들 때문에 페이지가 화면보다 넓어져 가로
     // 스크롤이 생기고, 스크롤을 밀어둔 채로 모달(fixed inset-0, 화면 기준 정중앙)을
     // 열면 문서 기준으로는 오른쪽에 쏠려 보이는 착시가 생긴다.
-    <div className="mx-auto max-w-(--width-container) px-4 pt-(--height-header)">
+    <div className="mx-auto min-h-dvh max-w-(--width-container) min-w-(--width-container-min) bg-background-subtle px-4 pt-(--height-header)">
       {/* 예시 1. 기본 형태 */}
       <div className="flex items-center gap-4">
         <LogIn />
@@ -182,6 +232,7 @@ export default function NotFoundPage() {
               max_benefit_value: '73,600원/월',
               tethering_sharing: '100GB',
             },
+            image: 'plan/75.png',
           }}
           rank={1}
           annualSavings={432000}
@@ -207,6 +258,7 @@ export default function NotFoundPage() {
               max_benefit_value: '73,600원/월',
               tethering_sharing: '100GB',
             },
+            image: 'plan/75.png',
           }}
           onJoin={() => {}}
         />
@@ -230,6 +282,7 @@ export default function NotFoundPage() {
               max_benefit_value: '73,600원/월',
               tethering_sharing: '100GB',
             },
+            image: 'plan/75.png',
           }}
         />
       </div>
@@ -313,6 +366,15 @@ export default function NotFoundPage() {
       형태 - 사용량 분석 카드 + 위 차트 + 절약 대안 요금제)
       <div className="m-5 w-90 rounded-md bg-background-subtle p-4">
         <UsageAnalysisSection data={usageAnalysisDemo} onJoin={() => {}} />
+      </div>
+      <br />내 주변 혜택 카드 (임시 데모 데이터 - 실제 검색 결과가 0건이면 카드
+      자체가 안 뜨므로, 여기서는 가짜 3곳으로 항상 채워둠. 미니 지도를 눌러야
+      전체 모달이 뜸)
+      <div className="m-5 w-90 rounded-md bg-background-subtle p-4">
+        <NearbyMembershipCard
+          memberships={nearbyMembershipDemo}
+          userLocation={nearbyMembershipDemoLocation}
+        />
       </div>
       <br />
       AI 어시스턴트 프로필
@@ -440,8 +502,9 @@ export default function NotFoundPage() {
         <ScrollToBottomButton onClick={() => {}} />
       </div>
       <br />
-      모달 3종 (ConfirmModal 통일 버전 - CHAT-014 대화 초기화 / AUTH-004 가입 이탈 /
-      로그인 시 회원·게스트 대화 충돌. 셋 다 내부적으로 같은 ConfirmModal을 씀)
+      모달 3종 (ConfirmModal 통일 버전 - CHAT-014 대화 초기화 / AUTH-004 가입
+      이탈 / 로그인 시 회원·게스트 대화 충돌. 셋 다 내부적으로 같은
+      ConfirmModal을 씀)
       <div className="m-5 flex flex-wrap items-center gap-2">
         <Button variant="outline" onClick={() => setIsResetModalOpen(true)}>
           1. ConfirmModal (대화 초기화)
@@ -456,10 +519,10 @@ export default function NotFoundPage() {
           variant={isExitDialogExiting ? 'main' : 'ghost'}
           onClick={() => setIsExitDialogExiting((prev) => !prev)}
         >
-          2번의 &quot;나가는 중...&quot; 상태 미리보기: {isExitDialogExiting ? 'ON' : 'OFF'}
+          2번의 &quot;나가는 중...&quot; 상태 미리보기:{' '}
+          {isExitDialogExiting ? 'ON' : 'OFF'}
         </Button>
       </div>
-
       <ConfirmModal
         isOpen={isResetModalOpen}
         title="대화를 초기화할까요?"
@@ -468,7 +531,6 @@ export default function NotFoundPage() {
         onConfirm={() => setIsResetModalOpen(false)}
         onCancel={() => setIsResetModalOpen(false)}
       />
-
       {isExitDialogOpen && (
         <ExitSignupDialog
           isExiting={isExitDialogExiting}
@@ -476,7 +538,6 @@ export default function NotFoundPage() {
           onConfirm={() => setIsExitDialogOpen(false)}
         />
       )}
-
       {isChatConflictOpen && (
         <ChatConflictModal
           guestMessageCount={3}

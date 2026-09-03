@@ -16,7 +16,7 @@ import { cn } from '@/shared/utils/cn';
 
 // PlanCard 가 가진 자기 폭. 인디케이터와 오른쪽 화살표를 카드 끝에 맞추는 데 쓴다.
 // PlanCard.tsx의 w-[min(80%,400px)]와 반드시 같은 값이어야 한다.
-const CARD_WIDTH = 'w-[min(80%,400px)]';
+const CARD_WIDTH = 'w-[min(80%,440px)]';
 
 /**
  * 카드 사이 간격(px). Tailwind 의 gap-4 와 같은 값이어야 한다.
@@ -72,8 +72,15 @@ export default function PlanCardCarousel({
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  // 렌더와 무관하게 최신 위치를 읽어야 해서 ref 로도 들고 있는다
+  // 렌더와 무관하게 최신 위치를 읽어야 해서 ref 로도 들고 있다 - 지금 화면에
+  // 표시 중인 순번이라, 미는 동안 실시간으로 따라 움직인다
   const activeIndexRef = useRef(0);
+  /*
+    한 판(스와이프 한 번)이 시작된 자리. 표시용 순번과 따로 두는 이유는, 아래에서
+    "세게 밀어도 옆 카드까지만" 잡아둘 때의 기준이 되기 때문이다 - 표시용은 미는
+    동안 계속 바뀌므로 그걸 기준 삼으면 여러 장을 그대로 지나쳐버린다.
+  */
+  const settledIndexRef = useRef(0);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const slideFrameRef = useRef<number | null>(null);
 
@@ -139,24 +146,42 @@ export default function PlanCardCarousel({
     const element = scrollAreaRef.current;
     if (!element) return;
 
+    // 칸 하나가 화면 폭 + 사이 간격이므로, 나눈 몫이 곧 카드 번호가 된다
+    const step = getSlideStep(element);
+    const lastIndex = recommendations.length - 1;
+
+    /*
+      인디케이터는 미는 즉시 따라온다 - 멎을 때까지 기다리면 손을 뗀 뒤에야 점이
+      옮겨가서 반 박자 늦게 보인다. 반쯤 넘어간 시점(round)에 바뀌므로, 밀다가
+      되돌리면 점도 같이 되돌아온다.
+
+      어디에 설지 "판정"하는 것은 여전히 아래 멎은 뒤에 한다 - 이건 화면 표시일 뿐이다.
+    */
+    const showing = Math.min(
+      Math.max(Math.round(element.scrollLeft / step), 0),
+      lastIndex,
+    );
+
+    if (showing !== activeIndexRef.current) {
+      activeIndexRef.current = showing;
+      setActiveIndex(showing);
+    }
+
     // 미는 도중에 되돌리면 화면이 덜컹거린다 - 멎은 뒤에 판단한다
     if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
 
     settleTimerRef.current = setTimeout(() => {
-      // 칸 하나가 화면 폭 + 사이 간격이므로, 나눈 몫이 곧 카드 번호가 된다
-      const step = getSlideStep(element);
       const landed = Math.round(element.scrollLeft / step);
 
-      // 세게 밀어 여러 장을 지나쳤어도 바로 옆 카드에서 멈춘다
+      // 세게 밀어 여러 장을 지나쳤어도 바로 옆 카드에서 멈춘다 - 기준은 표시용이
+      // 아니라 이번 판이 시작된 자리다
       const stepped = Math.min(
-        Math.max(landed, activeIndexRef.current - 1),
-        activeIndexRef.current + 1,
+        Math.max(landed, settledIndexRef.current - 1),
+        settledIndexRef.current + 1,
       );
-      const nextIndex = Math.min(
-        Math.max(stepped, 0),
-        recommendations.length - 1,
-      );
+      const nextIndex = Math.min(Math.max(stepped, 0), lastIndex);
 
+      settledIndexRef.current = nextIndex;
       activeIndexRef.current = nextIndex;
       setActiveIndex(nextIndex);
 
@@ -172,8 +197,8 @@ export default function PlanCardCarousel({
 
   /**
    * 화살표로 한 장 옮긴다. 스크롤만 시작하고 순번은 건드리지 않는다 -
-   * 스와이프와 똑같이 스크롤이 멎은 뒤 handleScroll 이 정하게 두어야,
-   * 카드가 미끄러지는 동안 인디케이터와 화살표가 먼저 바뀌지 않는다.
+   * 스와이프와 똑같이 handleScroll 이 정하게 두어야 두 경로가 같은 규칙으로 움직인다.
+   * (미끄러지는 동안 인디케이터는 handleScroll 이 실시간으로 따라 옮겨준다)
    */
   const handleStep = (delta: number) => {
     const nextIndex = Math.min(
@@ -189,6 +214,7 @@ export default function PlanCardCarousel({
   // (handleScroll 이 한 장씩만 움직이도록 잡아두기 때문).
   const handleSelectIndex = (index: number) => {
     slideTo(index);
+    settledIndexRef.current = index;
     activeIndexRef.current = index;
     setActiveIndex(index);
   };
@@ -252,7 +278,7 @@ export default function PlanCardCarousel({
           disabled={activeIndex === lastIndex}
           aria-label="다음 요금제 보기"
           className={cn(
-            'absolute top-1/2 left-[min(80%,400px)] ml-1 -translate-y-1/2 cursor-pointer text-text-secondary transition-colors hover:text-text-primary',
+            'absolute top-1/2 left-[min(80%,440px)] ml-1 -translate-y-1/2 cursor-pointer text-text-secondary transition-colors hover:text-text-primary',
             activeIndex === lastIndex && 'invisible',
           )}
         >

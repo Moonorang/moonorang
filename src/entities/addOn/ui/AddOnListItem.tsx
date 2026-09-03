@@ -33,7 +33,7 @@ export default function AddOnListItem({
   return (
     <Wrapper
       {...(onClick ? { type: 'button' as const, onClick } : {})}
-      className={`flex w-full flex-1 flex-col justify-between px-4 py-3 text-left ${onClick ? 'cursor-pointer' : ''}`}
+      className={`flex w-full flex-1 flex-col justify-between gap-2 p-4 text-left ${onClick ? 'cursor-pointer' : ''}`}
     >
       <div className="flex w-full items-center gap-2">
         <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border border-border-default">
@@ -44,16 +44,16 @@ export default function AddOnListItem({
             aria-hidden
           />
         </span>
-        <p className="min-w-0 truncate text-12 font-medium text-text-primary">
+        <p className="min-w-0 truncate text-14 font-medium text-text-primary">
           {addOn.title}
         </p>
       </div>
 
-      <p className="text-10 leading-relaxed text-text-primary">
+      <p className="text-12 text-text-primary">
         {description?.guide ?? addOn.subTitle}
       </p>
 
-      <p className="text-10 font-medium text-action-primary">
+      <p className="text-12 font-medium text-action-primary">
         {formatMonthlyFee(addOn.baseMonthlyRate)}
       </p>
 

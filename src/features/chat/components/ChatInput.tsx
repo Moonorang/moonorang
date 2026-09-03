@@ -2,7 +2,7 @@
 
 import type { ChangeEvent, FormEvent, KeyboardEvent } from 'react';
 
-import { Mic, Plus, Send, Square } from 'lucide-react';
+import { Plus, Send, Square } from 'lucide-react';
 
 import Button from '@/shared/ui/Button';
 import { cn } from '@/shared/utils/cn';
@@ -14,11 +14,13 @@ interface ChatInputProps {
   isPlusOpen?: boolean;
   // + 버튼 클릭
   onPlusClick?: () => void;
-  // 마이크 버튼 클릭
-  onMicClick?: () => void;
   // 응답 생성 중일 때 입력과 전송을 막음
   disabled?: boolean;
-  // CHAT-008: 응답 생성 중 중단 버튼 클릭. disabled(생성 중)일 때만 전송 버튼 자리에 뜬다.
+  // 지금 응답을 생성하는 중인지 - true일 때만 전송 버튼 자리가 중단 버튼으로
+  // 바뀐다. disabled=true인 다른 이유(예: 대화 복구 중)에는 중단할 게 없으므로
+  // 그냥 막힌 전송 버튼 그대로 둔다.
+  isGenerating?: boolean;
+  // CHAT-008: 응답 생성 중 중단 버튼 클릭. isGenerating일 때만 전송 버튼 자리에 뜬다.
   onStop?: () => void;
 
   isLocked?: boolean;
@@ -32,8 +34,8 @@ export default function ChatInput({
   onSend,
   isPlusOpen = false,
   onPlusClick,
-  onMicClick,
   disabled = false,
+  isGenerating = false,
   onStop,
   isLocked = false,
   placeholder = '무너에게 무엇이든 물어보세요!',
@@ -62,7 +64,7 @@ export default function ChatInput({
       onSubmit={handleSubmit}
       className={cn(
         'fixed inset-x-0 bottom-0 z-(--z-chat-input)',
-        'mx-auto flex w-full max-w-(--width-container) items-center gap-2',
+        'mx-auto flex w-full max-w-(--width-container) min-w-(--width-container-min) items-center gap-2',
         'border-t border-border-default bg-background-default px-4 py-2',
         appendClassName,
       )}
@@ -79,7 +81,7 @@ export default function ChatInput({
         <Plus size={20} aria-hidden />
       </Button>
 
-      <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-background-subtle px-4 py-2.5 focus-within:ring-1 focus-within:ring-action-secondary">
+      <div className="flex min-w-0 flex-1 items-center rounded-full bg-background-subtle px-4 py-2.5 focus-within:ring-1 focus-within:ring-action-secondary">
         <input
           type="text"
           value={value}
@@ -91,19 +93,9 @@ export default function ChatInput({
           placeholder={placeholder}
           className="min-w-0 flex-1 truncate bg-transparent text-14 text-text-primary placeholder:text-text-secondary focus:outline-none disabled:cursor-not-allowed"
         />
-
-        <button
-          type="button"
-          onClick={onMicClick}
-          disabled={isInputDisabled}
-          aria-label="음성으로 입력"
-          className="flex shrink-0 cursor-pointer items-center justify-center text-text-secondary transition-colors hover:text-action-primary disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Mic size={20} aria-hidden />
-        </button>
       </div>
 
-      {disabled ? (
+      {isGenerating ? (
         // CHAT-008: 응답 생성 중엔 전송 버튼 자리를 중단 버튼으로 바꾼다.
         // 입력창 자체는 계속 disabled여도, 이 버튼만은 항상 눌러 멈출 수 있어야 한다.
         <Button

@@ -17,6 +17,9 @@
   /* Background */
   --color-background-default: #ffffff;
   --color-background-subtle: #f8f8f8;
+  /* 콘텐츠 영역(최대 너비 컬럼) 바깥, 뷰포트 전체의 바탕색 - 각 페이지 루트는 이걸
+     물려받지 않도록 자기 배경색을 직접 칠해야 한다(안 그러면 컬럼 안쪽도 같이 검게 보임) */
+  --color-background-page: #000000;
 
   /* Text */
   --color-text-primary: #4a4a4a;
@@ -53,16 +56,19 @@
   --text-32: 32px;
 
   /* Line-height */
-  --leading-fixed: 18px;
+  --leading-fixed: 16px;
 
   /* 기본 그림자 */
   --shadow-default: 0px 4px 10px 0px rgba(181, 181, 181, 0.25);
 
-  /* 컨테이너 최대 너비 */
+  /* 컨테이너 최대/최소 너비 - 최소는 NFR-010(375px에서 가로 스크롤 없이 이용 가능)
+     기준을 그대로 가져왔다. 뷰포트가 이보다 좁아지면 컬럼이 억지로 안 줄어들고
+     대신 문서 자체가 가로 스크롤된다 - 이 폭 밑은 보장 대상이 아니라는 뜻. */
   --width-container: 768px;
+  --width-container-min: 375px;
 
   /* 기본 자간 */
-  --tracking-tight: -0.02em;
+  --tracking-tight: -0.04em;
 }
 
 /* 폰트 */
@@ -77,7 +83,6 @@
   --z-bottom-sheet: 300;
   --z-modal: 400;
   --z-toast: 500;
-  /* 앱 진입 시 잠깐 뜨는 인트로 화면 - 다른 모든 레이어(헤더/모달/토스트) 위에 떠야 한다 */
   --z-splash: 600;
 
   /* 헤더/입력창 고정 높이 */
@@ -85,11 +90,37 @@
   --height-chat-input: 58px;
 }
 
+/* 페이지마다 문서 스크롤바가 생겼다 없어졌다 하면, 그때마다 사용 가능한 너비가
+   스크롤바 폭만큼 바뀌어서 최대 너비 컬럼이 살짝 밀려 보인다(예: 채팅 <-> 카탈로그
+   이동). 스크롤바가 실제로 필요 없을 때도 그 자리를 항상 비워둬서 이 흔들림을 없앤다. */
+html {
+  scrollbar-gutter: stable;
+
+  /* 아무 데나 눌러 좌우로 끌면 문서가 통째로 밀려 화면이 흔들리던 것을 막는다.
+     body 에만 걸면 브라우저에 따라 뷰포트까지 전해지지 않아, 뿌리인 여기에도 같이 건다.
+
+     hidden 이 아니라 clip 인 이유는, hidden 은 다른 축(세로)까지 auto 로 끌어올려
+     스크롤 컨테이너를 만들기 때문이다 - clip 은 넘친 부분만 잘라내고 세로 스크롤은
+     그대로 둔다. */
+  overflow-x: clip;
+}
+
 body {
-  background: var(--color-background-subtle);
+  background: var(--color-background-page);
   color: var(--color-text-primary);
   font-family: var(--font-sans), sans-serif;
   letter-spacing: -0.04em;
+
+  /* 아무 데나 눌러 좌우로 끌면 문서가 통째로 밀려 화면이 흔들리던 것을 막는다.
+     세로로 긴 화면에서 가로로 몇 px 넘치는 요소가 하나만 있어도, 드래그 선택이
+     그 몇 px 을 왔다 갔다 밀어서 흔들림으로 보인다.
+
+     hidden 이 아니라 clip 인 이유는, hidden 은 body 를 스크롤 컨테이너로 만들어
+     sticky 요소와 안쪽 스크롤 계산에 영향을 주기 때문이다. clip 은 다른 축을
+     auto 로 끌어올리지 않고 넘친 부분만 잘라낸다.
+
+     세로 스크롤은 그대로다 - 채팅은 안쪽 목록이, 다른 화면은 문서가 스크롤한다. */
+  overflow-x: clip;
 }
 
 /* 가로 스크롤 영역(추천 질문 칩, 요금제 캐러셀 등)에서 스크롤바만 숨긴다 */

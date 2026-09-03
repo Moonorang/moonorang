@@ -83,7 +83,7 @@ export default function Modal({
               exit={{ x: '-100%' }}
               transition={{ type: 'tween', ease: 'easeOut', duration: 0.25 }}
               className={cn(
-                'pointer-events-auto flex h-full w-full max-w-(--width-container) flex-col bg-background-subtle',
+                'pointer-events-auto flex h-full w-full max-w-(--width-container) min-w-(--width-container-min) flex-col bg-background-subtle',
                 appendClassName,
               )}
             >

@@ -13,6 +13,17 @@ export const WELCOME_MESSAGE = `안녕하세요! 😊
 // 저장 구조가 바뀌면(마이그레이션 없이) 버전을 올려서 예전 값을 무시하게 한다.
 export const CHAT_STORAGE_KEY = 'moonorang:chat:v1';
 
+// CHAT-003: 입력창 위 추천 질문 칩. 튜토리얼(app/_tutorial)도 같은 내용을 그대로
+// 미리보기로 보여주므로, 그쪽에서도 이 배열을 그대로 가져다 쓴다.
+export const MESSAGE_SUGGESTIONS = [
+  '요금제 추천해줘',
+  '나에게 맞춰 요금제 추천',
+  '내 데이터 사용량 추세 보여줘',
+  '부가서비스 추천해줘',
+  '구독 상품 추천해줘',
+  '내 주변 멤버십 혜택 찾아줘',
+];
+
 // chat-api-design.md §2.6 - 미요약 8턴(=16개 메시지) 도달 시 요약, 최근 3턴은 제외.
 // 이 기준은 LLM 프롬프트 토큰 관리 목적이라 화면 표시 개수와는 별개로 유지한다.
 export const SUMMARIZE_TURN_THRESHOLD = 8;

@@ -10,7 +10,7 @@ const TAB_WIDTHS = ['w-9', 'w-15', 'w-14', 'w-9'];
  */
 export default function CatalogLoading() {
   return (
-    <main className="flex w-full flex-col pt-(--height-header)">
+    <main className="mx-auto flex min-h-dvh w-full max-w-(--width-container) min-w-(--width-container-min) flex-col bg-background-subtle pt-(--height-header)">
       {/* CatalogTabs 자리 */}
       <div className="flex gap-5 border-b border-border-light bg-background-default px-4">
         {TAB_WIDTHS.map((width, index) => (
