@@ -37,7 +37,7 @@ export default async function MyPage() {
   const billingMonth = getSeoulMonth();
 
   return (
-    <main className="mx-auto flex w-full max-w-(--width-container) flex-col gap-4 px-4 pt-(--height-header) pb-10">
+    <main className="mx-auto flex min-h-dvh w-full max-w-(--width-container) flex-col gap-4 bg-background-subtle px-4 pt-(--height-header) pb-10">
       <div className="mt-4 flex items-baseline justify-between gap-2">
         <h1 className="text-16 font-semibold text-text-primary">
           {profile.name ?? '고객'}님

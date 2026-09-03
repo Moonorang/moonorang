@@ -32,7 +32,7 @@ export default async function SignupPage({ searchParams }: SignupPageProps) {
   const plans = await getPlanOptions();
 
   return (
-    <main className="mx-auto flex w-full max-w-(--width-container) flex-col px-4 pt-(--height-header) pb-10">
+    <main className="mx-auto flex min-h-dvh w-full max-w-(--width-container) flex-col bg-background-subtle px-4 pt-(--height-header) pb-10">
       <h1 className="flex flex-col gap-5 pt-6 text-center text-16 font-medium text-text-primary">
         <span className="block font-display text-32">
           <span className="text-action-secondary">Moono</span>

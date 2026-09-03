@@ -115,7 +115,7 @@ export default function NotFoundPage() {
     // 중앙 정렬한다 - 이게 없으면 데모 박스들 때문에 페이지가 화면보다 넓어져 가로
     // 스크롤이 생기고, 스크롤을 밀어둔 채로 모달(fixed inset-0, 화면 기준 정중앙)을
     // 열면 문서 기준으로는 오른쪽에 쏠려 보이는 착시가 생긴다.
-    <div className="mx-auto max-w-(--width-container) px-4 pt-(--height-header)">
+    <div className="mx-auto min-h-dvh max-w-(--width-container) bg-background-subtle px-4 pt-(--height-header)">
       {/* 예시 1. 기본 형태 */}
       <div className="flex items-center gap-4">
         <LogIn />
