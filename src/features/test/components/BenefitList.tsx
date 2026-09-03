@@ -1,4 +1,4 @@
-import { MonitorPlay, ShieldCheck, Wifi } from 'lucide-react';
+import { MonitorPlay, ShieldCheck, Ticket, Wifi } from 'lucide-react';
 
 import type { BenefitIcon, TestBenefit } from '@/features/test/types';
 
@@ -19,6 +19,12 @@ const BENEFIT_STYLES: Record<
   shield: {
     icon: ShieldCheck,
     className: 'bg-accent-2-light text-accent-2',
+  },
+  // 쿠폰·할인처럼 "받아서 쓰는" 혜택. 결과 화면 세 줄이 서로 다른 아이콘을
+  // 갖도록 넷째 종류로 더했다.
+  ticket: {
+    icon: Ticket,
+    className: 'bg-action-primary-light text-action-primary',
   },
 };
 

@@ -8,7 +8,8 @@
 export type LeisureTypeId = 'jamjam' | 'daily' | 'pop' | 'super';
 
 // 맞춤 혜택 아이콘 종류 (lucide 아이콘에 매핑)
-export type BenefitIcon = 'monitor' | 'wifi' | 'shield';
+// 결과 화면은 세 줄이라 줄마다 다른 아이콘이 필요해서 ticket 을 더했다.
+export type BenefitIcon = 'monitor' | 'wifi' | 'shield' | 'ticket';
 
 // 문항 선택지 - score 는 1~4, 클수록 밖에서 활동적으로 쉬는 쪽이다
 export interface TestOption {
