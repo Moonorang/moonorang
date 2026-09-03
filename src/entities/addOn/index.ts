@@ -3,3 +3,5 @@
 export type { AddOn, AddOnDescription } from './types';
 export { ADD_ON_ICONS, ADD_ON_ICON_FALLBACK } from './lib/icons';
 export { default as AddOnListItem } from './ui/AddOnListItem';
+export { default as AddOnDetailCard } from './ui/AddOnDetailCard';
+export { default as AddOnDetailModal } from './ui/AddOnDetailModal';

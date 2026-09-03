@@ -4,11 +4,6 @@
 // (features끼리 직접 참조할 수 없어서, features/catalog 안에 있으면 그 재사용이 막힌다).
 export { default as CatalogView } from './ui/CatalogView';
 export { default as CatalogTabs } from './ui/CatalogTabs';
-export { default as PlanDetailModal } from './ui/PlanDetailModal';
-export { default as AddOnDetailModal } from './ui/AddOnDetailModal';
-export { default as AddOnDetailCard } from './ui/AddOnDetailCard';
-export { default as SubscriptionDetailModal } from './ui/SubscriptionDetailModal';
-export { default as SubscriptionDetailCard } from './ui/SubscriptionDetailCard';
 export { default as MembershipDetailModal } from './ui/MembershipDetailModal';
 export { default as MembershipDetailCard } from './ui/MembershipDetailCard';
 export { default as EmptyNotice } from './ui/EmptyNotice';

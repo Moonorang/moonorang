@@ -1,6 +1,6 @@
 import type { AddOn } from '@/entities/addOn/types';
+import type { JoinItem, JoinKind, JoinProgress } from '@/entities/join/types';
 import type { MembershipBrand } from '@/entities/membershipBrand/types';
-import type { PlanJoinProgress } from '@/entities/planJoin/types';
 import type { Plan } from '@/entities/plan/types';
 import type { Subscription } from '@/entities/subscription/types';
 import type { UsageAnalysisResult } from '@/entities/usage/types';
@@ -155,24 +155,23 @@ export interface ChatMessage {
   // usageAnalysis 이벤트가 오면 채워짐 (AI 메시지에만 해당)
   usageAnalysis?: UsageAnalysisResult;
   /**
-   * CARD-043: 가입을 마쳤을 때 남기는 메시지인지. 참이면 말풍선 아래에 축하 카드가
-   * 붙는다 - 카드에 담을 값이 따로 없어서 표시만 해둔다.
+   * CARD-043: 가입을 마쳤을 때 남기는 메시지인지. 값이 있으면 말풍선 아래에 축하
+   * 카드가 붙는다 - 축하 문구가 무엇을 가입했는지에 따라 달라서, 있다/없다가
+   * 아니라 그 종류를 담는다.
    */
-  isJoinResult?: boolean;
+  joinResultKind?: JoinKind;
 }
 
-/**
- * CARD-029: 신청하기로 띄운 가입 카드 한 장.
- * 대화 이력(messages)과는 별도로 쌓이지만 같이 저장·복구돼야 해서,
- * useChat(상태·저장)과 ChatRoom(렌더)이 같이 쓰는 이 자리에 둔다.
- */
-export interface PlanJoinBlock {
-  plan: Plan;
+/** JoinBlock 에서 상품 종류와 무관한 부분 */
+interface JoinBlockBase {
   /**
    * 이 메시지 바로 뒤에 끼워 넣는다 - 대화 순서를 지키기 위한 것.
    * 신청하기를 누른 시점의 마지막 메시지라, 카드는 늘 그때까지의 대화 끝에 붙는다.
+   *
+   * null 이면 대화의 맨 앞(환영 메시지 바로 뒤)이다. 목록 상세에서 바로 넘어온
+   * 경우처럼 아직 주고받은 말이 하나도 없을 때가 있는데, 그때도 카드는 떠야 한다.
    */
-  afterMessageId: string;
+  afterMessageId: string | null;
   /**
    * CARD-043: 결제까지 마친 카드인지. 카드 안에 두면 화면을 떠났다 돌아왔을 때
    * 다시 결제할 수 있게 되므로, 대화와 함께 저장되는 이 자리에 둔다.
@@ -182,8 +181,22 @@ export interface PlanJoinBlock {
    * CARD-046: 절차를 어디까지 밟았는지. 카카오 회원가입처럼 화면을 아주 떠났다
    * 돌아오는 경우가 있어서, 카드가 아니라 대화와 함께 저장되는 여기에 둔다.
    */
-  progress?: PlanJoinProgress;
+  progress?: JoinProgress;
 }
+
+/**
+ * CARD-029: 신청하기로 띄운 가입 카드 한 장.
+ * 대화 이력(messages)과는 별도로 쌓이지만 같이 저장·복구돼야 해서,
+ * useChat(상태·저장)과 ChatRoom(렌더)이 같이 쓰는 이 자리에 둔다.
+ *
+ * kind 로 가르는 판별 유니온인 이유는, 상품마다 카드에 넘길 값의 모양이 달라서다
+ * (요금제는 Plan, 부가서비스는 AddOn). 종류가 늘면 여기에 갈래를 하나 더하면 되고,
+ * 그러면 이 값을 다루는 곳들이 컴파일 오류로 한 번에 드러난다.
+ *
+ * 상품 번호는 item.id 에 이미 있어서 따로 갖지 않는다 - 카드를 찾을 때 쓰는
+ * JoinTarget 은 getJoinBlockTarget(lib/joinBlock.ts)으로 만들어 쓴다.
+ */
+export type JoinBlock = JoinBlockBase & JoinItem;
 
 /**
  * 회원의 chat_messages.content에 카드를 저장할 때 쓰는 JSON 모양. text 컬럼 하나뿐이라
@@ -197,17 +210,27 @@ export type ChatCardPayload =
   /**
    * 가입 카드 한 장. progress·isCompleted 는 절차가 진행될 때마다 이 마커 행을
    * 고쳐서 남긴다 - 새 행을 쌓으면 대화에 없는 말이 늘어나기 때문이다(CARD-043/046).
+   *
+   * kind 가 생기기 전에 저장된 행은 planId 만 갖고 있는데, 그 모양은 여기까지
+   * 올라오지 않는다 - tryParseCardPayload 가 읽으면서 요금제로 풀어준다.
    */
   | {
       type: 'join_flow';
-      planId: number;
-      progress?: PlanJoinProgress;
+      kind: JoinKind;
+      itemId: number;
+      progress?: JoinProgress;
       isCompleted?: boolean;
     }
-  /** 바로 앞 AI 메시지가 가입 결과라는 표시 - 말풍선 아래에 축하 카드가 붙는다 */
-  | { type: 'join_result' }
+  /**
+   * 바로 앞 AI 메시지가 가입 결과라는 표시 - 말풍선 아래에 축하 카드가 붙는다.
+   * 무엇을 가입한 결과인지에 따라 축하 문구가 달라서 kind 를 함께 남긴다.
+   */
+  | { type: 'join_result'; kind: JoinKind }
   | { type: 'recommendation'; plans: PlanRecommendation[] }
   | { type: 'add_on_recommendation'; addOns: AddOnRecommendation[] }
-  | { type: 'subscription_recommendation'; subscriptions: SubscriptionRecommendation[] }
+  | {
+      type: 'subscription_recommendation';
+      subscriptions: SubscriptionRecommendation[];
+    }
   | { type: 'nearby_membership'; memberships: NearbyMembership[] }
   | { type: 'usage_analysis'; data: UsageAnalysisResult };
