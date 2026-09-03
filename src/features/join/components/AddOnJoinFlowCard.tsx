@@ -5,12 +5,15 @@ import type { ReactNode } from 'react';
 
 import AddOnConfirmDetailStep from '@/features/join/components/AddOnConfirmDetailStep';
 import AddOnConfirmStep from '@/features/join/components/AddOnConfirmStep';
+import JoinAlreadyNotice from '@/features/join/components/JoinAlreadyNotice';
 import JoinCardFrame from '@/features/join/components/JoinCardFrame';
+import JoinCheckingNotice from '@/features/join/components/JoinCheckingNotice';
 import JoinSignupNotice from '@/features/join/components/JoinSignupNotice';
 import PaymentLoading from '@/features/join/components/PaymentLoading';
 import TermsStep from '@/features/join/components/TermsStep';
 import { ADD_ON_JOIN_STEPS } from '@/features/join/data/steps';
 import { ADD_ON_JOIN_TERMS } from '@/features/join/data/terms';
+import { useJoinAvailability } from '@/features/join/hooks/useJoinAvailability';
 import { useJoinSteps } from '@/features/join/hooks/useJoinSteps';
 import { useJoinSubmission } from '@/features/join/hooks/useJoinSubmission';
 import { completeAddOnJoin } from '@/features/join/server/actions';
@@ -85,6 +88,14 @@ export default function AddOnJoinFlowCard({
   // 첫 그리기에서는 방금 복구한 값을 그대로 되돌려 보내는 셈이라 알리지 않는다
   const isFirstProgressRef = useRef(true);
 
+  // COMMON-004: 이미 이용 중이면 절차를 열지 않는다
+  const availability = useJoinAvailability({
+    kind: 'addOn',
+    itemId: addOn.id,
+    isLoggedIn,
+    isCompleted,
+  });
+
   /** 신청하기부터 확정까지 - 세 가입 카드가 같이 쓰는 상태 기계 */
   const submission = useJoinSubmission({
     target: { kind: 'addOn', itemId: addOn.id },
@@ -151,6 +162,37 @@ export default function AddOnJoinFlowCard({
         >
           {renderSignup?.()}
         </JoinSignupNotice>
+      </JoinCardFrame>
+    );
+  }
+
+  /*
+   * 이미 이용 중이거나 아직 확인 중이면 절차 대신 이 안내가 카드를 채운다.
+   * 로그인 게이트와 같은 자리, 같은 이유다 - 끝까지 밟게 한 뒤 막지 않는다.
+   */
+  if (availability !== 'available') {
+    return (
+      <JoinCardFrame
+        cardRef={cardRef}
+        title={step.title}
+        progressPosition={progressPosition}
+        progressAriaLabel="부가서비스 가입 진행 상황"
+        isPrevDisabled
+        onPrev={handlePrev}
+      >
+        {availability === 'checking' ? (
+          <JoinCheckingNotice />
+        ) : (
+          <JoinAlreadyNotice
+            message={
+              <>
+                이미 이용 중인 부가서비스예요.
+                <br />
+                다른 부가서비스를 찾아보시겠어요?
+              </>
+            }
+          />
+        )}
       </JoinCardFrame>
     );
   }

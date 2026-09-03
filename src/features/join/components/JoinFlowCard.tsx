@@ -6,13 +6,16 @@ import type { ReactNode } from 'react';
 import CardStep from '@/features/join/components/CardStep';
 import ConfirmStep from '@/features/join/components/ConfirmStep';
 import IdentityStep from '@/features/join/components/IdentityStep';
+import JoinAlreadyNotice from '@/features/join/components/JoinAlreadyNotice';
 import JoinCardFrame from '@/features/join/components/JoinCardFrame';
+import JoinCheckingNotice from '@/features/join/components/JoinCheckingNotice';
 import JoinSignupNotice from '@/features/join/components/JoinSignupNotice';
 import PaymentLoading from '@/features/join/components/PaymentLoading';
 import PlanConfirmStep from '@/features/join/components/PlanConfirmStep';
 import TermsStep from '@/features/join/components/TermsStep';
 import { PLAN_JOIN_STEPS } from '@/features/join/data/steps';
 import { PLAN_JOIN_TERMS } from '@/features/join/data/terms';
+import { useJoinAvailability } from '@/features/join/hooks/useJoinAvailability';
 import { useJoinSteps } from '@/features/join/hooks/useJoinSteps';
 import { useJoinSubmission } from '@/features/join/hooks/useJoinSubmission';
 import { getBirthFromRrn, getGenderFromRrnCode } from '@/features/join/lib/rrn';
@@ -115,6 +118,14 @@ export default function JoinFlowCard({
   // 첫 그리기에서는 방금 복구한 값을 그대로 되돌려 보내는 셈이라 알리지 않는다
   const isFirstProgressRef = useRef(true);
 
+  // CARD-030: 회원에게는 '변경'을 연결하는데, 지금 쓰는 요금제로는 바꿀 것이 없다
+  const availability = useJoinAvailability({
+    kind: 'plan',
+    itemId: plan.id,
+    isLoggedIn,
+    isCompleted,
+  });
+
   /**
    * CARD-043/045: 결제하기부터 가입 확정까지. 여기서 현재 이용 요금제가 바뀐다 -
    * 저장이 실패하면 훅이 결제 정보 화면으로 되돌리고 사유를 보여주므로,
@@ -184,6 +195,38 @@ export default function JoinFlowCard({
 
   // 4. 렌더링
   const submitLabel = step.submitLabel;
+
+  /*
+   * 이미 쓰고 있는 요금제이거나 아직 확인 중이면 절차 대신 이 안내가 카드를 채운다.
+   * 비회원은 여기 걸리지 않는다 - 요금제는 비회원도 절차를 밟고 마지막에 회원가입으로
+   * 가는 흐름이라(CARD-044), 이용 중 여부를 물을 상대가 없다.
+   */
+  if (availability !== 'available') {
+    return (
+      <JoinCardFrame
+        cardRef={cardRef}
+        title={step.title}
+        progressPosition={progressPosition}
+        progressAriaLabel="요금제 가입 진행 상황"
+        isPrevDisabled
+        onPrev={handlePrev}
+      >
+        {availability === 'checking' ? (
+          <JoinCheckingNotice />
+        ) : (
+          <JoinAlreadyNotice
+            message={
+              <>
+                이미 이용 중인 요금제예요.
+                <br />
+                다른 요금제를 찾아보시겠어요?
+              </>
+            }
+          />
+        )}
+      </JoinCardFrame>
+    );
+  }
 
   // 결제 정보 자리에는 상황에 따라 셋 중 하나가 온다 -
   // 회원가입 안내(비회원) > 결제 처리 중 > 평소의 결제 정보

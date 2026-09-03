@@ -3,12 +3,18 @@
 import { z } from 'zod';
 
 import { getActiveAddOnIds } from '@/entities/addOn/server';
+import { getCurrentPlanId } from '@/entities/user/server';
 import { getActiveSubscriptionIds } from '@/entities/subscription/server';
 import { getNextBillingDate, toIsoDate } from '@/features/join/lib/billing';
 import { createClient } from '@/shared/lib/supabase/server';
 
 /** PostgreSQL unique 제약 위반 - 부분 unique index 로 막아둔 중복 신청이 여기로 온다 */
 const UNIQUE_VIOLATION_CODE = '23505';
+
+const joinTargetSchema = z.object({
+  kind: z.enum(['plan', 'addOn', 'subscription']),
+  itemId: z.number().int().positive(),
+});
 
 const completeSubscriptionJoinSchema = z.object({
   /** 신청한 구독 상품 */
@@ -214,4 +220,54 @@ export async function completeSubscriptionJoin(
   }
 
   return {};
+}
+
+export interface JoinAvailability {
+  /** 이미 이용 중이라 지금 신청할 수 없는 상태인지 */
+  isAlreadyJoined: boolean;
+}
+
+/**
+ * COMMON-004: 절차를 다 밟은 뒤 "이미 이용 중"으로 막지 않고, 카드를 여는 자리에서
+ * 미리 알려주기 위한 조회.
+ *
+ * 확정(completeXxxJoin)에서도 같은 확인을 한 번 더 한다 - 이쪽은 화면을 위한
+ * 것이고, 실제로 막는 것은 그쪽과 DB 제약이다. 카드를 여는 사이에 다른 기기에서
+ * 가입할 수도 있어서 이 답만 믿을 수는 없다.
+ *
+ * 비회원은 확인할 것이 없다 - 애초에 회원만 신청할 수 있고, 그 안내는 카드가
+ * 첫 단계에서 따로 한다.
+ */
+export async function getJoinAvailability(
+  input: unknown,
+): Promise<JoinAvailability> {
+  const parsed = joinTargetSchema.safeParse(input);
+
+  if (!parsed.success) return { isAlreadyJoined: false };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { isAlreadyJoined: false };
+
+  const { kind, itemId } = parsed.data;
+
+  switch (kind) {
+    case 'plan': {
+      // CARD-030 은 회원에게 '변경'을 연결하는데, 지금 쓰는 요금제로는 바꿀 것이 없다
+      return { isAlreadyJoined: (await getCurrentPlanId(user.id)) === itemId };
+    }
+    case 'addOn': {
+      const activeIds = await getActiveAddOnIds(user.id);
+
+      return { isAlreadyJoined: activeIds.includes(itemId) };
+    }
+    case 'subscription': {
+      const activeIds = await getActiveSubscriptionIds(user.id);
+
+      return { isAlreadyJoined: activeIds.includes(itemId) };
+    }
+  }
 }
