@@ -87,8 +87,21 @@ export default function IdentityStep({
           error={errors.rrnFront?.message ?? errors.rrnGenderCode?.message}
         >
           <div className="flex items-center gap-1.5">
-            {/* 배치(flex-1)는 감싸는 요소가 맡고, 입력 칸은 폭을 모른다 */}
-            <div className="flex-1">
+            {/*
+              배치는 감싸는 요소가 맡고, 입력 칸은 폭을 모른다.
+
+              폭은 받는 자릿수에 딱 맞춘다 - 숫자 6자 + 좌우 안쪽 여백. ch 는
+              숫자 0 한 자의 실제 폭이라 글꼴이 달라져도 따라오고, 1.75rem 은
+              px-3 양쪽(24px)과 테두리(2px) 몫이다. 늘지도 줄지도 않아야
+              6자리가 잘리지도, 빈 자리가 남지도 않는다.
+
+              text-12 를 여기 같이 두는 이유는 ch 가 "이 요소의" 글자 크기로
+              계산되기 때문이다 - 안 주면 물려받은 16px 로 재서 칸이 20px 쯤
+              넓어지고, 그 여백이 전부 오른쪽에 몰려 글자가 왼쪽으로 쏠린다.
+              남는 자리는 text-center 로 좌우에 고르게 나눈다(TextField 는
+              className 을 안 받으므로 물려받는 속성으로 정해준다).
+            */}
+            <div className="w-[calc(6ch_+_1.75rem)] shrink-0 text-center text-12">
               <TextField
                 id="join-rrn-front"
                 type="text"
@@ -110,10 +123,16 @@ export default function IdentityStep({
               세기를 알려주는 자리라 이것만 있으면 되고, 나머지 여섯 자리는 받지도
               저장하지도 않는다 - 안 받는다는 게 보이도록 * 만 그려둔다.
 
-              한 자리 칸이라도 w-10 아래로는 줄이지 않는다. 입력 칸의 좌우 안쪽
-              여백만 24px 이라, 그보다 좁으면 글자가 들어설 자리가 없어 찌그러진다.
+              폭은 한 자리에 맞춰 w-9(36px)로 잡는다. 입력 칸의 좌우 안쪽 여백이
+              24px 이니 글자가 설 자리는 12px 이고, 12px 글씨의 숫자 한 자(약 7px)가
+              여기 들어간다. w-8(32px) 부터는 남는 자리가 없어 찌그러진다.
+              양옆 칸과 달리 줄어들면 안 되는 자리라 shrink-0 로 고정한다.
+
+              글자는 가운데로 모아 남는 자리가 한쪽으로 쏠리지 않게 한다.
+              text-align 은 물려받는 속성이라 감싸는 요소에서 정해주면 되고,
+              TextField 는 className 을 받지 않으므로 이 방법이어야 한다.
             */}
-            <div className="w-10">
+            <div className="w-9 shrink-0 text-center">
               <TextField
                 id="join-rrn-gender-code"
                 type="text"
@@ -127,10 +146,14 @@ export default function IdentityStep({
               />
             </div>
 
-            {/* 입력 칸이 아니라 자리를 채우는 그림이라 보조기술에서는 감춘다 */}
+            {/*
+              입력 칸이 아니라 자리를 채우는 그림이라 보조기술에서는 감춘다.
+              폭이 모자랄 때 먼저 양보하는 쪽이라(min-w-0), 좁아지면 * 개수가
+              보이는 만큼만 남는다 - 칸 밖으로 삐져나가지 않게 overflow-hidden.
+            */}
             <p
               aria-hidden
-              className={`${FIELD_BASE_CLASS} ${FIELD_SIZE_STYLES.sm} flex-1 tracking-widest text-text-secondary`}
+              className={`${FIELD_BASE_CLASS} ${FIELD_SIZE_STYLES.sm} min-w-0 flex-1 overflow-hidden tracking-widest text-text-secondary`}
             >
               ******
             </p>
@@ -178,12 +201,14 @@ export default function IdentityStep({
         <MoVerification
           status={mo.status}
           isVerified={mo.isVerified}
-          qrCode={mo.qrCode}
           code={mo.code}
+          qrCode={mo.qrCode}
+          isQrLoading={mo.isQrLoading}
           secondsLeft={mo.secondsLeft}
           errorMessage={mo.errorMessage}
           isMobileNumValid={mobileNumSchema.safeParse(mobileNum).success}
-          onStart={() => void mo.start()}
+          onStart={mo.start}
+          onLoadQrCode={mo.loadQrCode}
         />
       </div>
     </JoinStepLayout>

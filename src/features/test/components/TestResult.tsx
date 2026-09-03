@@ -2,23 +2,42 @@
 
 import Image from 'next/image';
 
-import { Pencil, Share2 } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 
 import Button from '@/shared/ui/Button';
 import Tag from '@/shared/ui/Tag';
 
+import type { AddOn } from '@/entities/addOn/types';
+import type { MembershipBrand } from '@/entities/membershipBrand/types';
+import type { Plan } from '@/entities/plan/types';
+
 import BenefitList from '@/features/test/components/BenefitList';
 import SectionTitle from '@/features/test/components/SectionTitle';
 import { useTestResult } from '@/features/test/hooks/useTestResult';
+import { selectTypeBenefits } from '@/features/test/lib/selectTypeBenefits';
 
 interface TestResultProps {
   /** 사용자를 부를 이름. auth 는 feature 라 여기서 직접 못 읽고 app 이 넘겨준다 */
   displayName: string;
+  /** 요금제 전체. 유형에 어울리는 한 개를 첫 줄에 세운다 */
+  plans: Plan[];
+  /** U+ 멤버십 제휴 브랜드 전체. 유형에 맞는 카테고리만 골라 쓴다 */
+  brands: MembershipBrand[];
+  /** 부가서비스 전체. 취미와 맞닿은 것만 골라 쓴다 */
+  addOns: AddOn[];
 }
 
 /** TEST-007~012: 취미 성향 검사 결과 화면 본문 */
-export default function TestResult({ displayName }: TestResultProps) {
-  const { hasAnswer, result, retryTest, shareResult } = useTestResult();
+export default function TestResult({
+  displayName,
+  plans,
+  brands,
+  addOns,
+}: TestResultProps) {
+  const { hasAnswer, result, retryTest } = useTestResult();
+
+  // 첫 줄은 어울리는 요금제, 나머지는 혜택 - 순수 계산이라 같은 유형이면 늘 같다
+  const benefits = selectTypeBenefits(plans, brands, addOns, result.type.id);
 
   // 응답이 없으면 훅이 채팅으로 되돌리는 중이므로 아무것도 그리지 않는다
   if (!hasAnswer) return null;
@@ -67,43 +86,44 @@ export default function TestResult({ displayName }: TestResultProps) {
         </section>
       )}
 
-      {/* 맞춤 혜택 */}
-      <section className="flex flex-col gap-2">
-        <SectionTitle
-          title="취미에 어울리는 혜택"
-          iconSrc="/images/test/icon-benefit.png"
-          iconWidth={30}
-          iconHeight={27}
-          iconTone="red"
-        />
-        <BenefitList benefits={result.type.benefits} />
-      </section>
+      {/*
+        맞춤 요금제·혜택 - 고정 문구 대신 DB 에서 읽은 것을 세 줄로 세운다.
+        첫 줄은 어울리는 요금제, 나머지 두 줄은 지금 그대로 누리는 혜택이다
+        (U+ 멤버십 제휴 할인, 취미형 부가서비스, 요금제에 딸린 혜택 문구).
+        고를 것이 없을 때(조회 실패 등)는 빈 칸 대신 이 자리를 통째로 접는다.
+      */}
+      {benefits.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <SectionTitle
+            title="취미에 어울리는 요금제 및 혜택"
+            iconSrc="/images/test/icon-benefit.png"
+            iconWidth={30}
+            iconHeight={27}
+            iconTone="red"
+          />
+          <BenefitList benefits={benefits} />
+        </section>
+      )}
 
-      {/* 공유 / 재응시 (TEST-011, TEST-012) */}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          radius="sm"
-          size="lg"
-          gap="md"
-          onClick={retryTest}
-          appendClassName="flex-1"
-        >
-          <Pencil size={16} aria-hidden />
-          다시 테스트하기
-        </Button>
-        <Button
-          variant="main"
-          radius="sm"
-          size="lg"
-          gap="md"
-          onClick={shareResult}
-          appendClassName="flex-1"
-        >
-          <Share2 size={16} aria-hidden />
-          친구에게 공유하기
-        </Button>
-      </div>
+      {/*
+        재응시 (TEST-012).
+
+        공유하기(TEST-011)는 지금 빼두었다 - 검사 응답이 브라우저 메모리(testStore)에만
+        있어서, 링크를 받은 사람은 응답이 없어 결과를 못 보고 채팅으로 튕긴다.
+        결과를 링크에 담거나 서버에 저장하게 되면 그때 다시 세운다.
+        혼자 남은 버튼이 반쪽으로 보이지 않도록 폭을 가득 채운다.
+      */}
+      <Button
+        variant="main"
+        radius="full"
+        size="lg"
+        gap="md"
+        isFullWidth
+        onClick={retryTest}
+      >
+        <Pencil size={16} aria-hidden />
+        다시 테스트하기
+      </Button>
     </>
   );
 }

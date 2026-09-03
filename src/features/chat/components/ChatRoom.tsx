@@ -469,12 +469,12 @@ export default function ChatRoom({
     // COMMON-006: 폭을 768px로 제한하고 중앙 정렬한다. relative로 두는 이유는
     // 아래 PlusMenu의 absolute 팝업이 뷰포트가 아니라 이 폭 제한된 컬럼 기준으로
     // 자리잡게 하기 위함이다(안 그러면 넓은 화면에서 컬럼과 팝업 위치가 어긋난다).
-    <div className="relative mx-auto flex h-dvh w-full max-w-(--width-container) min-w-(--width-container-min) flex-col bg-background-subtle">
+    <div className="relative mx-auto flex h-dvh w-full max-w-(--width-container) min-w-(--width-container-min) flex-col overflow-x-clip bg-background-subtle">
       {/* height-header, height-chat-input 만큼 여백을 준다 (메시지가 가려지지 않도록) */}
       <div
         ref={scrollAreaRef}
         onScroll={handleScroll}
-        className="flex flex-1 flex-col overflow-y-auto pt-(--height-header) pb-(--height-chat-input)"
+        className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto pt-(--height-header) pb-(--height-chat-input)"
       >
         {/*
           복구가 아직 안 끝났다(주로 회원 - 서버에서 대화를 받아오는 1~2초 구간).
@@ -506,34 +506,34 @@ export default function ChatRoom({
             안내선. summary가 있다는 건 지금 안 보이는 이전 대화가 있다는 뜻이라, 갑자기
             대화가 끊긴 것처럼 보이지 않도록 경계를 표시한다.
           */}
-          {summary && (
-            <div className="flex items-center gap-2 text-10 text-text-secondary">
-              <span className="h-px flex-1 bg-border-light" />
-              {/*
+              {summary && (
+                <div className="flex items-center gap-2 text-10 text-text-secondary">
+                  <span className="h-px flex-1 bg-border-light" />
+                  {/*
                 왜 이 위가 안 보이는지를 짧은 안내선 문구만으로는 다 말할 수 없어서,
                 자세한 설명은 가리켰을 때만 펼친다. 버튼으로 두는 이유는 마우스가 없는
                 환경(NFR-010의 375px 모바일) 때문이다 - 탭하면 포커스가 잡혀 hover와
                 같은 안내가 뜬다.
               */}
-              <button
-                type="button"
-                className="group relative shrink-0 cursor-help text-text-secondary"
-              >
-                이전 대화 내용이 요약되었어요
-                <span
-                  role="tooltip"
-                  className="pointer-events-none invisible absolute top-full left-1/2 z-10 mt-1.5 w-74 -translate-x-1/2 rounded-md bg-background-default px-3 py-2 text-left text-12 text-text-primary opacity-0 shadow-default transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100"
-                >
-                  대화 내용이 길어지면 이전 내용을 요약해서 기억해요.
-                  <br />
-                  핵심을 압축해서 더 빠르고 원활하게 채팅을 도와드릴게요.
-                </span>
-              </button>
-              <span className="h-px flex-1 bg-border-light" />
-            </div>
-          )}
+                  <button
+                    type="button"
+                    className="group relative shrink-0 cursor-help text-text-secondary"
+                  >
+                    이전 대화 내용이 요약되었어요
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none invisible absolute top-full left-1/2 z-10 mt-1.5 w-74 -translate-x-1/2 rounded-md bg-background-default px-3 py-2 text-left text-12 text-text-primary opacity-0 shadow-default transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100"
+                    >
+                      대화 내용이 길어지면 이전 내용을 요약해서 기억해요.
+                      <br />
+                      핵심을 압축해서 더 빠르고 원활하게 채팅을 도와드릴게요.
+                    </span>
+                  </button>
+                  <span className="h-px flex-1 bg-border-light" />
+                </div>
+              )}
 
-          {/*
+              {/*
             아직 주고받은 말이 없을 때 띄운 가입 카드 - 붙을 메시지가 없어서
             환영 메시지 바로 뒤, 대화가 시작되기 전 자리에 그린다.
           */}
