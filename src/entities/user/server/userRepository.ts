@@ -73,10 +73,6 @@ interface MonthlyUsageRow {
 }
 
 /**
- * 최근 N개월(기본 3) 데이터 사용량. CARD-028.
- * billing_month 오름차순(과거→최근)으로 돌려준다 - 차트 x축에 그대로 쓰기 좋게.
- */
-/**
  * 지금 이용 중인 요금제 번호만 가볍게 조회한다.
  * getUserProfile 은 plans 조인까지 해서 프로필 전체를 만드는데, "이 요금제를
  * 이미 쓰고 있나"만 물을 때는 그만큼이 필요 없다.
@@ -96,6 +92,10 @@ export async function getCurrentPlanId(userId: string): Promise<number | null> {
   return data?.current_plan_id ?? null;
 }
 
+/**
+ * 최근 N개월(기본 3) 데이터 사용량. CARD-028.
+ * billing_month 오름차순(과거→최근)으로 돌려준다 - 차트 x축에 그대로 쓰기 좋게.
+ */
 export async function getRecentMonthlyUsage(
   userId: string,
   months = 3,

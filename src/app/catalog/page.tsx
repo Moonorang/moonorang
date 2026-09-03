@@ -10,7 +10,7 @@ function toCatalogTab(value: string | undefined): CatalogTab | undefined {
 }
 
 interface CatalogPageProps {
-  // CHAT-027~028: 채팅의 "둘러보기"처럼, 특정 탭을 미리 선택한 채로 진입시키는 용도.
+  // CARD-027~028: 채팅의 "둘러보기"처럼, 특정 탭을 미리 선택한 채로 진입시키는 용도.
   searchParams: Promise<{ tab?: string }>;
 }
 
