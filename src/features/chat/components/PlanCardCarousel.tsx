@@ -13,8 +13,9 @@ import type { PlanRecommendation } from '@/features/chat/types';
 
 import { cn } from '@/shared/utils/cn';
 
-// PlanCard 가 가진 자기 폭. 인디케이터와 오른쪽 화살표를 카드 끝에 맞추는 데 쓴다
-const CARD_WIDTH = 'w-[80%]';
+// PlanCard 가 가진 자기 폭. 인디케이터와 오른쪽 화살표를 카드 끝에 맞추는 데 쓴다.
+// PlanCard.tsx의 w-[min(80%,400px)]와 반드시 같은 값이어야 한다.
+const CARD_WIDTH = 'w-[min(80%,400px)]';
 
 /**
  * 카드 사이 간격(px). Tailwind 의 gap-4 와 같은 값이어야 한다.
@@ -240,14 +241,14 @@ export default function PlanCardCarousel({
           <ChevronLeft size={20} strokeWidth={1.5} aria-hidden />
         </button>
 
-        {/* left-[80%]: 카드가 끝나는 자리 - CARD_WIDTH 와 같은 값이다 */}
+        {/* left-[min(80%,400px)]: 카드가 끝나는 자리 - CARD_WIDTH 와 같은 값이다 */}
         <button
           type="button"
           onClick={() => handleStep(1)}
           disabled={activeIndex === lastIndex}
           aria-label="다음 요금제 보기"
           className={cn(
-            'absolute top-1/2 left-[80%] ml-1 -translate-y-1/2 cursor-pointer text-text-secondary transition-colors hover:text-text-primary',
+            'absolute top-1/2 left-[min(80%,400px)] ml-1 -translate-y-1/2 cursor-pointer text-text-secondary transition-colors hover:text-text-primary',
             activeIndex === lastIndex && 'invisible',
           )}
         >
