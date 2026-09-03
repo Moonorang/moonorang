@@ -171,7 +171,10 @@ export function useChat(isLoggedIn: boolean | undefined) {
                 : positionError.code === positionError.POSITION_UNAVAILABLE
                   ? '위치를 가져올 수 없음(OS 위치 서비스가 꺼져 있을 수 있음)'
                   : '시간 초과';
-            console.warn(`[chat] 위치 정보 요청 실패 - ${reason}:`, positionError.message);
+            console.warn(
+              `[chat] 위치 정보 요청 실패 - ${reason}:`,
+              positionError.message,
+            );
 
             locationPromiseRef.current = null;
             resolve(null);
@@ -545,6 +548,58 @@ export function useChat(isLoggedIn: boolean | undefined) {
     void summarizeIfNeeded().then(() => pruneVisibleMessages());
   }, [isLoggedIn, isRestored, summarizeIfNeeded, pruneVisibleMessages]);
 
+  /**
+   * CARD-029: 신청하기를 누르면(또는 채팅에서 "OO 가입할래"처럼 특정 상품을 콕
+   * 집으면) 대화에 가입 카드를 한 장 띄운다. afterMessageId 는 그 시점의 마지막
+   * 메시지 - 카드가 대화 끝에 이어 붙는다. 아직 주고받은 말이 없으면 null 로,
+   * 대화 맨 앞에 붙는다.
+   *
+   * runChatRequest(아래)가 joinFlowRequested SSE 이벤트를 받았을 때도 이 함수를
+   * 그대로 쓰므로, runChatRequest보다 먼저 선언해야 한다 - 그래야 참조가 순서상
+   * 안전하다(React Compiler가 선언 전 접근을 메모이제이션 보존 실패로 본다).
+   *
+   * 같은 상품 카드는 대화에 한 장만 둔다(dedupeJoinBlocks). 이미 있으면 새로
+   * 쌓는 대신 그 카드를 대화 끝으로 옮긴다. 회원이면 서버에도 같은 자리를
+   * 남겨서(POST /api/chat/join), 나중에 복구했을 때 이 카드가 그대로 다시 보이게 한다.
+   */
+  const addJoinBlock = useCallback(
+    (item: JoinItem, afterMessageId: string | null) => {
+      const target = { kind: item.kind, itemId: item.item.id };
+      const key = getJoinKey(target);
+      const existing = joinBlocksRef.current.find(
+        (block) => getJoinKey(getJoinBlockTarget(block)) === key,
+      );
+
+      // 같은 상품 카드가 이미 대화에 있으면 한 장 더 쌓지 않고 대화 끝으로 옮긴다.
+      // 카드가 저 위에 있으면 눌러도 아무 일도 안 일어난 것처럼 보이기 때문이다.
+      // 진행 상태는 그대로 들고 간다 - 다시 누른 것이지 처음부터 하겠다는 뜻은 아니다.
+      const moved: JoinBlock = { ...existing, ...item, afterMessageId };
+      const next: JoinBlock[] = [
+        ...joinBlocksRef.current.filter((block) => block !== existing),
+        moved,
+      ];
+      joinBlocksRef.current = next;
+      setJoinBlocks(next);
+
+      if (isLoggedIn) {
+        // 서버에는 마커를 새로 넣는다 - 옛 마커는 그대로 두어도 복구할 때
+        // 나중 것만 살아나므로(dedupeJoinBlocks) 지울 필요가 없다.
+        fetch('/api/chat/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...target, progress: existing?.progress }),
+        }).catch(() => {
+          // 서버에 못 남겨도 지금 화면에는 이미 카드가 떠 있으니 대화는 계속된다 -
+          // 다음에 복구할 때만 이 카드가 안 보일 뿐이다.
+        });
+        return;
+      }
+
+      persist();
+    },
+    [isLoggedIn, persist],
+  );
+
   const runChatRequest = useCallback(
     async (userText: string, aiMessageId: string, isRetry = false) => {
       // 재시도일 때는 곧바로 지우지 않는다 - 방금 실패한 사유를 그대로 보여준 채로
@@ -697,6 +752,11 @@ export function useChat(isLoggedIn: boolean | undefined) {
               );
             } else if (parsed?.event === 'nearbyMembership') {
               setAiMessageNearbyMemberships(parsed.data.memberships);
+            } else if (parsed?.event === 'joinFlowRequested') {
+              // CARD-029: 채팅에서 "너겟39 가입할래"처럼 특정 상품을 콕 집어
+              // 말했을 때 - "신청하기" 버튼을 눌렀을 때와 같은 경로로 카드를
+              // 연다. 지금 응답 중인 이 AI 메시지 바로 뒤에 붙인다.
+              addJoinBlock(parsed.data.item, aiMessageId);
             } else if (parsed?.event === 'locationNeeded') {
               // 이번 요청이 실제로 위치가 필요했는데 없었다는 신호 - 그제서야
               // 브라우저 권한을 요청한다. 지금 이 응답에 자동으로 반영되진 않고
@@ -742,7 +802,13 @@ export function useChat(isLoggedIn: boolean | undefined) {
         setIsStreaming(false);
       }
     },
-    [updateMessages, persist, summarizeIfNeeded, ensureLocationRequested],
+    [
+      updateMessages,
+      persist,
+      summarizeIfNeeded,
+      ensureLocationRequested,
+      addJoinBlock,
+    ],
   );
 
   /** CHAT-008: 응답 생성 중, 사용자가 직접 중단한다. */
@@ -822,53 +888,6 @@ export function useChat(isLoggedIn: boolean | undefined) {
       setIsRetrying(false);
     });
   }, [isStreaming, runChatRequest, updateMessages]);
-
-  /**
-   * CARD-029: 신청하기를 누르면 대화에 가입 카드를 한 장 띄운다.
-   * afterMessageId 는 누른 시점의 마지막 메시지 - 카드가 대화 끝에 이어 붙는다.
-   * 아직 주고받은 말이 없으면 null 로, 대화 맨 앞에 붙는다.
-   *
-   * 같은 상품 카드는 대화에 한 장만 둔다(dedupeJoinBlocks). 이미 있으면 새로
-   * 쌓는 대신 그 카드를 대화 끝으로 옮긴다. 회원이면 서버에도 같은 자리를
-   * 남겨서(POST /api/chat/join), 나중에 복구했을 때 이 카드가 그대로 다시 보이게 한다.
-   */
-  const addJoinBlock = useCallback(
-    (item: JoinItem, afterMessageId: string | null) => {
-      const target = { kind: item.kind, itemId: item.item.id };
-      const key = getJoinKey(target);
-      const existing = joinBlocksRef.current.find(
-        (block) => getJoinKey(getJoinBlockTarget(block)) === key,
-      );
-
-      // 같은 상품 카드가 이미 대화에 있으면 한 장 더 쌓지 않고 대화 끝으로 옮긴다.
-      // 카드가 저 위에 있으면 눌러도 아무 일도 안 일어난 것처럼 보이기 때문이다.
-      // 진행 상태는 그대로 들고 간다 - 다시 누른 것이지 처음부터 하겠다는 뜻은 아니다.
-      const moved: JoinBlock = { ...existing, ...item, afterMessageId };
-      const next: JoinBlock[] = [
-        ...joinBlocksRef.current.filter((block) => block !== existing),
-        moved,
-      ];
-      joinBlocksRef.current = next;
-      setJoinBlocks(next);
-
-      if (isLoggedIn) {
-        // 서버에는 마커를 새로 넣는다 - 옛 마커는 그대로 두어도 복구할 때
-        // 나중 것만 살아나므로(dedupeJoinBlocks) 지울 필요가 없다.
-        fetch('/api/chat/join', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...target, progress: existing?.progress }),
-        }).catch(() => {
-          // 서버에 못 남겨도 지금 화면에는 이미 카드가 떠 있으니 대화는 계속된다 -
-          // 다음에 복구할 때만 이 카드가 안 보일 뿐이다.
-        });
-        return;
-      }
-
-      persist();
-    },
-    [isLoggedIn, persist],
-  );
 
   /**
    * 회원의 가입 카드 진행 상태를 서버에도 남긴다.

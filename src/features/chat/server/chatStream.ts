@@ -29,11 +29,13 @@ import {
 import { runAddOnRecommendation } from '@/features/chat/server/recommendAddOns';
 import { runPlanRecommendation } from '@/features/chat/server/recommendPlans';
 import { runSubscriptionRecommendation } from '@/features/chat/server/recommendSubscriptions';
+import { runStartJoinFlow } from '@/features/chat/server/startJoinFlow';
 import { buildSystemPrompt } from '@/features/chat/server/systemPrompt';
 import {
   ACTION_TOOLS,
   parseExtractConditionsArguments,
   parseRecommendPlansArguments,
+  parseStartJoinFlowArguments,
 } from '@/features/chat/server/tools';
 import type {
   ChatCardPayload,
@@ -128,6 +130,14 @@ async function getToolResultContent(
       );
     case 'find_nearby_memberships':
       return runFindNearbyMemberships(location, send, membershipBrands);
+    case 'start_join_flow':
+      return runStartJoinFlow(
+        parseStartJoinFlowArguments(call.argsBuffer),
+        plans,
+        addOns,
+        subscriptions,
+        send,
+      );
     default:
       return { ok: true, keywords: mergedKeywords };
   }
@@ -337,6 +347,9 @@ export function createChatStream(
         let findNearbyMembershipsCall = turn1Calls.find(
           (call) => call.name === 'find_nearby_memberships',
         );
+        let startJoinFlowCall = turn1Calls.find(
+          (call) => call.name === 'start_join_flow',
+        );
 
         const mergedKeywords = extractCall
           ? mergeKeywords(
@@ -428,7 +441,8 @@ export function createChatStream(
           Boolean(showUsageTrendCall) ||
           Boolean(recommendAddOnsCall) ||
           Boolean(recommendSubscriptionsCall) ||
-          Boolean(findNearbyMembershipsCall);
+          Boolean(findNearbyMembershipsCall) ||
+          Boolean(startJoinFlowCall);
 
         if (extractCall && !calledActionInTurn1) {
           const decision = await streamCompletion({
@@ -461,6 +475,9 @@ export function createChatStream(
           findNearbyMembershipsCall = decision.toolCalls.find(
             (call) => call.name === 'find_nearby_memberships',
           );
+          startJoinFlowCall = decision.toolCalls.find(
+            (call) => call.name === 'start_join_flow',
+          );
 
           messagesWithTools = await appendToolRound(
             messagesWithTools,
@@ -476,7 +493,8 @@ export function createChatStream(
           Boolean(showUsageTrendCall) ||
           Boolean(recommendAddOnsCall) ||
           Boolean(recommendSubscriptionsCall) ||
-          Boolean(findNearbyMembershipsCall);
+          Boolean(findNearbyMembershipsCall) ||
+          Boolean(startJoinFlowCall);
 
         // 가드레일: 실행 도구가 끝내 하나도 안 불렸는데 1턴 텍스트에 실제 요금제명·
         // 부가서비스명·구독 상품명이 있으면 - 서버 계산을 거치지 않은 값이 확실하다

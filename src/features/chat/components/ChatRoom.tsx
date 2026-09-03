@@ -3,6 +3,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
+import { History } from 'lucide-react';
+
 import ConfirmModal from '@/shared/ui/ConfirmModal';
 
 import AddOnRecommendationCard from '@/features/chat/components/AddOnRecommendationCard';
@@ -557,26 +559,28 @@ export default function ChatRoom({
             대화가 끊긴 것처럼 보이지 않도록 경계를 표시한다.
           */}
               {summary && (
-                <div className="flex items-center gap-2 text-10 text-text-secondary">
+                <div className="flex items-center gap-2">
                   <span className="h-px flex-1 bg-border-light" />
                   {/*
-                왜 이 위가 안 보이는지를 짧은 안내선 문구만으로는 다 말할 수 없어서,
-                자세한 설명은 가리켰을 때만 펼친다. 버튼으로 두는 이유는 마우스가 없는
-                환경(NFR-010의 375px 모바일) 때문이다 - 탭하면 포커스가 잡혀 hover와
-                같은 안내가 뜬다.
+                "요약됐다"는 사실만으로는 사용자가 "그럼 내용을 잊은 건가?" 불안해할
+                수 있어서, 눈에 바로 보이는 문구 자체를 "그래도 계속 기억하고 있다"는
+                안심 쪽으로 썼다. 왜/어떻게 요약하는지 같은 자세한 설명은 가리켰을
+                때만 펼친다. 버튼으로 두는 이유는 마우스가 없는 환경(NFR-010의 375px
+                모바일) 때문이다 - 탭하면 포커스가 잡혀 hover와 같은 안내가 뜬다.
               */}
                   <button
                     type="button"
-                    className="group relative shrink-0 cursor-help text-text-secondary"
+                    className="group relative flex shrink-0 cursor-help items-center gap-1 rounded-full bg-background-default px-2.5 py-1 text-10 text-text-secondary shadow-default"
                   >
-                    이전 대화 내용이 요약되었어요
+                    <History size={11} strokeWidth={2} aria-hidden />
+                    여기까지의 대화는 요약해서 계속 기억하고 있어요
                     <span
                       role="tooltip"
                       className="pointer-events-none invisible absolute top-full left-1/2 z-10 mt-1.5 w-74 -translate-x-1/2 rounded-md bg-background-default px-3 py-2 text-left text-12 text-text-primary opacity-0 shadow-default transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100"
                     >
-                      대화 내용이 길어지면 이전 내용을 요약해서 기억해요.
+                      대화가 길어지면 이전 내용을 요약해서 핵심만 기억해요.
                       <br />
-                      핵심을 압축해서 더 빠르고 원활하게 채팅을 도와드릴게요.
+                      대화 맥락은 계속 이어지니 편하게 이야기해주세요.
                     </span>
                   </button>
                   <span className="h-px flex-1 bg-border-light" />
