@@ -9,18 +9,13 @@ import JoinCardFrame from '@/features/join/components/JoinCardFrame';
 import JoinSignupNotice from '@/features/join/components/JoinSignupNotice';
 import PaymentLoading from '@/features/join/components/PaymentLoading';
 import TermsStep from '@/features/join/components/TermsStep';
-import { PAYMENT_DELAY_MS } from '@/features/join/data/complete';
 import { ADD_ON_JOIN_STEPS } from '@/features/join/data/steps';
 import { ADD_ON_JOIN_TERMS } from '@/features/join/data/terms';
 import { useJoinSteps } from '@/features/join/hooks/useJoinSteps';
+import { useJoinSubmission } from '@/features/join/hooks/useJoinSubmission';
 import { completeAddOnJoin } from '@/features/join/server/actions';
 
 import type { AddOn } from '@/entities/addOn/types';
-import {
-  clearPendingJoinPayment,
-  hasPendingJoinPayment,
-  savePendingJoinPayment,
-} from '@/entities/join';
 import type { JoinProgress } from '@/entities/join/types';
 
 interface AddOnJoinFlowCardProps {
@@ -83,18 +78,21 @@ export default function AddOnJoinFlowCard({
    * 실제로 저장되는 started_at 은 서버가 정한다(completeAddOnJoin).
    */
   const [startedAt] = useState(() => new Date());
-  // 신청하기를 누른 뒤 결과가 대화에 나오기 전까지의 처리 중 상태
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  // 비회원이 신청하기를 눌러 회원가입 안내로 갈아탄 상태
-  const [isSignupRequired, setIsSignupRequired] = useState(false);
-  // COMMON-002: 신청을 저장하지 못했을 때 신청 확인 화면에 남기는 사유
-  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // 첫 그리기에서는 방금 복구한 값을 그대로 되돌려 보내는 셈이라 알리지 않는다
   const isFirstProgressRef = useRef(true);
-  // 회원가입을 마치고 돌아와 신청을 이어간 적이 있는지 - 한 번만 이어간다
-  const hasResumedSubmitRef = useRef(false);
-  const target = { kind: 'addOn' as const, itemId: addOn.id };
+
+  /** 신청하기부터 확정까지 - 세 가입 카드가 같이 쓰는 상태 기계 */
+  const submission = useJoinSubmission({
+    target: { kind: 'addOn', itemId: addOn.id },
+    isLoggedIn,
+    isCompleted,
+    errorFallbackMessage: '신청을 완료하지 못했어요. 다시 시도해 주세요.',
+    onSubmit: () => completeAddOnJoin({ addOnId: addOn.id }),
+    // 요금제와 달리 본인 확인이 없어 회원가입 화면에 넘길 값이 없다 -
+    // 추가 정보 화면이 평소대로 이름·연락처를 물어본다(onBeforeSignup 없음).
+    onComplete,
+  });
 
   // 2. 부수 효과
   // CARD-046: 어디까지 왔는지가 달라질 때마다 대화 쪽에 알려 함께 저장하게 한다.
@@ -109,91 +107,21 @@ export default function AddOnJoinFlowCard({
 
   // 3. 이벤트 핸들러
   const handlePrev = () => {
-    setIsSignupRequired(false);
-    // 신청하기를 물렀다는 뜻이므로, 돌아왔을 때 저절로 신청되지 않게 표식을 거둔다
-    clearPendingJoinPayment();
+    // 신청하기를 물렀다는 뜻이므로 회원가입 안내를 접고 이어가기 표식도 거둔다
+    submission.withdraw();
     goPrev();
   };
-
-  /** 처리가 끝난 뒤 - 이용 내역을 남기고 결과를 대화로 넘긴다 */
-  const finishSubmit = async () => {
-    // 서버 액션이 아예 실패(네트워크 끊김 등)하면 예외로 튀는데, 그대로 두면
-    // 처리 중 화면에 갇힌다. 사유를 보여주고 신청 확인으로 되돌린다(COMMON-002).
-    const { errorMessage } = await completeAddOnJoin({
-      addOnId: addOn.id,
-    }).catch((error: unknown) => {
-      console.error('[join] 부가서비스 신청 처리 실패', error);
-
-      return { errorMessage: '신청을 완료하지 못했어요. 다시 시도해 주세요.' };
-    });
-
-    setIsSubmitting(false);
-
-    if (errorMessage) {
-      setSubmitError(errorMessage);
-      return;
-    }
-
-    clearPendingJoinPayment();
-    onComplete?.();
-  };
-
-  const handleSubmit = () => {
-    if (isSubmitting || isCompleted) return;
-
-    setSubmitError(null);
-
-    // 신청은 회원만 할 수 있어서, 비회원은 회원가입부터 거친다.
-    // 요금제와 달리 본인 확인이 없어 넘길 값이 없으므로 signupPrefill 은 남기지 않는다 -
-    // 추가 정보 화면이 평소대로 이름·연락처를 물어본다.
-    if (!isLoggedIn) {
-      savePendingJoinPayment(target);
-      setIsSignupRequired(true);
-      return;
-    }
-
-    setIsSubmitting(true);
-  };
-
-  /*
-   * 아래 두 효과만 3번(이벤트 핸들러) 뒤에 있는 이유는 finishSubmit/handleSubmit 을
-   * 불러야 해서다. 타이머를 핸들러가 아니라 상태가 소유하는 이유는 JoinFlowCard 와
-   * 같다 - 화면이 다시 붙어도 타이머가 같이 되살아나야 '처리 중'에 갇히지 않는다.
-   */
-  useEffect(() => {
-    if (!isSubmitting) return;
-
-    const timer = setTimeout(() => void finishSubmit(), PAYMENT_DELAY_MS);
-
-    return () => clearTimeout(timer);
-    // finishSubmit 은 매 렌더 새로 만들어져서 넣으면 타이머가 계속 다시 걸린다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSubmitting]);
-
-  // 카카오 회원가입을 마치고 돌아왔으면 신청을 이어서 끝낸다(JoinFlowCard 와 같은 규칙)
-  useEffect(() => {
-    if (!isLoggedIn || isCompleted || isSubmitting) return;
-    if (hasResumedSubmitRef.current) return;
-    if (!hasPendingJoinPayment(target)) return;
-
-    hasResumedSubmitRef.current = true;
-
-    /* eslint-disable-next-line react-hooks/set-state-in-effect --
-       sessionStorage(외부 저장소)에 남은 표식을 읽어와 그때 시작하는 동작이라,
-       이 규칙이 막으려는 "반복 렌더로 이어지는 setState"가 아니다. */
-    handleSubmit();
-  });
 
   // 4. 렌더링
   const submitLabel = step.submitLabel;
 
   // 신청 확인 자리에는 상황에 따라 셋 중 하나가 온다 -
   // 회원가입 안내(비회원) > 처리 중 > 평소의 신청 확인
-  const confirmBody = isSignupRequired ? (
-    <JoinSignupNotice onPrev={() => setIsSignupRequired(false)}>
+  const confirmBody = submission.isSignupRequired ? (
+    <JoinSignupNotice onPrev={submission.closeSignupNotice}>
       {renderSignup?.()}
     </JoinSignupNotice>
-  ) : isSubmitting ? (
+  ) : submission.isSubmitting ? (
     <PaymentLoading />
   ) : (
     <AddOnConfirmStep
@@ -201,9 +129,9 @@ export default function AddOnJoinFlowCard({
       startedAt={startedAt}
       submitLabel={submitLabel}
       isCompleted={isCompleted}
-      errorMessage={submitError}
+      errorMessage={submission.errorMessage}
       onPrev={handlePrev}
-      onNext={handleSubmit}
+      onNext={submission.submit}
     />
   );
 
@@ -213,7 +141,9 @@ export default function AddOnJoinFlowCard({
       title={step.title}
       progressPosition={progressPosition}
       progressAriaLabel="부가서비스 가입 진행 상황"
-      isPrevDisabled={prevStepIndex === -1 || isSubmitting || isCompleted}
+      isPrevDisabled={
+        prevStepIndex === -1 || submission.isSubmitting || isCompleted
+      }
       onPrev={handlePrev}
     >
       {step.id === 'addOn' && (
