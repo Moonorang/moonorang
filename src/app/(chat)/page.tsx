@@ -54,7 +54,9 @@ export default function ChatPage() {
           // 종류마다 카드도 결과 문구도 달라서 여기서 가른다 - features/chat 은
           // 어떤 카드가 붙는지 모르고 자리만 잡아준다.
           const shared = {
-            isLoggedIn,
+            // 확인 중에는 undefined - 카드가 '비회원'으로 단정하고 로그인 안내를
+            // 띄웠다가 곧 지우는 깜빡임을 막는다
+            isLoggedIn: isAuthLoading ? undefined : isLoggedIn,
             renderSignup: () => <KakaoLoginButton />,
             isCompleted,
             progress,

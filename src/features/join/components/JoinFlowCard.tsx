@@ -188,7 +188,16 @@ export default function JoinFlowCard({
   // 결제 정보 자리에는 상황에 따라 셋 중 하나가 온다 -
   // 회원가입 안내(비회원) > 결제 처리 중 > 평소의 결제 정보
   const confirmBody = submission.isSignupRequired ? (
-    <JoinSignupNotice onPrev={submission.closeSignupNotice}>
+    <JoinSignupNotice
+      message={
+        <>
+          요금제 가입은 회원만 할 수 있어요.
+          <br />
+          카카오로 가입하고 이어서 진행해 주세요.
+        </>
+      }
+      onPrev={submission.closeSignupNotice}
+    >
       {renderSignup?.()}
     </JoinSignupNotice>
   ) : submission.isSubmitting ? (

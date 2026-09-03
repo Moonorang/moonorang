@@ -21,7 +21,10 @@ import type { JoinProgress } from '@/entities/join/types';
 interface AddOnJoinFlowCardProps {
   /** 신청할 부가서비스 */
   addOn: AddOn;
-  /** 신청은 회원만 할 수 있다 - 비회원은 카카오 회원가입부터 거친다 */
+  /**
+   * 신청은 회원만 할 수 있다 - 비회원은 첫 단계에서 로그인 안내로 막아선다.
+   * 아직 확인 중이면 undefined 로 온다.
+   */
   isLoggedIn?: boolean;
   /**
    * 비회원에게 보여줄 카카오 회원가입 버튼.
@@ -48,7 +51,7 @@ interface AddOnJoinFlowCardProps {
  */
 export default function AddOnJoinFlowCard({
   addOn,
-  isLoggedIn = false,
+  isLoggedIn,
   renderSignup,
   isCompleted = false,
   onComplete,
@@ -115,10 +118,56 @@ export default function AddOnJoinFlowCard({
   // 4. 렌더링
   const submitLabel = step.submitLabel;
 
+  /*
+   * 이 절차는 이미 쓰고 있는 회선에 항목을 얹는 일이라 회원이 아니면 성립하지
+   * 않는다. 그래서 요금제(CARD-044: 마지막 결제 단계에서 회원가입)와 달리, 절차를
+   * 다 밟게 한 뒤 막지 않고 시작하는 자리에서 알린다 - 약관까지 읽고 나서야
+   * 로그인하라는 말을 듣는 것이 사용자 입장에서 헛걸음이기 때문이다.
+   *
+   * 로그인하고 돌아오면 대화가 승계되면서(CHAT-011/012) 이 카드도 그대로 되살아나
+   * 여기서부터 이어진다.
+   *
+   * isLoggedIn 이 undefined 인 동안(확인 중)에는 막지 않는다 - 회원인데 잠깐
+   * 로그인 안내가 스쳤다 사라지는 깜빡임을 만들지 않기 위함이다.
+   */
+  if (isLoggedIn === false) {
+    return (
+      <JoinCardFrame
+        cardRef={cardRef}
+        title={step.title}
+        progressPosition={progressPosition}
+        progressAriaLabel="부가서비스 가입 진행 상황"
+        isPrevDisabled
+        onPrev={handlePrev}
+      >
+        <JoinSignupNotice
+          message={
+            <>
+              부가서비스 신청은 회원만 할 수 있어요.
+              <br />
+              카카오로 로그인하면 이어서 진행할 수 있어요.
+            </>
+          }
+        >
+          {renderSignup?.()}
+        </JoinSignupNotice>
+      </JoinCardFrame>
+    );
+  }
+
   // 신청 확인 자리에는 상황에 따라 셋 중 하나가 온다 -
   // 회원가입 안내(비회원) > 처리 중 > 평소의 신청 확인
   const confirmBody = submission.isSignupRequired ? (
-    <JoinSignupNotice onPrev={submission.closeSignupNotice}>
+    <JoinSignupNotice
+      message={
+        <>
+          부가서비스 신청은 회원만 할 수 있어요.
+          <br />
+          카카오로 가입하고 이어서 진행해 주세요.
+        </>
+      }
+      onPrev={submission.closeSignupNotice}
+    >
       {renderSignup?.()}
     </JoinSignupNotice>
   ) : submission.isSubmitting ? (

@@ -14,8 +14,8 @@ import type { JoinTarget } from '@/entities/join/types';
 interface UseJoinSubmissionParams {
   /** 어느 상품에 대한 절차인지 - 회원가입을 다녀오는 동안 표식으로 남는다 */
   target: JoinTarget;
-  /** CARD-044: 확정은 회원만 할 수 있다. 확인 중이면 거짓으로 온다 */
-  isLoggedIn: boolean;
+  /** CARD-044: 확정은 회원만 할 수 있다. 아직 확인 중이면 undefined */
+  isLoggedIn?: boolean;
   /** 이미 마친 절차인지 - 두 번 확정되지 않게 막는 기준 */
   isCompleted: boolean;
   /** 실제로 확정하는 서버 액션 호출 */
@@ -96,6 +96,9 @@ export function useJoinSubmission({
    */
   const submit = () => {
     if (isSubmitting || isCompleted) return;
+    // 로그인 여부를 아직 모르는 동안에는 아무 쪽으로도 가지 않는다 - 회원인데
+    // 확인이 안 끝났다는 이유로 회원가입 안내를 띄우면 안 된다
+    if (isLoggedIn === undefined) return;
 
     setErrorMessage(null);
 
