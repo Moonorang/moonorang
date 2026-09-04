@@ -115,6 +115,10 @@ export type ChatStreamEvent =
   | { event: 'keywords'; data: { keywords: ChatKeywords } }
   // CARD-022~026/028 - entities/usage(features/usage와 공유하는 도메인 개념)를 그대로 실어 보낸다
   | { event: 'usageAnalysis'; data: UsageAnalysisResult }
+  // CARD-029: 사용자가 채팅에서 특정 상품을 콕 집어 "가입할래"라고 말했을 때 -
+  // 서버가 실제 DB에서 조회해 확인한 상품(JoinItem)만 실어 보낸다. 클라이언트는
+  // 이걸 받아서 기존 "신청하기" 버튼과 똑같은 경로(addJoinBlock)로 카드를 연다.
+  | { event: 'joinFlowRequested'; data: { item: JoinItem } }
   | { event: 'done'; data: Record<string, never> }
   | { event: 'error'; data: { reason: ChatErrorReason; message: string } };
 

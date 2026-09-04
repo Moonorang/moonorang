@@ -62,12 +62,6 @@ export async function getAllSubscriptions(): Promise<Subscription[]> {
   return (data ?? []).map(mapSubscriptionRow);
 }
 
-/**
- * entities/addOn/server의 getAddOnAdoptionRates와 같은 원칙 - "N%의 고객님이
- * 선택했어요" 배지에 쓸 실 채택률. 분모는 전체 회원이 아니라 "구독 상품을 하나라도
- * 쓰는 회원 수"로 잡는다. PAUSED는 결제만 잠깐 멈춘 상태라 여전히 "쓰고 있다"고
- * 보되, CANCELED는 제외한다.
- */
 /** 번호로 구독 상품을 다시 조회한다 - 가입 카드를 복구할 때 쓴다 */
 export async function getSubscriptionsByIds(
   ids: number[],
@@ -111,6 +105,12 @@ export async function getActiveSubscriptionIds(
   return (data ?? []).map((row) => row.subscription_id);
 }
 
+/**
+ * entities/addOn/server의 getAddOnAdoptionRates와 같은 원칙 - "N%의 고객님이
+ * 선택했어요" 배지에 쓸 실 채택률. 분모는 전체 회원이 아니라 "구독 상품을 하나라도
+ * 쓰는 회원 수"로 잡는다. PAUSED는 결제만 잠깐 멈춘 상태라 여전히 "쓰고 있다"고
+ * 보되, CANCELED는 제외한다.
+ */
 export async function getSubscriptionAdoptionRates(): Promise<
   Map<number, number>
 > {

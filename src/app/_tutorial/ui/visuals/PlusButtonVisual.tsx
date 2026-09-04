@@ -27,8 +27,8 @@ const ITEMS: PlusFeatureItem[] = [
   },
   {
     // PlusMenu의 실제 항목명은 '상담 결과 PDF 출력'이지만, 튜토리얼에서는
-    // 같은 아이콘으로 '내 키워드 알아보기'를 소개한다
-    label: '내 키워드 알아보기',
+    // 같은 아이콘으로 '나의 관심사 알아보기'를 소개한다
+    label: '나의 관심사 알아보기',
     iconSrc: '/images/chat/icon-pdf-export.png',
     chipClassName: 'bg-action-primary-light',
     textClassName: 'text-action-primary',

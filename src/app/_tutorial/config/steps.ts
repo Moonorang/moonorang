@@ -28,7 +28,7 @@ export const TUTORIAL_STEPS: TutorialStepContent[] = [
     id: 'plus',
     title: '입력창 옆 + 버튼',
     description:
-      '대화 초기화, 취미 성향 검사, 상담 결과 PDF 출력까지 이 버튼 하나로 이용할 수 있어요.',
+      '대화 초기화, 취미 성향 검사, 관심사 알아보기 까지 이 버튼 하나로 이용할 수 있어요.',
     ctaLabel: '다음',
   },
   {

@@ -165,6 +165,78 @@ export function parseRecommendPlansArguments(
 }
 
 /**
+ * CARD-029: 사용자가 특정 요금제·부가서비스·구독 상품을 콕 집어 "가입할래"라고
+ * 말했을 때, 그 상품의 가입 절차 카드를 연다. kind·itemId는 시스템 프롬프트에
+ * 이미 준 카탈로그 목록에서 고르므로(NFR-003~004와 같은 원칙 - 이름·가격을 직접
+ * 만들어내지 않는다), 서버가 실제로 그 id가 존재하는지 다시 확인한 뒤에만 카드를
+ * 연다. 추천(recommend_plans 등)과는 다르다 - "어떤 게 좋을지 골라달라"가 아니라
+ * "이미 정했다"는 뜻일 때만 쓴다.
+ */
+export const START_JOIN_FLOW_TOOL: ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'start_join_flow',
+    description:
+      '사용자가 "너겟39 가입할래", "그 부가서비스 신청할래", "이 구독 상품 가입하고 ' +
+      '싶어"처럼 카탈로그에 있는 특정 상품을 콕 집어 가입 의사를 밝혔을 때 호출한다. ' +
+      '위 "현재 보유한 요금제/부가서비스/구독 상품 목록"에서 사용자가 말한 이름과 ' +
+      '가장 가깝게 일치하는 항목 하나를 골라 그 id를 itemId로 채운다. ' +
+      '**사용자가 말한 이름이 목록의 여러 항목과 헷갈리거나(예: 번호를 안 붙이고 ' +
+      '"너겟"이라고만 말함), 어떤 상품인지 확신이 안 서면 호출하지 말고 어떤 상품인지 ' +
+      '먼저 되물어라.** "요금제 추천해줘"처럼 아직 뭘 고를지 정하지 않은 요청에는 이 ' +
+      'tool이 아니라 recommend_plans 등을 쓴다 - 이 tool은 사용자가 이미 특정 상품을 ' +
+      '정했을 때만 쓴다.',
+    parameters: {
+      type: 'object',
+      properties: {
+        kind: {
+          type: 'string',
+          enum: ['plan', 'addOn', 'subscription'],
+          description:
+            '가입하려는 상품 종류 - 요금제/부가서비스/구독 상품 중 하나.',
+        },
+        itemId: {
+          type: 'integer',
+          description:
+            '위 카탈로그 목록에 있는 그 상품의 실제 id. 목록에 없는 번호를 지어내지 않는다.',
+        },
+      },
+      required: ['kind', 'itemId'],
+      additionalProperties: false,
+    },
+  },
+};
+
+export interface StartJoinFlowArguments {
+  kind: 'plan' | 'addOn' | 'subscription';
+  itemId: number;
+}
+
+// start_join_flow tool call의 JSON 문자열을 파싱한다. 스키마가 안 맞으면 null -
+// 호출부(chatStream.ts)가 조용히 실패 결과로 처리한다(CARD-014와 같은 원칙).
+export function parseStartJoinFlowArguments(
+  rawArguments: string,
+): StartJoinFlowArguments | null {
+  try {
+    const parsed = JSON.parse(rawArguments) as Record<string, unknown>;
+    const kind = parsed.kind;
+    const itemId = parsed.itemId;
+
+    if (
+      (kind === 'plan' || kind === 'addOn' || kind === 'subscription') &&
+      typeof itemId === 'number' &&
+      Number.isInteger(itemId)
+    ) {
+      return { kind, itemId };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * CARD-024: 로그인 사용자가 절약 판단도 3개월 추세도 필요 없이 "지금 내가 무슨 요금제를
  * 쓰고 있는지"만 알고 싶을 때. 최근 3개월 사용 이력이 없어도(가입한 지 얼마 안 된
  * 사용자 등) 동작한다 - analyze_savings/show_usage_trend와 달리 이력 조회 자체를 안
@@ -276,6 +348,7 @@ export const FIND_NEARBY_MEMBERSHIPS_TOOL: ChatCompletionTool = {
 export const CHAT_TOOLS: ChatCompletionTool[] = [
   EXTRACT_CONDITIONS_TOOL,
   RECOMMEND_PLANS_TOOL,
+  START_JOIN_FLOW_TOOL,
   SHOW_CURRENT_PLAN_TOOL,
   ANALYZE_SAVINGS_TOOL,
   SHOW_USAGE_TREND_TOOL,
@@ -289,6 +362,7 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
 // 이미 끝났으니 다시 후보로 줄 필요가 없다.
 export const ACTION_TOOLS: ChatCompletionTool[] = [
   RECOMMEND_PLANS_TOOL,
+  START_JOIN_FLOW_TOOL,
   SHOW_CURRENT_PLAN_TOOL,
   ANALYZE_SAVINGS_TOOL,
   SHOW_USAGE_TREND_TOOL,
