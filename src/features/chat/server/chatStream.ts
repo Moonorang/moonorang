@@ -13,6 +13,7 @@ import {
   getAllSubscriptions,
   getSubscriptionAdoptionRates,
 } from '@/entities/subscription/server';
+import { GUARDRAIL_FALLBACK_MESSAGE } from '@/features/chat/constants';
 import { runFindNearbyMemberships } from '@/features/chat/server/findNearbyMemberships';
 import { mergeKeywords } from '@/features/chat/lib/mergeKeywords';
 import { createSSESender, type SSESend } from '@/features/chat/lib/sse';
@@ -314,14 +315,16 @@ export function createChatStream(
 
         // 1턴은 아직 검증 전이라 텍스트를 화면에 안 보내고 서버가 들고 있는다
         // (emitTokens: false) - 가드레일을 통과해야 비로소 흘려보낸다.
-        const { toolCalls: turn1Calls, text: turn1Text } =
-          await streamCompletion({
-            messages,
-            useTools: true,
-            send,
-            emitTokens: false,
-            onStreamCreated: rememberStream,
-          });
+        const turn1Result = await streamCompletion({
+          messages,
+          useTools: true,
+          send,
+          emitTokens: false,
+          onStreamCreated: rememberStream,
+        });
+        const turn1Calls = turn1Result.toolCalls;
+        // let인 이유: 가드레일에 걸리면 이 값을 안전한 고정 문구로 바꿔치기한다(아래).
+        let turn1Text = turn1Result.text;
 
         const extractCall = turn1Calls.find(
           (call) => call.name === 'extract_conditions',
@@ -500,8 +503,18 @@ export function createChatStream(
         // 부가서비스명·구독 상품명이 있으면 - 서버 계산을 거치지 않은 값이 확실하다
         // (CARD-001/002, NFR-003~004). extractCall 여부와 무관하게 항상 검사한다 -
         // extract_conditions조차 안 부르고 곧바로 카탈로그를 옮겨 적는 경우(예: 조건
-        // 없이 "넷플릭스 관련 상품 있나요?")도 실제로 관측됐다. 아직 아무것도 화면에
-        // 안 나간 상태이므로 그대로 버리고 에러로 전환한다(CARD-006: 재시도 가능).
+        // 없이 "넷플릭스 관련 상품 있나요?")도 실제로 관측됐다.
+        //
+        // 걸리면 원문을 버리고 에러 이벤트만 보내는 대신, 서버가 직접 쓴 고정 문구
+        // (GUARDRAIL_FALLBACK_MESSAGE)로 이 턴의 텍스트를 바꿔치기한다. "이름을
+        // 나열하지 말고 되물으라"는 프롬프트 지시를 systemPrompt.ts에 아무리 명시해도
+        // 모델이 그 규칙만 놓치고 나머지는 따르는 경우(예: "OO을 말씀하시는 건지
+        // 알려주시겠어요? 너겟26, 너겟33 등이 있어요"처럼 되묻는 문장 자체는 지시대로
+        // 쓰면서 끝에 예시 이름을 덧붙임)가 실측으로 확인됐고, 발화에 따라서는
+        // 재현율이 100%에 가까웠다 - 프롬프트 튜닝만으로는 이 비율을 0으로 만들 수
+        // 없으므로, 사용자가 이유 없이 빈 화면과 재시도 안내만 보는 일이 없도록 이
+        // 안전망을 코드로 둔다. 대체 문구는 카탈로그 이름을 포함하지 않는 고정
+        // 텍스트라 가드레일 자체를 다시 건드리지 않는다.
         if (
           !actionConfirmed &&
           containsCatalogName(
@@ -516,14 +529,7 @@ export function createChatStream(
             '[api/chat] 가드레일: 추천 도구 없이 요금제·부가서비스·구독명 언급 감지 -',
             turn1Text,
           );
-          send({
-            event: 'error',
-            data: {
-              reason: 'invalid_format',
-              message: '추천 결과를 확인하지 못했습니다. 다시 시도해주세요.',
-            },
-          });
-          return;
+          turn1Text = GUARDRAIL_FALLBACK_MESSAGE;
         }
 
         // 가드레일을 통과한 1턴 텍스트를 이제 화면에 흘려보낸다.
